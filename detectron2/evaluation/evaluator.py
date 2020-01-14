@@ -5,6 +5,8 @@ import time
 from collections import OrderedDict
 from contextlib import contextmanager
 import torch
+import pickle
+from os import path
 
 from detectron2.utils.comm import is_main_process
 from detectron2.utils.logger import log_every_n_seconds
@@ -80,8 +82,15 @@ class DatasetEvaluators(DatasetEvaluator):
                     results[k] = v
         return results
 
+def save_obj(obj, save_path):
+    with open(save_path, 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
-def inference_on_dataset(model, data_loader, evaluator):
+def load_obj(save_path):
+    with open(save_path, 'rb') as f:
+        return pickle.load(f)
+
+def inference_on_dataset(model, data_loader, evaluator, overwrite=True):
     """
     Run model on the data_loader and evaluate the metrics with evaluator.
     The model will be used in eval mode.
@@ -107,51 +116,60 @@ def inference_on_dataset(model, data_loader, evaluator):
 
     total = len(data_loader)  # inference data loader must have a fixed length
     evaluator.reset()
+    
+    predictions_save_path = path.join(evaluator._output_dir,
+            f'predictions_{evaluator._dataset_name}.pkl')
+    if not overwrite:
+        # Load existing predictions if overwrite is false
+        evaluator._predictions = load_obj(predictions_save_path)
+    else:
 
-    num_warmup = min(5, total - 1)
-    start_time = time.perf_counter()
-    total_compute_time = 0
-    with inference_context(model), torch.no_grad():
-        for idx, inputs in enumerate(data_loader):
-            if idx == num_warmup:
-                start_time = time.perf_counter()
-                total_compute_time = 0
+        num_warmup = min(5, total - 1)
+        start_time = time.perf_counter()
+        total_compute_time = 0
+        with inference_context(model), torch.no_grad():
+            for idx, inputs in enumerate(data_loader):
+                if idx == num_warmup:
+                    start_time = time.perf_counter()
+                    total_compute_time = 0
 
-            start_compute_time = time.perf_counter()
-            outputs = model(inputs)
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-            total_compute_time += time.perf_counter() - start_compute_time
-            evaluator.process(inputs, outputs)
+                start_compute_time = time.perf_counter()
+                outputs = model(inputs)
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                total_compute_time += time.perf_counter() - start_compute_time
+                evaluator.process(inputs, outputs)
 
-            iters_after_start = idx + 1 - num_warmup * int(idx >= num_warmup)
-            seconds_per_img = total_compute_time / iters_after_start
-            if idx >= num_warmup * 2 or seconds_per_img > 5:
-                total_seconds_per_img = (time.perf_counter() - start_time) / iters_after_start
-                eta = datetime.timedelta(seconds=int(total_seconds_per_img * (total - idx - 1)))
-                log_every_n_seconds(
-                    logging.INFO,
-                    "Inference done {}/{}. {:.4f} s / img. ETA={}".format(
-                        idx + 1, total, seconds_per_img, str(eta)
-                    ),
-                    n=5,
-                )
+                iters_after_start = idx + 1 - num_warmup * int(idx >= num_warmup)
+                seconds_per_img = total_compute_time / iters_after_start
+                if idx >= num_warmup * 2 or seconds_per_img > 5:
+                    total_seconds_per_img = (time.perf_counter() - start_time) / iters_after_start
+                    eta = datetime.timedelta(seconds=int(total_seconds_per_img * (total - idx - 1)))
+                    log_every_n_seconds(
+                        logging.INFO,
+                        "Inference done {}/{}. {:.4f} s / img. ETA={}".format(
+                            idx + 1, total, seconds_per_img, str(eta)
+                        ),
+                        n=5,
+                    )
+        # Save to pickle
+        save_obj(evaluator._predictions, predictions_save_path)
 
-    # Measure the time only for this worker (before the synchronization barrier)
-    total_time = time.perf_counter() - start_time
-    total_time_str = str(datetime.timedelta(seconds=total_time))
-    # NOTE this format is parsed by grep
-    logger.info(
-        "Total inference time: {} ({:.6f} s / img per device, on {} devices)".format(
-            total_time_str, total_time / (total - num_warmup), num_devices
+        # Measure the time only for this worker (before the synchronization barrier)
+        total_time = time.perf_counter() - start_time
+        total_time_str = str(datetime.timedelta(seconds=total_time))
+        # NOTE this format is parsed by grep
+        logger.info(
+            "Total inference time: {} ({:.6f} s / img per device, on {} devices)".format(
+                total_time_str, total_time / (total - num_warmup), num_devices
+            )
         )
-    )
-    total_compute_time_str = str(datetime.timedelta(seconds=int(total_compute_time)))
-    logger.info(
-        "Total inference pure compute time: {} ({:.6f} s / img per device, on {} devices)".format(
-            total_compute_time_str, total_compute_time / (total - num_warmup), num_devices
+        total_compute_time_str = str(datetime.timedelta(seconds=int(total_compute_time)))
+        logger.info(
+            "Total inference pure compute time: {} ({:.6f} s / img per device, on {} devices)".format(
+                total_compute_time_str, total_compute_time / (total - num_warmup), num_devices
+            )
         )
-    )
 
     results = evaluator.evaluate()
     # An evaluator may return None when not in main process.

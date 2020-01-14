@@ -64,6 +64,7 @@ class LOFAREvaluator(DatasetEvaluator):
         self._tasks = self._tasks_from_config(cfg)
         self._distributed = distributed
         self._output_dir = output_dir
+        self._dataset_name = dataset_name
 
         self._cpu_device = torch.device("cpu")
         self._logger = logging.getLogger(__name__)
@@ -75,14 +76,13 @@ class LOFAREvaluator(DatasetEvaluator):
             cache_path = convert_to_coco_json(dataset_name, output_dir)
             self._metadata.json_file = cache_path
 
-        json_file = PathManager.get_local_path(self._metadata.json_file)
-        with contextlib.redirect_stdout(io.StringIO()):
-            self._coco_api = COCO(json_file)
+        #json_file = PathManager.get_local_path(self._metadata.json_file)
+        #with contextlib.redirect_stdout(io.StringIO()):
+        #    self._coco_api = COCO(json_file)
 
-        self._kpt_oks_sigmas = cfg.TEST.KEYPOINT_OKS_SIGMAS
         # Test set json files do not contain annotations (evaluation must be
         # performed using the COCO evaluation server).
-        self._do_evaluation = "annotations" in self._coco_api.dataset
+        #self._do_evaluation = "annotations" in self._coco_api.dataset
 
     def reset(self):
         self._predictions = []
@@ -189,15 +189,21 @@ class LOFAREvaluator(DatasetEvaluator):
                 f.write(json.dumps(self._coco_results))
                 f.flush()
 
-        if not self._do_evaluation:
-            self._logger.info("Annotations are not available for evaluation.")
-            return
+        #if not self._do_evaluation:
+        #    self._logger.info("Annotations are not available for evaluation.")
+        #    return
 
-        self._logger.info("Evaluating predictions ...")
+        self._logger.info("Evaluating predictions with LoTSS relevant metric...")
+
+        return self._predictions
+
+
+        # tasks are just ("bbox") in our case as we do not do segmentation or
+        # keypoint prediction
         for task in sorted(tasks):
             coco_eval = (
-                _evaluate_predictions_on_coco(
-                    self._coco_api, self._coco_results, task, kpt_oks_sigmas=self._kpt_oks_sigmas
+                _evaluate_predictions_on_lofar_score(
+                    self._coco_results, task
                 )
                 if len(self._coco_results) > 0
                 else None  # cocoapi does not handle empty results very well
@@ -487,38 +493,47 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
     }
 
 
-def _evaluate_predictions_on_coco(coco_gt, coco_results, iou_type, kpt_oks_sigmas=None):
+def get_bounding_boxes(output):
+    """Return bounding boxes inside inference output as numpy array
     """
-    Evaluate the coco results using COCOEval API.
+    assert "instances" in output
+    instances = output["instances"].to(torch.device("cpu"))
+    
+    return instances.get_fields()['pred_boxes'].tensor.numpy()
+
+
+def _evaluate_predictions_on_lofar_score(lofar_gt, coco_results, task):
+    """
+    Evaluate the results using our LOFAR appropriate score.
+
+        Evaluate self._predictions on the given tasks.
+        Fill self._results with the metrics of the tasks.
+
+        That is: for all proposed boxes that cover the middle pixel of the input image check which
+        sources from the component catalogue are inside. 
+        The predicted box can fail in three different ways:
+        1. No predicted box covers the middle pixel
+        2. The predicted box misses a number of components
+        3. The predicted box encompasses too many components
+        4. The prediction score for the predicted box is lower than other boxes that cover the middle
+            pixel
+        5. The prediction score is lower than x
+    
     """
     assert len(coco_results) > 0
+    assert task == ('bbox'), 'segmentation and keypoints are not used by LOFAR score'
+    print('Hier is coco_results:')
+    print(type(coco_results))
+    print(coco_results)
+    
 
-    if iou_type == "segm":
-        coco_results = copy.deepcopy(coco_results)
-        # When evaluating mask AP, if the results contain bbox, cocoapi will
-        # use the box area as the area of the instance, instead of the mask area.
-        # This leads to a different definition of small/medium/large.
-        # We remove the bbox field to let mask AP use mask area.
-        for c in coco_results:
-            c.pop("bbox", None)
+    # Get bounding boxes as numpy arrays
+    bboxes = [get_bounding_boxes(output) for output in outputs]
 
-    coco_dt = coco_gt.loadRes(coco_results)
-    coco_eval = COCOeval(coco_gt, coco_dt, iou_type)
-    # Use the COCO default keypoint OKS sigmas unless overrides are specified
-    if kpt_oks_sigmas:
-        coco_eval.params.kpt_oks_sigmas = np.array(kpt_oks_sigmas)
-
-    if iou_type == "keypoints":
-        num_keypoints = len(coco_results[0]["keypoints"]) // 3
-        assert len(coco_eval.params.kpt_oks_sigmas) == num_keypoints, (
-            "[COCOEvaluator] The length of cfg.TEST.KEYPOINT_OKS_SIGMAS (default: 17) "
-            "must be equal to the number of keypoints. However the prediction has {} "
-            "keypoints! For more information please refer to "
-            "http://cocodataset.org/#keypoints-eval.".format(num_keypoints)
-        )
-
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()
+    # 
+    
+    #coco_eval.evaluate()
+    #coco_eval.accumulate()
+    #coco_eval.summarize()
 
     return coco_eval
