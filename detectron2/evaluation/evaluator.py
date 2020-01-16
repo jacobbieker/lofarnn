@@ -138,6 +138,7 @@ def inference_on_dataset(model, data_loader, evaluator, overwrite=True):
                 if torch.cuda.is_available():
                     torch.cuda.synchronize()
                 total_compute_time += time.perf_counter() - start_compute_time
+                # Appends predicted instances to evaluator._predictions 
                 evaluator.process(inputs, outputs)
 
                 iters_after_start = idx + 1 - num_warmup * int(idx >= num_warmup)
@@ -150,7 +151,7 @@ def inference_on_dataset(model, data_loader, evaluator, overwrite=True):
                         "Inference done {}/{}. {:.4f} s / img. ETA={}".format(
                             idx + 1, total, seconds_per_img, str(eta)
                         ),
-                        n=5,
+                        n=10,
                     )
         # Save to pickle
         save_obj(evaluator._predictions, predictions_save_path)
@@ -170,6 +171,7 @@ def inference_on_dataset(model, data_loader, evaluator, overwrite=True):
                 total_compute_time_str, total_compute_time / (total - num_warmup), num_devices
             )
         )
+    return evaluator._predictions
 
     results = evaluator.evaluate()
     # An evaluator may return None when not in main process.
