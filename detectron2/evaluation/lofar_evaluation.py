@@ -126,12 +126,16 @@ class LOFAREvaluator(DatasetEvaluator):
             file_path = os.path.join(self._output_dir, "instances_predictions.pth")
             with PathManager.open(file_path, "wb") as f:
                 torch.save(self._predictions, f)
+        
+        includes_associated_fail_fraction, includes_unassociated_fail_fraction = \
+            _evaluate_predictions_on_lofar_score(self._gt_data, self._predictions, save_appendix=self._dataset_name, scale_factor=1, 
+                                        overwrite=False, summary_only=True)
 
         self._results = OrderedDict()
-        if "proposals" in self._predictions[0]:
-            self._eval_box_proposals()
-        if "instances" in self._predictions[0]:
-            self._eval_predictions(set(self._tasks))
+        self._results["assoc_single_fail_fraction"] = includes_associated_fail_fraction[0]
+        self._results["assoc_multi_fail_fraction"] = includes_associated_fail_fraction[1]
+        self._results["unassoc_single_fail_fraction"] = includes_unassociated_fail_fraction[0]
+        self._results["unassoc_multi_fail_fraction"] = includes_unassociated_fail_fraction[1]
         # Copy so the caller can do whatever with results
         return copy.deepcopy(self._results)
 
@@ -289,6 +293,356 @@ class LOFAREvaluator(DatasetEvaluator):
 
         results.update({"AP-" + name: ap for name, ap in results_per_category})
         return results
+
+
+def number_of_components_in_dataset(component_cat_path, image_dir):
+    """Counts the number and percentage of single component sources in all_image_dir.
+    Returns the filenames of the multi-component sources."""
+    # Load component catalogue
+    comp_cat = Table.read(component_cat_path).to_pandas()
+    comp_cat['Source_Name'] = comp_cat['Source_Name'].str.decode("utf-8")
+    comp_cat['Component_Name'] = comp_cat['Component_Name'].str.decode("utf-8")
+    comp_name_to_source_name_dict = {n:i for i,n in zip(comp_cat.Source_Name.values,
+                                                            comp_cat.Component_Name.values)}
+    
+    # Count the number of components per source name in the catalogue
+    counts = pd.value_counts(comp_cat['Source_Name'])
+    
+    # Get image names in all_image_dir
+    image_names = os.listdir(image_dir)
+    
+    # Remove the end of the filename to retrieve the central source names
+    source_names = [im.replace('_radio_DR2.png','') for im in  image_names]
+    fits_names = [im.replace('.png','.fits') for im in  image_names]
+    
+    # Check for duplicates (those should not exist)
+    assert len(source_names) == len(set(source_names)), 'duplicates should not exist'
+    
+    # Retrieve number of components per central source
+    comps = [counts[comp_name_to_source_name_dict[source_name]] for source_name in source_names]
+    
+    # Get number of single comp
+    single_comp = comps.count(1)
+    print(f'There are {single_comp} single component sources and {len(source_names)-single_comp} multi.')
+    print(f'Thus {single_comp/len(source_names)*100:.0f}% of the dataset is single component.')
+    # Names of multi_comp sources
+    multi_comp_source_names = [source_name for source_name, filename in zip(source_names, image_names)
+            if counts[comp_name_to_source_name_dict[source_name]] > 1]
+    return source_names, fits_names
+
+def save_obj(file_path, obj):
+    with open(file_path, 'wb') as output:  # Overwrites any existing file.
+        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
+
+def load_obj(file_path):
+    with open(file_path, 'rb') as input:
+        return pickle.load(input)
+        
+def _get_component_and_neighbouring_pixel_locations(source_names, fits_paths, component_cat_path,
+                        search_radius_arcsec=200, overwrite=False, save_appendix=''):
+    """Return pixel locations of the components associated with source_names
+    and pixel locations of the sources within search_radius."""
+    
+    comp_pixel_locs_save_path = f'cache/save_comp_pixel_locs_{save_appendix}.pkl'
+    central_pixel_locs_save_path = f'cache/save_central_pixel_locs_{save_appendix}.pkl'
+    close_comp_pixel_locs_save_path = f'cache/save_close_comp_pixel_locs_{save_appendix}.pkl'
+    if overwrite or not os.path.exists(comp_pixel_locs_save_path) or \
+            not os.path.exists(central_pixel_locs_save_path) or \
+            not os.path.exists(close_comp_pixel_locs_save_path):
+        # Load source cat
+        # Load source comp cat
+        comp_cat = Table.read(component_cat_path).to_pandas()
+        comp_cat['Source_Name'] = comp_cat['Source_Name'].str.decode("utf-8")
+        comp_cat['Component_Name'] = comp_cat['Component_Name'].str.decode("utf-8")
+        comp_name_to_source_name_dict = {n:i for i,n in zip(comp_cat.Source_Name.values,
+                                                            comp_cat.Component_Name.values)}
+        comp_name_to_index_dict = {n:i for i,n in zip(comp_cat.index.values,
+                                                            comp_cat.Component_Name.values)}
+        
+        # For each central source in val:  get other source comps if existent
+        # pickle this result because it is resource intensive
+        os.makedirs('cache', exist_ok=True)
+        comp_save_path = f'cache/save_comp_{save_appendix}.pkl'
+        if overwrite or not os.path.exists(comp_save_path):
+            component_names = [comp_cat[comp_cat.Source_Name == comp_name_to_source_name_dict[source_name]]
+                           for source_name in source_names]
+            save_obj(comp_save_path, component_names)
+        else:
+            component_names = load_obj(comp_save_path)
+            
+        # Get index of the component that we focus on now
+        central_skycoords = [SkyCoord(comp_cat.loc[comp_name_to_index_dict[source_name]].RA, 
+                                      comp_cat.loc[comp_name_to_index_dict[source_name]].DEC, unit='deg') 
+                             for source_name in source_names]
+        
+        # For each central source in val:  get all unrelated neighbouring sources in a radius of x arcsec
+        # Load WCS for each FITS image
+        wcss = [WCS(post.load_fits(fits_path)[1]) for fits_path in fits_paths]
+
+        # Get skycoords
+        skycoords = [SkyCoord(cat.RA, cat.DEC, unit='deg') for cat in component_names]
+        
+        # transform ra, decs to pixel coordinates
+        pixel_locs = [skycoord_to_pixel(skycoord, wcs, origin=0, mode='all') 
+                      for skycoord, wcs in zip(skycoords, wcss)]
+        central_pixel_locs = [skycoord_to_pixel(skycoord, wcs, origin=0, mode='all') 
+                      for skycoord, wcs in zip(central_skycoords, wcss)]
+
+        save_obj(comp_pixel_locs_save_path, pixel_locs)
+        save_obj(central_pixel_locs_save_path, central_pixel_locs)
+        print('Done saving (central) pixel locs.')
+        
+        # Get all sources in proximity of our central source (related or not)
+        search_radius_degree = search_radius_arcsec/3600
+        conditions = [((comp_cat.RA < comp_cat.loc[comp_name_to_index_dict[source_name]].RA
+                       +1.2*search_radius_degree) &
+                       (comp_cat.RA > comp_cat.loc[comp_name_to_index_dict[source_name]].RA
+                       -1.2*search_radius_degree) &
+                       (comp_cat.DEC < comp_cat.loc[comp_name_to_index_dict[source_name]].DEC
+                       +1.2*search_radius_degree) &
+                       (comp_cat.DEC < comp_cat.loc[comp_name_to_index_dict[source_name]].DEC
+                       +1.2*search_radius_degree) & (~comp_cat.index.isin(component_name.index)))
+                             for component_name, source_name in zip(component_names, source_names)]
+        close_comp_cats = [comp_cat[condition] for condition in conditions]
+        # Convert to skycoords
+        close_comp_skycoords = [SkyCoord(close_comp_cat.RA, close_comp_cat.DEC, unit='deg')
+                                for close_comp_cat in close_comp_cats]
+        # Get pixel locations
+        close_comp_pixel_locs = [skycoord_to_pixel(skycoord, wcs, origin=0, mode='all') 
+                      for skycoord, wcs in zip(close_comp_skycoords, wcss)]
+
+
+        save_obj(close_comp_pixel_locs_save_path, close_comp_pixel_locs)
+        print('Done saving neighbouring pixel locs.')
+
+    else:
+        pixel_locs = load_obj(comp_pixel_locs_save_path)
+        central_pixel_locs = load_obj(central_pixel_locs_save_path)
+        close_comp_pixel_locs = load_obj(close_comp_pixel_locs_save_path)
+    n_comps = [len(xs) for xs, ys in pixel_locs]
+    return n_comps, pixel_locs, central_pixel_locs, close_comp_pixel_locs
+
+
+def get_bounding_boxes(output):
+    """Return bounding boxes inside inference output as numpy array
+    """
+    assert "instances" in output
+    instances = output["instances"].to(torch.device("cpu"))
+    
+    
+    return instances.get_fields()['pred_boxes'].tensor.numpy()
+
+
+def is_within(x,y,xmin,ymin,xmax,ymax):
+    """Return true if x, y lies within xmin,ymin,xmax,ymax.
+    False otherwise.
+    """
+    if xmin <= x <= xmax and ymin <= y <= ymax:
+        return True
+    else:
+        return False
+   
+def area(bbox):
+    """Return area."""
+    xmin,ymin,xmax,ymax = bbox
+    width = xmax-xmin
+    height = ymax-ymin
+    area = width*height
+    if area < 0:
+        return None
+    return area
+
+def intersect_over_union(bbox1, bbox2):
+    """Return intersection over union or IoU."""
+    xmin1,ymin1,xmax1,ymax1 = bbox1
+    xmin2,ymin2,xmax2,ymax2 = bbox2
+    
+    intersection_area = area([max(xmin1,xmin2),
+                         max(ymin1,ymin2),
+                         min(xmax1,xmax2),
+                         min(ymax1,ymax2)])
+    if intersection_area is None:
+        return 0
+
+    union_area = area(bbox1)+area(bbox1)-intersection_area
+    assert intersection_area <= union_area
+    return intersection_area / union_area 
+
+
+def _check_if_pred_central_bbox_misses_comp(n_comps,comp_scores, summary_only=False):
+    """Check whether the predicted central box misses a number of assocatiated components
+        as indicated by the ground truth"""
+    # Tally for single comp
+    single_comp_success = [n_comp == total for n_comp, total in zip(n_comps, comp_scores) if n_comp == 1]
+
+    single_comp_success_frac = np.sum(single_comp_success)/len(single_comp_success)
+        
+    # Tally for multi comp
+    multi_comp_binary_success = [n_comp == total for n_comp, total in 
+                                 zip(n_comps, comp_scores) if n_comp > 1]
+    multi_comp_binary_success_frac = np.sum(multi_comp_binary_success)/len(multi_comp_binary_success)
+    if not summary_only:
+        print(f'{len(single_comp_success)-np.sum(single_comp_success)} single comp predictions'
+              f' (or {1-single_comp_success_frac:.1%}) fail to cover the central component of the source.')
+        print(f'{len(multi_comp_binary_success)-np.sum(multi_comp_binary_success)} multi comp predictions'
+                  f' (or {1-multi_comp_binary_success_frac:.1%}) fail to cover all components of the source.')
+        multi_comp_success = [total/n_comp for n_comp, total in zip(n_comps, comp_scores) if n_comp > 1]
+        plt.hist(multi_comp_success,bins=20)
+        plt.xlabel('Fraction of succesfully recovered components for multi-component sources (1 is best)')
+        plt.ylabel('Count')
+        plt.show()
+    return 1-single_comp_success_frac, 1-multi_comp_binary_success_frac
+    
+        
+def _check_if_pred_central_bbox_includes_unassociated_comps(n_comps,close_comp_scores, 
+                                                            summary_only=False):
+    """Check whether the predicted central box includes a number of unassocatiated components
+        as indicated by the ground truth"""
+    # Tally for single comp
+    single_comp_success = [total == 0 for n_comp, total in zip(n_comps, close_comp_scores) 
+                           if n_comp == 1]
+    if not summary_only:
+        single_comp_pie = Counter([total for n_comp, total in 
+                                     zip(n_comps, close_comp_scores) if n_comp == 1])
+        plt.pie(single_comp_pie.values(),labels=single_comp_pie.keys(),autopct='%1.1f%%')
+        plt.title('Number of recovered unassociated components for single-component sources (0 is best)')
+        plt.show()
+
+   
+    single_comp_success_frac = np.sum(single_comp_success)/len(single_comp_success)
+        
+    # Tally for multi comp
+    multi_comp_binary_success = [total == 0 for n_comp, total in 
+                                 zip(n_comps, close_comp_scores) if n_comp > 1]
+    multi_comp_success = [total for n_comp, total in zip(n_comps, close_comp_scores) if n_comp > 1]
+    multi_comp_binary_success_frac = np.sum(multi_comp_binary_success)/len(multi_comp_binary_success)
+    
+    if not summary_only:
+        print(f'{len(single_comp_success)-np.sum(single_comp_success)} single comp predictions'
+              f' (or {1-single_comp_success_frac:.1%}) include more than the central component of the source.')
+        print(f'{len(multi_comp_binary_success)-np.sum(multi_comp_binary_success)} multi comp predictions'
+              f' (or {1-multi_comp_binary_success_frac:.1%}) include more than the associated components of the source.')
+        multi_comp_pie = Counter([total for n_comp, total in 
+                                 zip(n_comps, close_comp_scores) if n_comp > 1])
+        plt.pie(multi_comp_pie.values(),labels=multi_comp_pie.keys(),autopct='%1.1f%%')
+        plt.title('Number of recovered unassociated components for multi-component sources (0 is best)')
+        plt.show()
+    return 1-single_comp_success_frac, 1-multi_comp_binary_success_frac
+
+    
+def _get_gt_bboxes(lofar_gt, central_locs, close_comp_locs, save_appendix=None, overwrite=False):
+    """Get ground truth bounding boxes"""
+    central_bboxes_save_path = f'cache/save_central_bboxes_{save_appendix}.pkl'
+
+    if overwrite or not os.path.exists(central_bboxes_save_path):
+        # Get bounding boxes per image as numpy arrays
+        bboxes_per_image = [[d['bbox'] for d in image_dict['annotations']] for image_dict in lofar_gt]
+
+
+        # Filter out bounding box per image that covers the central pixel of the focussed box
+        central_bboxes = [[tuple(bbox) for bbox in bboxes 
+                            if is_within(x*scale_factor,y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3])] 
+                              for bboxes, (x, y) in zip(bboxes_per_image, central_locs)]
+
+        # Filter out duplicates
+        central_bboxes = [list(set(bboxes)) for bboxes in central_bboxes]
+        # Assumption: Take only the smallest box left from this list
+        smallest_area_indices = [np.argmin([area(bbox) for bbox in bboxes]) if not bboxes == [] else None 
+                                 for bboxes in central_bboxes]
+
+        central_bboxes = [bboxes[ind] for bboxes, ind in zip(central_bboxes,smallest_area_indices)]
+
+        save_obj(central_bboxes_save_path, central_bboxes)
+        print('Done saving central_bboxes.')
+
+    else:
+        central_bboxes = load_obj(central_bboxes_save_path)
+    return central_bboxes
+   
+def _evaluate_predictions_on_lofar_score(lofar_gt, predictions, save_appendix='', scale_factor=1, 
+                                        overwrite=True, summary_only=False):
+    """ 
+    Evaluate the results using our LOFAR appropriate score.
+
+        Evaluate self._predictions on the given tasks.
+        Fill self._results with the metrics of the tasks.
+
+        That is: for all proposed boxes that cover the middle pixel of the input image check which
+        sources from the component catalogue are inside. 
+        The predicted box can fail in three different ways:
+        1. No predicted box covers the focussed box
+        2. The predicted central box misses a number of components
+        3. The predicted central box encompasses too many components
+        4. The prediction score for the predicted box is lower than other boxes that cover the middle
+            pixel
+        5. The prediction score is lower than x
+    
+    """
+
+    ###################### ground truth
+
+    # Get pixel locations of ground truth components
+    n_comps, locs, central_locs, close_comp_locs = _get_component_and_neighbouring_pixel_locations(
+        val_source_names, 
+                    val_fits_paths, component_cat_path, save_appendix=save_appendix, overwrite=overwrite)
+
+
+    ###################### prediction
+    # Get bounding boxes per image as numpy arrays
+    pred_bboxes_scores = [(image_dict['instances'].get_fields()['pred_boxes'].tensor.numpy(), 
+              image_dict['instances'].get_fields()['scores'].numpy()) 
+             for image_dict in predictions]
+
+
+    # Filter out bounding box per image that covers the focussed pixel
+    pred_central_bboxes_scores = [[(tuple(bbox),score) for bbox, score in zip(bboxes, scores) 
+                        if is_within(x*scale_factor,y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3])] 
+                          for (x, y), (bboxes, scores) in zip(central_locs, pred_bboxes_scores)]
+    
+    # 1. No predicted box covers the middle pixel
+    # can now be checked
+    #     fail_fraction_1 = (len(central_bboxes)-len(pred_central_bboxes_scores))/len(central_bboxes)
+    #     print(f'{(len(central_bboxes)-len(pred_central_bboxes_scores))} predictions '
+    #           f'(or {fail_fraction_1:.1%}) fail to cover the central component of the source.')
+    
+    # Take only the highest scoring bbox from this list
+    pred_central_bboxes_scores = [sorted(bboxes_scores, key=itemgetter(1), reverse=True)[0] 
+                                  for bboxes_scores in pred_central_bboxes_scores]
+    #return pred_central_bboxes_scores
+    # Return IoU with ground truth
+    if not summary_only:
+        central_bboxes = _get_gt_bboxes(lofar_gt, central_locs, close_comp_locs, 
+                                        save_appendix=save_appendix, overwrite=overwrite)
+
+        iou_pred_central_bboxes = [intersect_over_union(bbox,bbox_score[0])
+                                  for bbox, bbox_score in zip(central_bboxes, pred_central_bboxes_scores)]
+        print(f'Mean IoU of predicted box for central source is {np.mean(iou_pred_central_bboxes):.2f}'
+              f' with a std. dev. of {np.std(iou_pred_central_bboxes):.2f}')
+    
+    # Check if other source comps fall inside predicted central box
+    comp_scores = [np.sum([is_within(x*scale_factor,y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3]) 
+                    for x,y in zip(xs,ys)])
+                                      for (xs,ys), (bbox, score) in zip(locs, pred_central_bboxes_scores)]
+
+    # 2. The predicted central box misses a number of components
+    # can now be checked
+    includes_associated_fail_fraction = _check_if_pred_central_bbox_misses_comp(n_comps,comp_scores, 
+                                                summary_only=summary_only)
+    
+    # 3. The predicted central box encompasses too many components
+    # can now be checked
+    assert len(locs) == len(pred_central_bboxes_scores)
+    close_comp_scores = [np.sum([is_within(x*scale_factor,y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3]) 
+                for x,y in zip(xs,ys)])
+                        for (xs,ys), (bbox, score) in zip(close_comp_locs, pred_central_bboxes_scores)]
+    includes_unassociated_fail_fraction = _check_if_pred_central_bbox_includes_unassociated_comps(n_comps,close_comp_scores, 
+                                                            summary_only=summary_only)
+    return includes_associated_fail_fraction, includes_unassociated_fail_fraction
+
+def get_lofar_dicts(annotation_filepath):
+    with open(annotation_filepath, "rb") as f:
+        dataset_dicts = pickle.load(f)
+    return dataset_dicts
 
 
 def instances_to_coco_json(instances, img_id):

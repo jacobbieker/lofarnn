@@ -171,8 +171,6 @@ def inference_on_dataset(model, data_loader, evaluator, overwrite=True):
                 total_compute_time_str, total_compute_time / (total - num_warmup), num_devices
             )
         )
-    return evaluator._predictions
-
     results = evaluator.evaluate()
     # An evaluator may return None when not in main process.
     # Replace it by an empty dict instead to make it easier for downstream code to handle
