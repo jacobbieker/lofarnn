@@ -16,6 +16,18 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from tabulate import tabulate
 
+import sys
+from astropy.wcs import WCS
+from astropy.coordinates import SkyCoord
+from astropy.wcs.utils import skycoord_to_pixel, pixel_to_skycoord
+sys.path.insert(1, '/data/mostertrij/LOFAR-PINK-library')
+import pinklib.postprocessing as post
+from astropy.table import Table
+import pandas as pd
+from collections import Counter
+from operator import itemgetter
+
+
 import detectron2.utils.comm as comm
 from detectron2.data import MetadataCatalog
 from detectron2.data.datasets.coco import convert_to_coco_json
@@ -45,7 +57,8 @@ class LOFAREvaluator(DatasetEvaluator):
 
     """
 
-    def __init__(self, dataset_name, cfg, gt_data, distributed, output_dir=None):
+    def __init__(self, dataset_name, cfg, gt_data, distributed, output_dir=None,
+            component_cat_path=None, image_dir=None, scale_factor=1):
         """
         Args:
             dataset_name (str): name of the dataset to be evaluated.
@@ -66,6 +79,9 @@ class LOFAREvaluator(DatasetEvaluator):
         self._output_dir = output_dir
         self._dataset_name = dataset_name
         self._gt_data = gt_data
+        self._component_cat_path = component_cat_path
+        self._image_dir = image_dir
+        self._scale_factor = scale_factor
 
         self._cpu_device = torch.device("cpu")
         self._logger = logging.getLogger(__name__)
@@ -128,8 +144,11 @@ class LOFAREvaluator(DatasetEvaluator):
                 torch.save(self._predictions, f)
         
         includes_associated_fail_fraction, includes_unassociated_fail_fraction = \
-            _evaluate_predictions_on_lofar_score(self._gt_data, self._predictions, save_appendix=self._dataset_name, scale_factor=1, 
-                                        overwrite=False, summary_only=True)
+            _evaluate_predictions_on_lofar_score(self._gt_data, self._predictions,
+                    save_appendix=self._dataset_name, scale_factor=self._scale_factor, 
+                                        overwrite=False, summary_only=True,
+                                        comp_cat_path=self._component_cat_path,
+                                        image_dir=self._image_dir)
 
         self._results = OrderedDict()
         self._results["assoc_single_fail_fraction"] = includes_associated_fail_fraction[0]
@@ -295,39 +314,44 @@ class LOFAREvaluator(DatasetEvaluator):
         return results
 
 
-def number_of_components_in_dataset(component_cat_path, image_dir):
+def number_of_components_in_dataset(component_cat_path, image_dir, overwrite=True, save_appendix=''):
     """Counts the number and percentage of single component sources in all_image_dir.
     Returns the filenames of the multi-component sources."""
-    # Load component catalogue
-    comp_cat = Table.read(component_cat_path).to_pandas()
-    comp_cat['Source_Name'] = comp_cat['Source_Name'].str.decode("utf-8")
-    comp_cat['Component_Name'] = comp_cat['Component_Name'].str.decode("utf-8")
-    comp_name_to_source_name_dict = {n:i for i,n in zip(comp_cat.Source_Name.values,
-                                                            comp_cat.Component_Name.values)}
-    
-    # Count the number of components per source name in the catalogue
-    counts = pd.value_counts(comp_cat['Source_Name'])
-    
-    # Get image names in all_image_dir
-    image_names = os.listdir(image_dir)
-    
-    # Remove the end of the filename to retrieve the central source names
-    source_names = [im.replace('_radio_DR2.png','') for im in  image_names]
-    fits_names = [im.replace('.png','.fits') for im in  image_names]
-    
-    # Check for duplicates (those should not exist)
-    assert len(source_names) == len(set(source_names)), 'duplicates should not exist'
-    
-    # Retrieve number of components per central source
-    comps = [counts[comp_name_to_source_name_dict[source_name]] for source_name in source_names]
-    
-    # Get number of single comp
-    single_comp = comps.count(1)
-    print(f'There are {single_comp} single component sources and {len(source_names)-single_comp} multi.')
-    print(f'Thus {single_comp/len(source_names)*100:.0f}% of the dataset is single component.')
-    # Names of multi_comp sources
-    multi_comp_source_names = [source_name for source_name, filename in zip(source_names, image_names)
-            if counts[comp_name_to_source_name_dict[source_name]] > 1]
+    source_names_fits_names_save_path = f'cache/save_source_names_fits_paths_{save_appendix}.pkl'
+    if overwrite or not os.path.exists(source_names_fits_names_save_path):
+        # Load component catalogue
+        comp_cat = Table.read(component_cat_path).to_pandas()
+        comp_cat['Source_Name'] = comp_cat['Source_Name'].str.decode("utf-8")
+        comp_cat['Component_Name'] = comp_cat['Component_Name'].str.decode("utf-8")
+        comp_name_to_source_name_dict = {n:i for i,n in zip(comp_cat.Source_Name.values,
+                                                                comp_cat.Component_Name.values)}
+        
+        # Count the number of components per source name in the catalogue
+        counts = pd.value_counts(comp_cat['Source_Name'])
+        
+        # Get image names in all_image_dir
+        image_names = os.listdir(image_dir)
+        
+        # Remove the end of the filename to retrieve the central source names
+        source_names = [im.replace('_radio_DR2.png','') for im in  image_names]
+        fits_names = [im.replace('.png','.fits') for im in  image_names]
+        
+        # Check for duplicates (those should not exist)
+        assert len(source_names) == len(set(source_names)), 'duplicates should not exist'
+        
+        # Retrieve number of components per central source
+        comps = [counts[comp_name_to_source_name_dict[source_name]] for source_name in source_names]
+        
+        # Get number of single comp
+        single_comp = comps.count(1)
+        print(f'There are {single_comp} single component sources and {len(source_names)-single_comp} multi.')
+        print(f'Thus {single_comp/len(source_names)*100:.0f}% of the dataset is single component.')
+        # Names of multi_comp sources
+        multi_comp_source_names = [source_name for source_name, filename in zip(source_names, image_names)
+                if counts[comp_name_to_source_name_dict[source_name]] > 1]
+        save_obj(source_names_fits_names_save_path, [source_names, fits_names] )
+    else:
+        source_names, fits_names = load_obj(source_names_fits_names_save_path) 
     return source_names, fits_names
 
 def save_obj(file_path, obj):
@@ -560,7 +584,9 @@ def _get_gt_bboxes(lofar_gt, central_locs, close_comp_locs, save_appendix=None, 
     return central_bboxes
    
 def _evaluate_predictions_on_lofar_score(lofar_gt, predictions, save_appendix='', scale_factor=1, 
-                                        overwrite=True, summary_only=False):
+                                        overwrite=True, summary_only=False,
+                                        comp_cat_path=None,
+                                        image_dir=None):
     """ 
     Evaluate the results using our LOFAR appropriate score.
 
@@ -580,11 +606,13 @@ def _evaluate_predictions_on_lofar_score(lofar_gt, predictions, save_appendix=''
     """
 
     ###################### ground truth
+    val_source_names, val_fits_paths = number_of_components_in_dataset(comp_cat_path,
+            image_dir, save_appendix=save_appendix, overwrite=overwrite)
 
     # Get pixel locations of ground truth components
     n_comps, locs, central_locs, close_comp_locs = _get_component_and_neighbouring_pixel_locations(
         val_source_names, 
-                    val_fits_paths, component_cat_path, save_appendix=save_appendix, overwrite=overwrite)
+                    val_fits_paths, comp_cat_path, save_appendix=save_appendix, overwrite=overwrite)
 
 
     ###################### prediction
@@ -592,7 +620,6 @@ def _evaluate_predictions_on_lofar_score(lofar_gt, predictions, save_appendix=''
     pred_bboxes_scores = [(image_dict['instances'].get_fields()['pred_boxes'].tensor.numpy(), 
               image_dict['instances'].get_fields()['scores'].numpy()) 
              for image_dict in predictions]
-
 
     # Filter out bounding box per image that covers the focussed pixel
     pred_central_bboxes_scores = [[(tuple(bbox),score) for bbox, score in zip(bboxes, scores) 
@@ -826,7 +853,7 @@ def get_bounding_boxes(output):
     
     return instances.get_fields()['pred_boxes'].tensor.numpy()
 
-
+'''
 def _evaluate_predictions_on_lofar_score(lofar_gt, coco_results, task):
     """
     Evaluate the results using our LOFAR appropriate score.
@@ -862,3 +889,4 @@ def _evaluate_predictions_on_lofar_score(lofar_gt, coco_results, task):
     #coco_eval.summarize()
 
     return coco_eval
+  '''
