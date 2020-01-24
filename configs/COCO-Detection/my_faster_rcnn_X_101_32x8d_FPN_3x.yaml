@@ -1,4 +1,11 @@
 _BASE_: "../Base-RCNN-FPN.yaml"
+DATASETS:
+  OUTPUT_DIR: "/data/mostertrij/tridentnet/output/inferences/jan14/" 
+  IMAGE_DIR: "/data/mostertrij/data/frcnn_images/LGZ_v1_1field/LGZ_COCOstyle/val/" 
+  COMP_CAT_PATH: '/data/mostertrij/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits'
+  FITS_PATH: "/data/mostertrij/data/frcnn_images/cutouts/"
+INPUT:
+  SCALE_FACTOR: 4.545454545454546
 MODEL:
   MASK_ON: False
   WEIGHTS: "detectron2://ImageNetPretrained/FAIR/X-101-32x8d.pkl"

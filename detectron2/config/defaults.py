@@ -81,6 +81,8 @@ _C.INPUT.FORMAT = "BGR"
 # Mask R-CNN supports either "polygon" or "bitmask" as ground truth.
 _C.INPUT.MASK_FORMAT = "polygon"  # alternative: "bitmask"
 
+# scale factor
+_C.INPUT.SCALE_FACTOR = 1.0
 
 # -----------------------------------------------------------------------------
 # Dataset
@@ -100,6 +102,11 @@ _C.DATASETS.TEST = ()
 _C.DATASETS.PROPOSAL_FILES_TEST = ()
 # Number of top scoring precomputed proposals to keep for test
 _C.DATASETS.PRECOMPUTED_PROPOSAL_TOPK_TEST = 1000
+# Some paths used for evaluation of data
+_C.DATASETS.OUTPUT_DIR = ""
+_C.DATASETS.IMAGE_DIR = ""
+_C.DATASETS.COMP_CAT_PATH = ""
+_C.DATASETS.FITS_PATH = ""
 
 # -----------------------------------------------------------------------------
 # DataLoader

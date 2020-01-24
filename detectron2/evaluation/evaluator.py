@@ -173,7 +173,7 @@ def inference_on_dataset(model, data_loader, evaluator, overwrite=True):
         )
     results = evaluator.evaluate()
     print(results)
-    logger.info(f"LOFAR Evaluation metrics (for all values 0 is best, 1 is worst):")
+    logger.info(f"LOFAR Evaluation metrics (for all values 0% is best, 100% is worst):")
     logger.info(f"1. Fraction of predictions that fail to cover a single component source.")
     logger.info(f"{results['assoc_single_fail_fraction']:.2%}")
     logger.info(f"2. Fraction of predictions that fail to cover all components of a " \
