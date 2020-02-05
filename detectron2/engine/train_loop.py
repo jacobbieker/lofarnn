@@ -10,6 +10,8 @@ import torch
 import detectron2.utils.comm as comm
 from detectron2.utils.events import EventStorage
 
+#from detectron2.evaluation import _evaluate_predictions_on_lofar_score
+
 __all__ = ["HookBase", "TrainerBase", "SimpleTrainer"]
 
 
@@ -210,14 +212,14 @@ class SimpleTrainer(TrainerBase):
         If your want to do something with the losses, you can wrap the model.
         """
         loss_dict = self.model(data)
-        print(loss_dict)
-        print("metric keyssss")
-        [print(k) for k in loss_dict.keys()]
+        #print([k for k in loss_dict.keys()])
         losses = sum(loss for loss in loss_dict.values())
         self._detect_anomaly(losses, loss_dict)
 
         metrics_dict = loss_dict
         metrics_dict["data_time"] = data_time
+        #metrics_dict["hallo_test"] = 1
+        #_evaluate_predictions_on_lofar_score(dataset_name, lofar_gt, predictions, save_appendix='')
         self._write_metrics(metrics_dict)
 
         """

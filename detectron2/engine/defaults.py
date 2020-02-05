@@ -632,7 +632,7 @@ class LOFARTrainer(SimpleTrainer):
 
         def test_and_save_results():
             self._last_eval_results = self.test(self.cfg, self.model,
-                    evaluators=LOFAREvaluator(self.cfg.DATASETS.TEST[0], self.cfg, False))
+                    evaluators=[LOFAREvaluator(self.cfg.DATASETS.TEST[0], self.cfg, False)])
             return self._last_eval_results
 
         # Do evaluation after checkpointer, because then if it fails,
@@ -768,8 +768,6 @@ class LOFARTrainer(SimpleTrainer):
             dict: a dict of result metrics
         """
         logger = logging.getLogger(__name__)
-        # HACKY way
-        evaluators=[evaluators[0]]
         print(evaluators)
         print(type(evaluators))
         if isinstance(evaluators, DatasetEvaluator):

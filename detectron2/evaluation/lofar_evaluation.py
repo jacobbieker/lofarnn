@@ -22,7 +22,6 @@ from astropy.coordinates import SkyCoord
 from astropy.wcs.utils import skycoord_to_pixel, pixel_to_skycoord
 sys.path.insert(1, '/data/mostertrij/LOFAR-PINK-library')
 import pinklib.postprocessing as post
-from astropy.table import Table
 import pandas as pd
 from collections import Counter
 from operator import itemgetter
@@ -57,7 +56,7 @@ class LOFAREvaluator(DatasetEvaluator):
 
     """
 
-    def __init__(self, dataset_name, cfg,distributed, 
+    def __init__(self, dataset_name, cfg,distributed, imsize,
             overwrite=False, gt_data=None ):
         """
         Args:
@@ -84,6 +83,7 @@ class LOFAREvaluator(DatasetEvaluator):
         self._image_dir = cfg.DATASETS.IMAGE_DIR
         self._fits_path = cfg.DATASETS.FITS_PATH
         self._scale_factor = cfg.INPUT.SCALE_FACTOR
+        self._imsize = imsize
 
         self._cpu_device = torch.device("cpu")
         self._logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ class LOFAREvaluator(DatasetEvaluator):
                 "instances" that contains :class:`Instances`.
         """
         for input, output in zip(inputs, outputs):
-            prediction = {"image_id": input["image_id"]}
+            prediction = {"image_id": input["image_id"], "file_name":input["file_name"]}
 
             # TODO this is ugly
             if "instances" in output:
@@ -146,18 +146,18 @@ class LOFAREvaluator(DatasetEvaluator):
                 torch.save(self._predictions, f)
         
         includes_associated_fail_fraction, includes_unassociated_fail_fraction = \
-            _evaluate_predictions_on_lofar_score(self._gt_data, self._predictions,
-                    save_appendix=self._dataset_name, scale_factor=self._scale_factor, 
+            _evaluate_predictions_on_lofar_score(self._dataset_name, self._predictions,
+                    self._imsize, save_appendix=self._dataset_name, scale_factor=self._scale_factor, 
                                         overwrite=self._overwrite, summary_only=True,
                                         comp_cat_path=self._component_cat_path,
                                         fits_dir=self._fits_path,
                                         image_dir=self._image_dir)
 
         self._results = OrderedDict()
-        self._results["assoc_single_fail_fraction"] = includes_associated_fail_fraction[0]
-        self._results["assoc_multi_fail_fraction"] = includes_associated_fail_fraction[1]
-        self._results["unassoc_single_fail_fraction"] = includes_unassociated_fail_fraction[0]
-        self._results["unassoc_multi_fail_fraction"] = includes_unassociated_fail_fraction[1]
+        self._results["bbox"] = {"assoc_single_fail_fraction": includes_associated_fail_fraction[0],
+        "assoc_multi_fail_fraction": includes_associated_fail_fraction[1],
+        "unassoc_single_fail_fraction": includes_unassociated_fail_fraction[0],
+        "unassoc_multi_fail_fraction": includes_unassociated_fail_fraction[1]}
         # Copy so the caller can do whatever with results
         return copy.deepcopy(self._results)
 
@@ -318,28 +318,26 @@ class LOFAREvaluator(DatasetEvaluator):
         return results
 
 
-def number_of_components_in_dataset(component_cat_path, image_dir, fits_dir, 
-        overwrite=True, save_appendix=''):
+def number_of_components_in_dataset(dataset_name, component_cat_path, predictions, fits_dir, 
+        overwrite=True, save_appendix='', only_zero_rotation=True):
     """Counts the number and percentage of single component sources in all_image_dir.
     Returns the filenames of the multi-component sources."""
+    if not only_zero_rotation:
+        raise NotImplementedError
     source_names_fits_names_save_path = f'cache/save_source_names_fits_paths_{save_appendix}.pkl'
     if overwrite or not os.path.exists(source_names_fits_names_save_path):
         # Load component catalogue
-        comp_cat = Table.read(component_cat_path).to_pandas()
-        comp_cat['Source_Name'] = comp_cat['Source_Name'].str.decode("utf-8")
-        comp_cat['Component_Name'] = comp_cat['Component_Name'].str.decode("utf-8")
+        comp_cat = pd.read_hdf(component_cat_path.replace('.fits','.h5'),'df')
         comp_name_to_source_name_dict = {n:i for i,n in zip(comp_cat.Source_Name.values,
                                                                 comp_cat.Component_Name.values)}
         
         # Count the number of components per source name in the catalogue
         counts = pd.value_counts(comp_cat['Source_Name'])
         
-        # Get image names in all_image_dir
-        image_names = os.listdir(image_dir)
-        
         # Remove the end of the filename to retrieve the central source names
-        source_names = [im.replace('_radio_DR2.png','') for im in  image_names]
-        fits_paths = [os.path.join(fits_dir, im.replace('.png','.fits')) for im in  image_names]
+        png_file_names = [p["file_name"] for p in predictions]
+        source_names = [f.split('/')[-1].split('_')[0] for f in png_file_names]
+        fits_paths = [os.path.join(fits_dir, sn + '_radio_DR2.fits') for sn in source_names]
         
         # Check for duplicates (those should not exist)
         assert len(source_names) == len(set(source_names)), 'duplicates should not exist'
@@ -352,7 +350,7 @@ def number_of_components_in_dataset(component_cat_path, image_dir, fits_dir,
         print(f'There are {single_comp} single component sources and {len(source_names)-single_comp} multi.')
         print(f'Thus {single_comp/len(source_names)*100:.0f}% of the dataset is single component.')
         # Names of multi_comp sources
-        multi_comp_source_names = [source_name for source_name, filename in zip(source_names, image_names)
+        multi_comp_source_names = [source_name for source_name in source_names 
                 if counts[comp_name_to_source_name_dict[source_name]] > 1]
         save_obj(source_names_fits_names_save_path, [source_names, fits_paths] )
     else:
@@ -368,21 +366,19 @@ def load_obj(file_path):
         return pickle.load(input)
         
 def _get_component_and_neighbouring_pixel_locations(source_names, fits_paths, component_cat_path,
-                        search_radius_arcsec=200, overwrite=False, save_appendix=''):
+                        search_radius_arcsec=200, overwrite=True, save_appendix=''):
     """Return pixel locations of the components associated with source_names
     and pixel locations of the sources within search_radius."""
     
     comp_pixel_locs_save_path = f'cache/save_comp_pixel_locs_{save_appendix}.pkl'
-    central_pixel_locs_save_path = f'cache/save_central_pixel_locs_{save_appendix}.pkl'
+    focus_pixel_locs_save_path = f'cache/save_focus_pixel_locs_{save_appendix}.pkl'
     close_comp_pixel_locs_save_path = f'cache/save_close_comp_pixel_locs_{save_appendix}.pkl'
     if overwrite or not os.path.exists(comp_pixel_locs_save_path) or \
-            not os.path.exists(central_pixel_locs_save_path) or \
+            not os.path.exists(focus_pixel_locs_save_path) or \
             not os.path.exists(close_comp_pixel_locs_save_path):
         # Load source cat
         # Load source comp cat
-        comp_cat = Table.read(component_cat_path).to_pandas()
-        comp_cat['Source_Name'] = comp_cat['Source_Name'].str.decode("utf-8")
-        comp_cat['Component_Name'] = comp_cat['Component_Name'].str.decode("utf-8")
+        comp_cat = pd.read_hdf(component_cat_path.replace('.fits','.h5'),'df')
         comp_name_to_source_name_dict = {n:i for i,n in zip(comp_cat.Source_Name.values,
                                                             comp_cat.Component_Name.values)}
         comp_name_to_index_dict = {n:i for i,n in zip(comp_cat.index.values,
@@ -400,7 +396,7 @@ def _get_component_and_neighbouring_pixel_locations(source_names, fits_paths, co
             component_names = load_obj(comp_save_path)
             
         # Get index of the component that we focus on now
-        central_skycoords = [SkyCoord(comp_cat.loc[comp_name_to_index_dict[source_name]].RA, 
+        focus_skycoords = [SkyCoord(comp_cat.loc[comp_name_to_index_dict[source_name]].RA, 
                                       comp_cat.loc[comp_name_to_index_dict[source_name]].DEC, unit='deg') 
                              for source_name in source_names]
         
@@ -414,11 +410,11 @@ def _get_component_and_neighbouring_pixel_locations(source_names, fits_paths, co
         # transform ra, decs to pixel coordinates
         pixel_locs = [skycoord_to_pixel(skycoord, wcs, origin=0, mode='all') 
                       for skycoord, wcs in zip(skycoords, wcss)]
-        central_pixel_locs = [skycoord_to_pixel(skycoord, wcs, origin=0, mode='all') 
-                      for skycoord, wcs in zip(central_skycoords, wcss)]
+        focus_pixel_locs = [skycoord_to_pixel(skycoord, wcs, origin=0, mode='all') 
+                      for skycoord, wcs in zip(focus_skycoords, wcss)]
 
         save_obj(comp_pixel_locs_save_path, pixel_locs)
-        save_obj(central_pixel_locs_save_path, central_pixel_locs)
+        save_obj(focus_pixel_locs_save_path, focus_pixel_locs)
         print('Done saving (central) pixel locs.')
         
         # Get all sources in proximity of our central source (related or not)
@@ -429,8 +425,8 @@ def _get_component_and_neighbouring_pixel_locations(source_names, fits_paths, co
                        -search_radius_degree) &
                        (comp_cat.DEC < comp_cat.loc[comp_name_to_index_dict[source_name]].DEC
                        +search_radius_degree) &
-                       (comp_cat.DEC < comp_cat.loc[comp_name_to_index_dict[source_name]].DEC
-                       +search_radius_degree) & (~comp_cat.index.isin(component_name.index)))
+                       (comp_cat.DEC > comp_cat.loc[comp_name_to_index_dict[source_name]].DEC
+                       -search_radius_degree) & (~comp_cat.index.isin(component_name.index)))
                              for component_name, source_name in zip(component_names, source_names)]
         close_comp_cats = [comp_cat[condition] for condition in conditions]
         # Convert to skycoords
@@ -446,10 +442,10 @@ def _get_component_and_neighbouring_pixel_locations(source_names, fits_paths, co
 
     else:
         pixel_locs = load_obj(comp_pixel_locs_save_path)
-        central_pixel_locs = load_obj(central_pixel_locs_save_path)
+        focus_pixel_locs = load_obj(focus_pixel_locs_save_path)
         close_comp_pixel_locs = load_obj(close_comp_pixel_locs_save_path)
     n_comps = [len(xs) for xs, ys in pixel_locs]
-    return n_comps, pixel_locs, central_pixel_locs, close_comp_pixel_locs
+    return n_comps, pixel_locs, focus_pixel_locs, close_comp_pixel_locs
 
 
 def get_bounding_boxes(output):
@@ -559,7 +555,7 @@ def _check_if_pred_central_bbox_includes_unassociated_comps(n_comps,close_comp_s
     return 1-single_comp_success_frac, 1-multi_comp_binary_success_frac
 
     
-def _get_gt_bboxes(lofar_gt, central_locs, close_comp_locs, save_appendix=None, overwrite=False):
+def _get_gt_bboxes(lofar_gt, focus_locs, close_comp_locs, save_appendix=None, overwrite=False):
     """Get ground truth bounding boxes"""
     central_bboxes_save_path = f'cache/save_central_bboxes_{save_appendix}.pkl'
 
@@ -570,8 +566,8 @@ def _get_gt_bboxes(lofar_gt, central_locs, close_comp_locs, save_appendix=None, 
 
         # Filter out bounding box per image that covers the central pixel of the focussed box
         central_bboxes = [[tuple(bbox) for bbox in bboxes 
-                            if is_within(x*scale_factor,y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3])] 
-                              for bboxes, (x, y) in zip(bboxes_per_image, central_locs)]
+                            if is_within(x*scale_factor,imsize-y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3])] 
+                              for bboxes, (x, y) in zip(bboxes_per_image, focus_locs)]
 
         # Filter out duplicates
         central_bboxes = [list(set(bboxes)) for bboxes in central_bboxes]
@@ -588,10 +584,11 @@ def _get_gt_bboxes(lofar_gt, central_locs, close_comp_locs, save_appendix=None, 
         central_bboxes = load_obj(central_bboxes_save_path)
     return central_bboxes
    
-def _evaluate_predictions_on_lofar_score(lofar_gt, predictions, save_appendix='', scale_factor=1, 
+def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize, 
+        save_appendix='', scale_factor=1, 
                                         overwrite=True, summary_only=False,
                                         comp_cat_path=None,
-                                        fits_dir=None,
+                                        fits_dir=None, only_zero_rotation=True,
                                         image_dir=None):
     """ 
     Evaluate the results using our LOFAR appropriate score.
@@ -611,20 +608,23 @@ def _evaluate_predictions_on_lofar_score(lofar_gt, predictions, save_appendix=''
     
     """
     debug=False
+    print("scale_factor", scale_factor)
+
     ###################### ground truth
-    val_source_names, val_fits_paths = number_of_components_in_dataset(comp_cat_path,
-            image_dir, fits_dir, save_appendix=save_appendix, overwrite=overwrite)
+    val_source_names, val_fits_paths = number_of_components_in_dataset(dataset_name, comp_cat_path,
+            predictions, fits_dir, save_appendix=save_appendix, overwrite=overwrite,
+            only_zero_rotation=only_zero_rotation)
     if debug:
         print("val_source_names", "val_fits_path")
         print(val_source_names[0], val_fits_paths[0])
 
     # Get pixel locations of ground truth components
-    n_comps, locs, central_locs, close_comp_locs = _get_component_and_neighbouring_pixel_locations(
+    n_comps, locs, focus_locs, close_comp_locs = _get_component_and_neighbouring_pixel_locations(
         val_source_names, 
                     val_fits_paths, comp_cat_path, save_appendix=save_appendix, overwrite=overwrite)
     if debug:
         print("ncomps", "locs, centrallocs, closecomplocs")
-        print(n_comps[0], locs[0], central_locs[0], close_comp_locs[0])
+        print(n_comps[0], locs[0], focus_locs[0], close_comp_locs[0])
 
 
     ###################### prediction
@@ -638,8 +638,9 @@ def _evaluate_predictions_on_lofar_score(lofar_gt, predictions, save_appendix=''
 
     # Filter out bounding box per image that covers the focussed pixel
     pred_central_bboxes_scores = [[(tuple(bbox),score) for bbox, score in zip(bboxes, scores) 
-                        if is_within(x*scale_factor,y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3])] 
-                          for (x, y), (bboxes, scores) in zip(central_locs, pred_bboxes_scores)]
+                        if is_within(x*scale_factor,imsize-y*scale_factor, 
+                            bbox[0],bbox[1],bbox[2],bbox[3])] 
+                          for (x, y), (bboxes, scores) in zip(focus_locs, pred_bboxes_scores)]
     if debug:
         print("pred_bboxes_scores after filtering out the focussed pixel")
         print(pred_bboxes_scores[0])
@@ -653,13 +654,14 @@ def _evaluate_predictions_on_lofar_score(lofar_gt, predictions, save_appendix=''
     # Take only the highest scoring bbox from this list
     pred_central_bboxes_scores = [sorted(bboxes_scores, key=itemgetter(1), reverse=True)[0] 
                                   if len(bboxes_scores) > 0 else [[-1,-1,-1,-1],0] for bboxes_scores in pred_central_bboxes_scores]
+
     if debug:
         print("pred_bboxes_scores after filtering out the focussed pixel")
         print(pred_central_bboxes_scores)
     #return pred_central_bboxes_scores
     # Return IoU with ground truth
     if not summary_only:
-        central_bboxes = _get_gt_bboxes(lofar_gt, central_locs, close_comp_locs, 
+        central_bboxes = _get_gt_bboxes(lofar_gt, focus_locs, close_comp_locs, 
                                         save_appendix=save_appendix, overwrite=overwrite)
 
         iou_pred_central_bboxes = [intersect_over_union(bbox,bbox_score[0])
@@ -668,9 +670,14 @@ def _evaluate_predictions_on_lofar_score(lofar_gt, predictions, save_appendix=''
               f' with a std. dev. of {np.std(iou_pred_central_bboxes):.2f}')
     
     # Check if other source comps fall inside predicted central box
-    comp_scores = [np.sum([is_within(x*scale_factor,y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3]) 
-                    for x,y in zip(xs,ys)])
-                                      for (xs,ys), (bbox, score) in zip(locs, pred_central_bboxes_scores)]
+    #print([loc for loc in locs])
+    #print([[x,y for x,y in np.dstack(loc)[0]] for loc in locs])
+    # TODO yaxis flip hack
+    comp_scores = [np.sum([is_within(x*scale_factor,imsize-y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3]) 
+                    for x,y in list(zip(loc[0],loc[1]))])
+                                      for loc, (bbox, score) in zip(locs, pred_central_bboxes_scores)]
+    #nana = [(scale_factor*x, scale_factor*y) for x, y in np.dstack(locs[inspect_id])[0]]
+    #print("locs scaled", nana)
 
     # 2. The predicted central box misses a number of components
     # can now be checked
@@ -680,7 +687,7 @@ def _evaluate_predictions_on_lofar_score(lofar_gt, predictions, save_appendix=''
     # 3. The predicted central box encompasses too many components
     # can now be checked
     assert len(close_comp_locs) == len(pred_central_bboxes_scores)
-    close_comp_scores = [np.sum([is_within(x*scale_factor,y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3]) 
+    close_comp_scores = [np.sum([is_within(x*scale_factor,imsize-y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3]) 
                 for x,y in zip(xs,ys)])
                         for (xs,ys), (bbox, score) in zip(close_comp_locs, pred_central_bboxes_scores)]
     includes_unassociated_fail_fraction = _check_if_pred_central_bbox_includes_unassociated_comps(n_comps,close_comp_scores, 

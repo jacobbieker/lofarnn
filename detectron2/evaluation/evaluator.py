@@ -129,6 +129,9 @@ def inference_on_dataset(model, data_loader, evaluator, overwrite=True):
         total_compute_time = 0
         with inference_context(model), torch.no_grad():
             for idx, inputs in enumerate(data_loader):
+                # We only need to evaluate the unrotated images
+                if not inputs[0]['file_name'].endswith('_rotated0deg.png'):
+                    continue
                 if idx == num_warmup:
                     start_time = time.perf_counter()
                     total_compute_time = 0
@@ -175,15 +178,15 @@ def inference_on_dataset(model, data_loader, evaluator, overwrite=True):
     print(results)
     logger.info(f"LOFAR Evaluation metrics (for all values 0% is best, 100% is worst):")
     logger.info(f"1. Fraction of predictions that fail to cover a single component source.")
-    logger.info(f"{results['assoc_single_fail_fraction']:.2%}")
+    logger.info(f"{results['bbox']['assoc_single_fail_fraction']:.2%}")
     logger.info(f"2. Fraction of predictions that fail to cover all components of a " \
             "multi-component source.")
-    logger.info(f"{results['assoc_multi_fail_fraction']:.2%}")
+    logger.info(f"{results['bbox']['assoc_multi_fail_fraction']:.2%}")
     logger.info(f"3. Fraction of predictions that include unassociated components for a single component source.")
-    logger.info(f"{results['unassoc_single_fail_fraction']:.2%}")
+    logger.info(f"{results['bbox']['unassoc_single_fail_fraction']:.2%}")
     logger.info(f"4. Fraction of predictions that include unassociated components for a " \
             "multi-component source.")
-    logger.info(f"{results['unassoc_multi_fail_fraction']:.2%}")
+    logger.info(f"{results['bbox']['unassoc_multi_fail_fraction']:.2%}")
 
     # An evaluator may return None when not in main process.
     # Replace it by an empty dict instead to make it easier for downstream code to handle
