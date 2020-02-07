@@ -6,19 +6,17 @@ The [Dockerfile](https://github.com/facebookresearch/detectron2/blob/master/dock
 also installs detectron2 with a few simple commands.
 
 ### Requirements
-- Linux or macOS
-- Python ≥ 3.6
+- Linux or macOS with Python ≥ 3.6
 - PyTorch ≥ 1.3
 - [torchvision](https://github.com/pytorch/vision/) that matches the PyTorch installation.
 	You can install them together at [pytorch.org](https://pytorch.org) to make sure of this.
 - OpenCV, optional, needed by demo and visualization
 - pycocotools: `pip install cython; pip install 'git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI'`
-- gcc & g++ ≥ 4.9
 
 
-### Build and Install Detectron2
+### Build Detectron2 from Source
 
-After having the above dependencies, run:
+After having the above dependencies and gcc & g++ ≥ 4.9, run:
 ```
 pip install 'git+https://github.com/facebookresearch/detectron2.git'
 # (add --user if you don't have permission)
@@ -34,7 +32,20 @@ cd detectron2 && pip install -e .
 To __rebuild__ detectron2 that's built from a local clone, `rm -rf build/ **/*.so` then `pip install -e .`.
 You often need to rebuild detectron2 after reinstalling PyTorch.
 
+### Install Pre-Built Detectron2
+```
+# for CUDA 10.1:
+pip install detectron2 -f \
+	https://dl.fbaipublicfiles.com/detectron2/wheels/cu101/index.html
+```
+You can replace cu101 with "cu{100,92}" or "cpu".
+
+Note that such installation has to be used with the latest official PyTorch release (currently 1.4).
+It will not work with your custom build of PyTorch.
+
 ### Common Installation Issues
+
+If you met issues using the pre-built detectron2, please uninstall it and try building it from source.
 
 Click each issue for its solutions:
 
@@ -97,15 +108,18 @@ Two possibilities:
 	you need to either install a different build of PyTorch (or build by yourself)
 	to match your local CUDA installation, or install a different version of CUDA to match PyTorch.
 
-* Detectron2 or PyTorch/torchvision is not built with the correct compute compatibility for the GPU model.
+* Detectron2 or PyTorch/torchvision is not built for the correct GPU architecture (compute compatibility).
 
-	The compute compatibility for PyTorch is available in `python -m detectron2.utils.collect_env`.
+	The GPU architecture for PyTorch/detectron2/torchvision is available in the "architecture flags" in
+	`python -m detectron2.utils.collect_env`.
 
-	The compute compatibility of detectron2/torchvision defaults to match the GPU found on the machine
-	during building, and can be controlled by `TORCH_CUDA_ARCH_LIST` environment variable during building.
+	The GPU architecture flags of detectron2/torchvision by default matches the GPU model detected
+	during building. This means the compiled code may not work on a different GPU model.
+	To overwrite the GPU architecture for detectron2/torchvision, use `TORCH_CUDA_ARCH_LIST` environment variable during building.
 
+	For example, `export TORCH_CUDA_ARCH_LIST=6.0,7.0` makes it work for both P100s and V100s.
 	Visit [developer.nvidia.com/cuda-gpus](https://developer.nvidia.com/cuda-gpus) to find out
-	the correct compute compatibility for your device.
+	the correct compute compatibility number for your device.
 
 </details>
 

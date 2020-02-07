@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 import math
 import numpy as np
-from enum import Enum, unique
+from enum import IntEnum, unique
 from typing import Iterator, List, Tuple, Union
 import torch
 
@@ -11,7 +11,7 @@ _RawBoxType = Union[List[float], Tuple[float, ...], torch.Tensor, np.ndarray]
 
 
 @unique
-class BoxMode(Enum):
+class BoxMode(IntEnum):
     """
     Enum of different ways to represent a box.
 
@@ -93,6 +93,13 @@ class BoxMode(Enum):
             arr[:, 3] = arr[:, 1] + new_h
 
             arr = arr[:, :4].to(dtype=original_dtype)
+        elif from_mode == BoxMode.XYWH_ABS and to_mode == BoxMode.XYWHA_ABS:
+            original_dtype = arr.dtype
+            arr = arr.double()
+            arr[:, 0] += arr[:, 2] / 2.0
+            arr[:, 1] += arr[:, 3] / 2.0
+            angles = torch.zeros((arr.shape[0], 1), dtype=arr.dtype)
+            arr = torch.cat((arr, angles), axis=1).to(dtype=original_dtype)
         else:
             if to_mode == BoxMode.XYXY_ABS and from_mode == BoxMode.XYWH_ABS:
                 arr[:, 2] += arr[:, 0]
@@ -202,6 +209,7 @@ class Boxes:
             Boxes: Create a new :class:`Boxes` by indexing.
 
         The following usage are allowed:
+
         1. `new_boxes = boxes[3]`: return a `Boxes` which contains only one box.
         2. `new_boxes = boxes[2:10]`: return a slice of boxes.
         3. `new_boxes = boxes[vector]`, where vector is a torch.BoolTensor
