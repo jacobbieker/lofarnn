@@ -631,8 +631,9 @@ class LOFARTrainer(SimpleTrainer):
             ret.append(hooks.PeriodicCheckpointer(self.checkpointer, cfg.SOLVER.CHECKPOINT_PERIOD))
 
         def test_and_save_results():
+            imsize = 600
             self._last_eval_results = self.test(self.cfg, self.model,
-                    evaluators=[LOFAREvaluator(self.cfg.DATASETS.TEST[0], self.cfg, False)])
+                    evaluators=[LOFAREvaluator(self.cfg.DATASETS.TEST[0], self.cfg, False, imsize)])
             return self._last_eval_results
 
         # Do evaluation after checkpointer, because then if it fails,

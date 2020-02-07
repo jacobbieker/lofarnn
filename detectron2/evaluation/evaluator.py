@@ -90,7 +90,7 @@ def load_obj(save_path):
     with open(save_path, 'rb') as f:
         return pickle.load(f)
 
-def inference_on_dataset(model, data_loader, evaluator, overwrite=True):
+def inference_on_dataset(model, data_loader, evaluator, overwrite=True, only_zero_rot=True):
     """
     Run model on the data_loader and evaluate the metrics with evaluator.
     The model will be used in eval mode.
@@ -130,7 +130,7 @@ def inference_on_dataset(model, data_loader, evaluator, overwrite=True):
         with inference_context(model), torch.no_grad():
             for idx, inputs in enumerate(data_loader):
                 # We only need to evaluate the unrotated images
-                if not inputs[0]['file_name'].endswith('_rotated0deg.png'):
+                if only_zero_rot and not inputs[0]['file_name'].endswith('_rotated0deg.png'):
                     continue
                 if idx == num_warmup:
                     start_time = time.perf_counter()
