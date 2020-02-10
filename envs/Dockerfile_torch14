@@ -6,6 +6,6 @@ RUN conda install astropy -y
 RUN pip install spectral-cube
 
 # Add the torch-geometric packages
-RUN pip install torch-sparse torch-cluster torch-spline-conv torch-scatter
+RUN pip install torch-sparse torch-cluster torch-scatter
 RUN pip install torch-geometric
 
