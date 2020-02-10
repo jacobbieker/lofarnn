@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+
+.idea/
 # C extensions
 *.so
 
@@ -127,3 +129,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+.idea/.gitignore
+.idea/LOFAR-ML.iml
+.idea/codeStyles/
+.idea/dbnavigator.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/rSettings.xml
+.idea/vcs.xml
