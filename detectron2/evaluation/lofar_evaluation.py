@@ -75,7 +75,7 @@ class LOFAREvaluator(DatasetEvaluator):
         # keypoint prediction
         self._tasks = ("bbox",)
         self._distributed = distributed
-        self._output_dir = cfg.DATASETS.OUTPUT_DIR
+        self._output_dir = cfg.OUTPUT_DIR
         self._dataset_name = dataset_name
         self._gt_data = gt_data
         self._overwrite = overwrite
@@ -147,7 +147,7 @@ class LOFAREvaluator(DatasetEvaluator):
         
         includes_associated_fail_fraction, includes_unassociated_fail_fraction = \
             _evaluate_predictions_on_lofar_score(self._dataset_name, self._predictions,
-                    self._imsize, save_appendix=self._dataset_name, scale_factor=self._scale_factor, 
+                    self._imsize, self._output_dir, save_appendix=self._dataset_name, scale_factor=self._scale_factor, 
                                         overwrite=self._overwrite, summary_only=True,
                                         comp_cat_path=self._component_cat_path,
                                         fits_dir=self._fits_path,
@@ -318,13 +318,13 @@ class LOFAREvaluator(DatasetEvaluator):
         return results
 
 
-def number_of_components_in_dataset(dataset_name, component_cat_path, predictions, fits_dir, 
+def number_of_components_in_dataset(output_dir, dataset_name, component_cat_path, predictions, fits_dir, 
         overwrite=True, save_appendix='', only_zero_rotation=True):
     """Counts the number and percentage of single component sources in all_image_dir.
     Returns the filenames of the multi-component sources."""
     if not only_zero_rotation:
         raise NotImplementedError
-    source_names_fits_names_save_path = f'cache/save_source_names_fits_paths_{save_appendix}.pkl'
+    source_names_fits_names_save_path = f'{output_dir}/save_source_names_fits_paths_{save_appendix}.pkl'
     if overwrite or not os.path.exists(source_names_fits_names_save_path):
         # Load component catalogue
         comp_cat = pd.read_hdf(component_cat_path.replace('.fits','.h5'),'df')
@@ -340,6 +340,7 @@ def number_of_components_in_dataset(dataset_name, component_cat_path, prediction
         fits_paths = [os.path.join(fits_dir, sn + '_radio_DR2.fits') for sn in source_names]
         
         # Check for duplicates (those should not exist)
+        print("check for dups", len(predictions),len(fits_paths),len(source_names))
         assert len(source_names) == len(set(source_names)), 'duplicates should not exist'
         
         # Retrieve number of components per central source
@@ -365,14 +366,14 @@ def load_obj(file_path):
     with open(file_path, 'rb') as input:
         return pickle.load(input)
         
-def _get_component_and_neighbouring_pixel_locations(source_names, fits_paths, component_cat_path,
+def _get_component_and_neighbouring_pixel_locations(output_dir, source_names, fits_paths, component_cat_path,
                         search_radius_arcsec=200, overwrite=True, save_appendix=''):
     """Return pixel locations of the components associated with source_names
     and pixel locations of the sources within search_radius."""
     
-    comp_pixel_locs_save_path = f'cache/save_comp_pixel_locs_{save_appendix}.pkl'
-    focus_pixel_locs_save_path = f'cache/save_focus_pixel_locs_{save_appendix}.pkl'
-    close_comp_pixel_locs_save_path = f'cache/save_close_comp_pixel_locs_{save_appendix}.pkl'
+    comp_pixel_locs_save_path = f'{output_dir}/save_comp_pixel_locs_{save_appendix}.pkl'
+    focus_pixel_locs_save_path = f'{output_dir}/save_focus_pixel_locs_{save_appendix}.pkl'
+    close_comp_pixel_locs_save_path = f'{output_dir}/save_close_comp_pixel_locs_{save_appendix}.pkl'
     if overwrite or not os.path.exists(comp_pixel_locs_save_path) or \
             not os.path.exists(focus_pixel_locs_save_path) or \
             not os.path.exists(close_comp_pixel_locs_save_path):
@@ -386,8 +387,7 @@ def _get_component_and_neighbouring_pixel_locations(source_names, fits_paths, co
         
         # For each central source in val:  get other source comps if existent
         # pickle this result because it is resource intensive
-        os.makedirs('cache', exist_ok=True)
-        comp_save_path = f'cache/save_comp_{save_appendix}.pkl'
+        comp_save_path = f'{output_dir}/save_comp_{save_appendix}.pkl'
         if overwrite or not os.path.exists(comp_save_path):
             component_names = [comp_cat[comp_cat.Source_Name == comp_name_to_source_name_dict[source_name]]
                            for source_name in source_names]
@@ -584,7 +584,7 @@ def _get_gt_bboxes(lofar_gt, focus_locs, close_comp_locs, save_appendix=None, ov
         central_bboxes = load_obj(central_bboxes_save_path)
     return central_bboxes
    
-def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize, 
+def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize, output_dir, 
         save_appendix='', scale_factor=1, 
                                         overwrite=True, summary_only=False,
                                         comp_cat_path=None,
@@ -607,11 +607,12 @@ def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize,
         5. The prediction score is lower than x
     
     """
-    debug=False
+    debug=True
     print("scale_factor", scale_factor)
 
     ###################### ground truth
-    val_source_names, val_fits_paths = number_of_components_in_dataset(dataset_name, comp_cat_path,
+    #print('len predictions',len(predictions))
+    val_source_names, val_fits_paths = number_of_components_in_dataset(output_dir, dataset_name, comp_cat_path,
             predictions, fits_dir, save_appendix=save_appendix, overwrite=overwrite,
             only_zero_rotation=only_zero_rotation)
     if debug:
@@ -619,12 +620,14 @@ def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize,
         print(val_source_names[0], val_fits_paths[0])
 
     # Get pixel locations of ground truth components
+    #print('len valsourcenames,fitpaths',len(val_source_names),  len(val_fits_paths))
     n_comps, locs, focus_locs, close_comp_locs = _get_component_and_neighbouring_pixel_locations(
-        val_source_names, 
+        output_dir, val_source_names, 
                     val_fits_paths, comp_cat_path, save_appendix=save_appendix, overwrite=overwrite)
     if debug:
         print("ncomps", "locs, centrallocs, closecomplocs")
         print(n_comps[0], locs[0], focus_locs[0], close_comp_locs[0])
+    print('len closecomplocs',len(close_comp_locs),  len(n_comps), len(locs), len(focus_locs))
 
 
     ###################### prediction
@@ -643,7 +646,7 @@ def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize,
                           for (x, y), (bboxes, scores) in zip(focus_locs, pred_bboxes_scores)]
     if debug:
         print("pred_bboxes_scores after filtering out the focussed pixel")
-        print(pred_bboxes_scores[0])
+        print(pred_central_bboxes_scores[0])
     
     # 1. No predicted box covers the middle pixel
     # can now be checked
@@ -657,7 +660,6 @@ def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize,
 
     if debug:
         print("pred_bboxes_scores after filtering out the focussed pixel")
-        print(pred_central_bboxes_scores)
     #return pred_central_bboxes_scores
     # Return IoU with ground truth
     if not summary_only:
@@ -686,6 +688,8 @@ def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize,
     
     # 3. The predicted central box encompasses too many components
     # can now be checked
+    print('len comp_scores ',len(comp_scores))
+    print('len close comp, pred bbox',len(close_comp_locs),  len(pred_central_bboxes_scores))
     assert len(close_comp_locs) == len(pred_central_bboxes_scores)
     close_comp_scores = [np.sum([is_within(x*scale_factor,imsize-y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3]) 
                 for x,y in zip(xs,ys)])
