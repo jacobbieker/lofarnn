@@ -35,7 +35,7 @@ def setup(args):
     cfg = get_cfg()
     add_tridentnet_config(cfg)
     cfg.merge_from_file("/data/mostertrij/tridentnet/detectron2/projects/TridentNet/configs/my_tridentnet_fast_R_101_C4_3x.yaml")
-    DATASET_NAME= "LGZ_v5_more_rotations"
+    DATASET_NAME= "LGZ_v10"
     cfg.DATASETS.TRAIN = (f"{DATASET_NAME}_train",)
     cfg.DATASETS.VAL = (f"{DATASET_NAME}_val",)
     cfg.DATASETS.TEST = (f"{DATASET_NAME}_test",)
@@ -63,8 +63,8 @@ def register_lofar_datasets(cfg):
     Register LOFAR dataset
     """
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-    DATASET_NAME= "LGZ_v5_more_rotations"
-    base_path = f"/data/mostertrij/data/frcnn_images/{DATASET_NAME}/LGZ_COCOstyle/annotations/"
+    DATASET_NAME= "LGZ_v10"
+    base_path = f"/data/mostertrij/data/frcnn_images/LGZ_v5_more_rotations/LGZ_COCOstyle/annotations/"
 
     from detectron2.data import DatasetCatalog, MetadataCatalog
     for d in ["train", "val", "test"]:

@@ -42,12 +42,23 @@ def launch(main_func, num_gpus_per_machine, num_machines=1, machine_rank=0, dist
             port = _find_free_port()
             dist_url = f"tcp://127.0.0.1:{port}"
 
+############################### FIX attempt for deadlock in pytorch
         mp.spawn(
             _distributed_worker,
             nprocs=num_gpus_per_machine,
             args=(main_func, world_size, num_gpus_per_machine, machine_rank, dist_url, args),
             daemon=False,
         )
+        """
+        for i in range(world_size):
+            p = mp.Process(target=_distributed_worker, 
+                    args=(i, main_func, world_size,
+                        num_gpus_per_machine, machine_rank,
+                        dist_url, args))
+            p.start()
+        """
+        print('started processes')
+############################### FIX attempt for deadlock in pytorch
     else:
         main_func(*args)
 
