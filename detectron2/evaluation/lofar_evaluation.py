@@ -20,8 +20,7 @@ import sys
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 from astropy.wcs.utils import skycoord_to_pixel, pixel_to_skycoord
-sys.path.insert(1, '/data/mostertrij/LOFAR-PINK-library')
-import pinklib.postprocessing as post
+from astropy.io import fits
 import pandas as pd
 from collections import Counter
 from operator import itemgetter
@@ -402,7 +401,7 @@ def _get_component_and_neighbouring_pixel_locations(output_dir, source_names, fi
         
         # For each central source in val:  get all unrelated neighbouring sources in a radius of x arcsec
         # Load WCS for each FITS image
-        wcss = [WCS(post.load_fits(fits_path)[1]) for fits_path in fits_paths]
+        wcss = [WCS(load_fits(fits_path)[1]) for fits_path in fits_paths]
 
         # Get skycoords
         skycoords = [SkyCoord(cat.RA, cat.DEC, unit='deg') for cat in component_names]
@@ -884,6 +883,20 @@ def get_bounding_boxes(output):
     instances = output["instances"].to(torch.device("cpu"))
     
     return instances.get_fields()['pred_boxes'].tensor.numpy()
+
+def load_fits(fits_filepath, dimensions_normal=True):
+    """Load a fits file and return its header and content"""
+    # Load first fits file
+    hdulist = fits.open(fits_filepath)
+    # Header
+    hdr = hdulist[0].header
+    if dimensions_normal:
+        hdu = hdulist[0].data
+    else:
+        hdu = hdulist[0].data[0,0]
+    hdulist.close()
+    return hdu, hdr 
+
 
 '''
 def _evaluate_predictions_on_lofar_score(lofar_gt, coco_results, task):
