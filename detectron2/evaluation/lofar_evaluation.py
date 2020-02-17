@@ -8,6 +8,7 @@ import logging
 import numpy as np
 import os
 import pickle
+from cv2 import imread
 from collections import OrderedDict
 import pycocotools.mask as mask_util
 import torch
@@ -15,6 +16,9 @@ from fvcore.common.file_io import PathManager
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from tabulate import tabulate
+from glob import glob
+from shutil import copyfile, copyfileobj
+import matplotlib.pyplot as plt
 
 import sys
 from astropy.wcs import WCS
@@ -31,6 +35,10 @@ from detectron2.data import MetadataCatalog
 from detectron2.data.datasets.coco import convert_to_coco_json
 from detectron2.structures import Boxes, BoxMode, pairwise_iou
 from detectron2.utils.logger import create_small_table
+from detectron2.utils.visualizer import Visualizer
+from detectron2.utils.visualizer import ColorMode
+
+
 
 from .evaluator import DatasetEvaluator
 
@@ -76,7 +84,7 @@ class LOFAREvaluator(DatasetEvaluator):
         self._distributed = distributed
         self._output_dir = cfg.OUTPUT_DIR
         self._dataset_name = dataset_name
-        self._gt_data = gt_data
+        self._gt_data = np.array(gt_data)
         self._overwrite = overwrite
         self._component_cat_path = cfg.DATASETS.COMP_CAT_PATH
         self._image_dir = cfg.DATASETS.IMAGE_DIR
@@ -123,6 +131,7 @@ class LOFAREvaluator(DatasetEvaluator):
                 instances = output["instances"].to(self._cpu_device)
                 prediction["instances"] = instances
             self._predictions.append(prediction)
+            #self._inputs.append(input)
 
     def evaluate(self):
         # for parallel execution 
@@ -149,8 +158,8 @@ class LOFAREvaluator(DatasetEvaluator):
                     self._imsize, self._output_dir, save_appendix=self._dataset_name, scale_factor=self._scale_factor, 
                                         overwrite=self._overwrite, summary_only=True,
                                         comp_cat_path=self._component_cat_path,
-                                        fits_dir=self._fits_path,
-                                        image_dir=self._image_dir)
+                                        fits_dir=self._fits_path, gt_data=self._gt_data,
+                                        image_dir=self._image_dir, metadata=self._metadata)
 
         self._results = OrderedDict()
         self._results["bbox"] = {"assoc_single_fail_fraction": includes_associated_fail_fraction[0],
@@ -355,7 +364,7 @@ def number_of_components_in_dataset(output_dir, dataset_name, component_cat_path
         save_obj(source_names_fits_names_save_path, [source_names, fits_paths] )
     else:
         source_names, fits_paths = load_obj(source_names_fits_names_save_path) 
-    return source_names, fits_paths
+    return np.array(source_names), fits_paths
 
 def save_obj(file_path, obj):
     with open(file_path, 'wb') as output:  # Overwrites any existing file.
@@ -493,7 +502,130 @@ def intersect_over_union(bbox1, bbox2):
     return intersection_area / union_area 
 
 
-def _check_if_pred_central_bbox_misses_comp(n_comps,comp_scores, summary_only=False):
+def collect_misboxed(predictions,image_dir, output_dir, fail_dir_name, fail_indices, source_names,metadata,
+        gt_data,gt_locs,
+        label_dir="label_debug_im_hull"):
+    """Collect ground truth bounding boxes that fail to encapsulate the ground truth pybdsf
+    components so that they can be inspected to improve the box-draw-process"""
+    # Make dir to collect the failed images in
+    fail_dir = os.path.join(output_dir, fail_dir_name)
+    os.makedirs(fail_dir,exist_ok=True)
+    # Remove old directory but first check that it contains only pngs
+    for f in os.listdir(fail_dir):
+        assert f.endswith('.png'), 'Directory should only contain images.'
+    for f in os.listdir(fail_dir):
+        os.remove(os.path.join(fail_dir,f))
+
+    # Copy debug images to this dir 
+    print('misboxed output dir',fail_dir, 'fail_indices:', fail_indices)
+    full_image_dir = os.path.join(image_dir,"LGZ_v5_more_rotations/LGZ_COCOstyle/all")
+    print('image dir is:', full_image_dir)
+    print('sourcenames len is:', len(source_names), source_names[0])
+
+#    print('fail_indices:', source_names)
+#    print('fail_indices:', fail_indices)
+    # if code fails here the debug source name or path is probably incorrect
+    #image_source_paths = [os.path.join(full_image_dir, "*"+ source_name + "_rotated0deg.png") 
+    #        for source_name in source_names[fail_indices]]
+    #print(image_source_paths[0])
+    image_source_paths = [os.path.join(full_image_dir,source_name + "_radio_DR2_rotated0deg.png") 
+            for source_name in source_names[fail_indices]]
+    image_dest_paths = [os.path.join(fail_dir, image_source_path.split('/')[-1])
+            for image_source_path in image_source_paths]
+    #[copyfile(src, dest) for src, dest in zip(image_source_paths, image_dest_paths)]
+    image_only=False
+    scale=2
+    if image_only:
+
+        for src, dest in zip(image_source_paths, image_dest_paths):
+            with open(src, 'rb') as fin:
+                with open(dest, 'wb') as fout:
+                    copyfileobj(fin, fout, 128*1024)
+    else:
+
+        plt.close("all")
+        (locs, focus_locs, close_comp_locs) = gt_locs
+
+        for pred,gt, l, focus_l, close_l, src, dest in zip(np.array(predictions)[fail_indices],gt_data[fail_indices],
+                locs, focus_locs, close_comp_locs, image_source_paths, image_dest_paths):
+
+            #print(pred)
+            #print(dest)
+            # Open mispredicted image 
+            im = imread(src)
+            v = Visualizer(im[:, :, ::-1],
+                           metadata=metadata, 
+                           scale=scale, 
+                          instance_mode=ColorMode.IMAGE #_BW   # remove the colors of unsegmented pixels
+            )
+            # Create another visualizer object as Deepcopy does not exist
+            v2 = Visualizer(im[:, :, ::-1],
+                           metadata=metadata, 
+                           scale=scale, 
+                          instance_mode=ColorMode.IMAGE #_BW   # remove the colors of unsegmented pixels
+            )
+
+            v_gt = v.draw_dataset_dict(gt).get_image()[:, :, ::-1]
+            v_pred = v2.draw_instance_predictions(pred["instances"].to("cpu")).get_image()[:, :, ::-1]
+            # Plot figure 
+            #v_gt = v.overlay_instances(labels=['lol' for i in range(len(d['annotations']))], 
+            #                                           boxes=[x['bbox'] for x in d['annotations']],
+            #                                           masks=None, keypoints=None).get_image()[:, :,::-1]
+
+
+
+            # Plot figure 
+            f, (ax1, ax2) = plt.subplots(1,2, figsize=(15,10))
+            ax1.imshow(v_gt)
+            ax1.set_title('Ground truth labels')
+            ax2.imshow(v_pred)
+            ax2.set_title('Predicted labels')
+            #plt.show()
+            plt.savefig(dest, bbox_inches='tight')
+            plt.close()
+
+
+def _check_if_pred_central_bbox_misses_comp(pred, image_dir,output_dir, 
+        source_names, n_comps,comp_scores, metadata,gt_data,gt_locs, summary_only=False):
+    """Check whether the predicted central box misses a number of assocatiated components
+        as indicated by the ground truth"""
+
+    # Tally for single comp
+    single_comp_success = [n_comp == total for n_comp, total in zip(n_comps, comp_scores) if n_comp == 1]
+
+    single_comp_success_frac = np.sum(single_comp_success)/len(single_comp_success)
+        
+    # Tally for multi comp
+    multi_comp_binary_success = [n_comp == total for n_comp, total in 
+                                 zip(n_comps, comp_scores) if n_comp > 1]
+    multi_comp_binary_success_frac = np.sum(multi_comp_binary_success)/len(multi_comp_binary_success)
+    
+    # Collect single comp sources that fail to include their gt comp
+    ran = list(range(len(comp_scores)))
+    fail_indices = [i for i, n_comp, total in zip(ran, n_comps, comp_scores) 
+            if ((n_comp == 1) and (n_comp != total)) ]
+    collect_misboxed(pred, image_dir, output_dir, "assoc_single_fail_fraction", fail_indices,
+            source_names,metadata,gt_data,gt_locs)
+
+    # Collect single comp sources that fail to include their gt comp
+    fail_indices = [i for i, n_comp, total in zip(ran, n_comps, comp_scores) 
+            if ((n_comp > 1) and (n_comp != total)) ]
+    collect_misboxed(pred, image_dir,output_dir, "assoc_multi_fail_fraction", fail_indices,
+            source_names,metadata,gt_data,gt_locs)
+
+    if not summary_only:
+        print(f'{len(single_comp_success)-np.sum(single_comp_success)} single comp predictions'
+              f' (or {1-single_comp_success_frac:.1%}) fail to cover the central component of the source.')
+        print(f'{len(multi_comp_binary_success)-np.sum(multi_comp_binary_success)} multi comp predictions'
+                  f' (or {1-multi_comp_binary_success_frac:.1%}) fail to cover all components of the source.')
+        multi_comp_success = [total/n_comp for n_comp, total in zip(n_comps, comp_scores) if n_comp > 1]
+        plt.hist(multi_comp_success,bins=20)
+        plt.xlabel('Fraction of succesfully recovered components for multi-component sources (1 is best)')
+        plt.ylabel('Count')
+        plt.show()
+    return 1-single_comp_success_frac, 1-multi_comp_binary_success_frac
+    
+def _check_if_pred_central_bbox_misses_comp_old(n_comps,comp_scores, summary_only=False):
     """Check whether the predicted central box misses a number of assocatiated components
         as indicated by the ground truth"""
     # Tally for single comp
@@ -518,7 +650,57 @@ def _check_if_pred_central_bbox_misses_comp(n_comps,comp_scores, summary_only=Fa
     return 1-single_comp_success_frac, 1-multi_comp_binary_success_frac
     
         
-def _check_if_pred_central_bbox_includes_unassociated_comps(n_comps,close_comp_scores, 
+        
+def _check_if_pred_central_bbox_includes_unassociated_comps(pred, image_dir,output_dir, source_names, 
+        n_comps,close_comp_scores, metadata,gt_data,gt_locs,
+                                                            summary_only=False):
+    """Check whether the predicted central box includes a number of unassocatiated components
+        as indicated by the ground truth"""
+    # Tally for single comp
+    single_comp_success = [total == 0 for n_comp, total in zip(n_comps, close_comp_scores) 
+                           if n_comp == 1]
+    if not summary_only:
+        single_comp_pie = Counter([total for n_comp, total in 
+                                     zip(n_comps, close_comp_scores) if n_comp == 1])
+        plt.pie(single_comp_pie.values(),labels=single_comp_pie.keys(),autopct='%1.1f%%')
+        plt.title('Number of recovered unassociated components for single-component sources (0 is best)')
+        plt.show()
+
+   
+    single_comp_success_frac = np.sum(single_comp_success)/len(single_comp_success)
+        
+    # Tally for multi comp
+    multi_comp_binary_success = [total == 0 for n_comp, total in 
+                                 zip(n_comps, close_comp_scores) if n_comp > 1]
+    multi_comp_success = [total for n_comp, total in zip(n_comps, close_comp_scores) if n_comp > 1]
+    multi_comp_binary_success_frac = np.sum(multi_comp_binary_success)/len(multi_comp_binary_success)
+    
+    # Collect single comp sources that includ unassociated comps
+    ran = list(range(len(close_comp_scores)))
+    fail_indices = [i for i, n_comp, total in zip(ran, n_comps, close_comp_scores) 
+            if ((n_comp == 1) and (0 != total)) ]
+    collect_misboxed(pred, image_dir, output_dir, "unassoc_single_fail_fraction", fail_indices,
+            source_names,metadata,gt_data,gt_locs)
+
+    # Collect single comp sources that fail to include their gt comp
+    fail_indices = [i for i, n_comp, total in zip(ran, n_comps, close_comp_scores) 
+            if ((n_comp > 1) and (0 != total)) ]
+    collect_misboxed(pred, image_dir, output_dir, "unassoc_multi_fail_fraction", fail_indices,
+            source_names,metadata,gt_data,gt_locs)
+    if not summary_only:
+        print(f'{len(single_comp_success)-np.sum(single_comp_success)} single comp predictions'
+              f' (or {1-single_comp_success_frac:.1%}) include more than the central component of the source.')
+        print(f'{len(multi_comp_binary_success)-np.sum(multi_comp_binary_success)} multi comp predictions'
+              f' (or {1-multi_comp_binary_success_frac:.1%}) include more than the associated components of the source.')
+        multi_comp_pie = Counter([total for n_comp, total in 
+                                 zip(n_comps, close_comp_scores) if n_comp > 1])
+        plt.pie(multi_comp_pie.values(),labels=multi_comp_pie.keys(),autopct='%1.1f%%')
+        plt.title('Number of recovered unassociated components for multi-component sources (0 is best)')
+        plt.show()
+    return 1-single_comp_success_frac, 1-multi_comp_binary_success_frac
+
+
+def _check_if_pred_central_bbox_includes_unassociated_comps_old(n_comps,close_comp_scores, 
                                                             summary_only=False):
     """Check whether the predicted central box includes a number of unassocatiated components
         as indicated by the ground truth"""
@@ -582,13 +764,14 @@ def _get_gt_bboxes(lofar_gt, focus_locs, close_comp_locs, save_appendix=None, ov
     else:
         central_bboxes = load_obj(central_bboxes_save_path)
     return central_bboxes
-   
+
+
 def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize, output_dir, 
         save_appendix='', scale_factor=1, 
                                         overwrite=True, summary_only=False,
-                                        comp_cat_path=None,
+                                        comp_cat_path=None, gt_data=None,
                                         fits_dir=None, only_zero_rotation=True,
-                                        image_dir=None):
+                                        image_dir=None, metadata=None):
     """ 
     Evaluate the results using our LOFAR appropriate score.
 
@@ -611,18 +794,20 @@ def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize, outp
 
     ###################### ground truth
     #print('len predictions',len(predictions))
-    val_source_names, val_fits_paths = number_of_components_in_dataset(output_dir, dataset_name, comp_cat_path,
+    source_names, val_fits_paths = number_of_components_in_dataset(output_dir, dataset_name, comp_cat_path,
             predictions, fits_dir, save_appendix=save_appendix, overwrite=overwrite,
             only_zero_rotation=only_zero_rotation)
+
     if debug:
-        print("val_source_names", "val_fits_path")
-        print(val_source_names[0], val_fits_paths[0])
+        print("source_names", "val_fits_path")
+        print(source_names[0], val_fits_paths[0])
 
     # Get pixel locations of ground truth components
-    #print('len valsourcenames,fitpaths',len(val_source_names),  len(val_fits_paths))
+    #print('len valsourcenames,fitpaths',len(source_names),  len(val_fits_paths))
     n_comps, locs, focus_locs, close_comp_locs = _get_component_and_neighbouring_pixel_locations(
-        output_dir, val_source_names, 
+        output_dir, source_names, 
                     val_fits_paths, comp_cat_path, save_appendix=save_appendix, overwrite=overwrite)
+    gt_locs = (locs,focus_locs, close_comp_locs)
     if debug:
         print("ncomps", "locs, centrallocs, closecomplocs")
         print(n_comps[0], locs[0], focus_locs[0], close_comp_locs[0])
@@ -682,7 +867,8 @@ def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize, outp
 
     # 2. The predicted central box misses a number of components
     # can now be checked
-    includes_associated_fail_fraction = _check_if_pred_central_bbox_misses_comp(n_comps,comp_scores, 
+    includes_associated_fail_fraction = _check_if_pred_central_bbox_misses_comp(predictions, image_dir, output_dir,
+            source_names, n_comps,comp_scores, metadata,gt_data, gt_locs,
                                                 summary_only=summary_only)
     
     # 3. The predicted central box encompasses too many components
@@ -693,7 +879,9 @@ def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize, outp
     close_comp_scores = [np.sum([is_within(x*scale_factor,imsize-y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3]) 
                 for x,y in zip(xs,ys)])
                         for (xs,ys), (bbox, score) in zip(close_comp_locs, pred_central_bboxes_scores)]
-    includes_unassociated_fail_fraction = _check_if_pred_central_bbox_includes_unassociated_comps(n_comps,close_comp_scores, 
+    includes_unassociated_fail_fraction =  _check_if_pred_central_bbox_includes_unassociated_comps(
+            predictions, image_dir, output_dir, source_names, n_comps,close_comp_scores, metadata,
+            gt_data, gt_locs,
                                                             summary_only=summary_only)
     return includes_associated_fail_fraction, includes_unassociated_fail_fraction
 
@@ -883,6 +1071,7 @@ def get_bounding_boxes(output):
     instances = output["instances"].to(torch.device("cpu"))
     
     return instances.get_fields()['pred_boxes'].tensor.numpy()
+
 
 def load_fits(fits_filepath, dimensions_normal=True):
     """Load a fits file and return its header and content"""
