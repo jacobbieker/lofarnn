@@ -213,6 +213,25 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, verbose=False):
                 print(f"Failed: {e}")
     return layer
 
+def make_bounding_box(ra, dec, wcs, class_name="Optical source"):
+    """
+    Creates a bounding box and returns it in (xmin, ymin, xmax, ymax, class_name) format
+    :param ra: RA of the object to make bounding box
+    :param dec: Dec of object
+    :param wcs: WCS to convert to pixel coordinates
+    :return: Bounding box coordinates for COCO style annotation
+    """
+
+    coord = SkyCoord(ra, dec, unit='deg')
+    box_center = skycoord_to_pixel(coord, wcs, 0)
+
+    # Now create box, which will be accomplished by taking int to get xmin, ymin, and int + 1 for xmax, ymax
+    xmin = int(box_center[0])
+    ymin = int(box_center[0])
+    ymax = ymin+1
+    xmax = xmin+1
+
+    return (xmin, ymin, xmax, ymax, class_name)
 
 def main():
     """
@@ -305,8 +324,12 @@ def main():
             img_array = np.array(img_array)
             print(img_array.shape)
             img_array = np.moveaxis(img_array, 0, 2)
+            # Include another array giving the bounding box for the source
+            source_bounding_box = np.array(make_bounding_box(source['ID_ra'], source['ID_dec'], wcs))
             # Now save out the combined file
-            np.save(os.path.join(all_directory, source['Source_Name']), img_array)
+            print(source_bounding_box)
+            combined_array = np.asarray([img_array, source_bounding_box])
+            np.save(os.path.join(all_directory, source['Source_Name']), combined_array)
 
             # Now the sources that exist are saved in the combined folder, so go through all the sources and
             # take the ones that exist, create the bounding box, or segmentation map, of the optical source location
