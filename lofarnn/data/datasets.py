@@ -33,13 +33,6 @@ def get_lotss_objects(fname, verbose=False):
     return Table(table)
 
 
-def get_panstarrs_download_name(p_download_loc, f_ra, f_dec, p_size, filter):
-    """
-    Get the download name of a PanSTARRS fits file in a fixed format
-    """
-    return f'{p_download_loc}ra={f_ra}_dec={f_dec}_s={p_size}_{filter}.fits'
-
-
 def create_coco_annotations(image_names,
                             image_dir='images', image_destination_dir=None,
                             json_dir='', json_name='json_data.pkl', image_size=None,
@@ -414,7 +407,8 @@ def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_l
 
 
 def create_fixed_source_dataset(cutout_directory, pan_wise_location,
-                                value_added_catalog_location, dr_two_location, fixed_size=300, use_multiprocessing=False,
+                                value_added_catalog_location, dr_two_location, fixed_size=300,
+                                use_multiprocessing=False,
                                 num_threads=os.cpu_count()):
     """
     Creates fixed size dataset using LGZ data
