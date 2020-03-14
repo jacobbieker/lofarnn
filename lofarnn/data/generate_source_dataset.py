@@ -1,20 +1,20 @@
+import multiprocessing
 import os
 
 import _pickle as pickle
 import astropy.units as u
 import numpy as np
-import sys
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
 from astropy.wcs.utils import skycoord_to_pixel
+from itertools import repeat
 
 from lofarnn.utils.dataset import create_COCO_style_directory_structure
 from lofarnn.utils.fits import extract_subimage
 
-sys.path.insert(0, "/home/s2153246/lofarnn")
-
+#os.environ["LOFARNN_ARCH"] = "XPS"
 environment = os.environ["LOFARNN_ARCH"]
 
 
@@ -402,7 +402,7 @@ def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_l
             print(f"Failed to save: {e}")
 
 
-def main():
+def main(use_multiprocessing=False, num_threads=os.cpu_count()):
     """
     Build the COCO style dataset from the DR2 fits files, LGZ data, and the PanSTARRS-ALLWISE Catalogs
     :return:
@@ -454,14 +454,21 @@ def main():
         plt.hist(l_objects["LGZ_Size"], density=True, bins=40)
         plt.xlabel("LGZ_Size")
         plt.show()
-    for mosaic in mosaic_names:
-        create_fixed_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue,
-                             mosaic_location=DR_2_loc,
-                             save_cutout_directory=all_directory,
-                             save_fits_directory=save_fits_dir,
-                             size_arcseconds=300,
-                             verbose=True)
+
+    if use_multiprocessing:
+        pool = multiprocessing.Pool(num_threads)
+        pool.starmap(create_fixed_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_catalogue),
+                                               repeat(DR_2_loc), repeat(all_directory), repeat(save_fits_dir),
+                                               repeat(300), repeat(True)))
+    else:
+        for mosaic in mosaic_names:
+            create_fixed_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue,
+                                 mosaic_location=DR_2_loc,
+                                 save_cutout_directory=all_directory,
+                                 save_fits_directory=save_fits_dir,
+                                 size_arcseconds=300,
+                                 verbose=True)
 
 
 if __name__ == "__main__":
-    main()
+    main(True)
