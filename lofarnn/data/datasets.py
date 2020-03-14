@@ -14,7 +14,7 @@ from itertools import repeat
 from lofarnn.utils.dataset import create_COCO_style_directory_structure
 from lofarnn.utils.fits import extract_subimage
 
-#os.environ["LOFARNN_ARCH"] = "XPS"
+# os.environ["LOFARNN_ARCH"] = "XPS"
 environment = os.environ["LOFARNN_ARCH"]
 
 
@@ -80,7 +80,7 @@ def create_coco_annotations(image_names,
         cache_list = []
         cutouts = np.load(image_filename, mmap_mode='r')[1]
         if not multiple_bboxes:
-            cutouts = cutouts[0] # Only take the first one, the main optical source
+            cutouts = cutouts[0]  # Only take the first one, the main optical source
         for bbox in cutouts:
             if bbox in cache_list:
                 continue
@@ -158,12 +158,12 @@ def determine_visible_catalogue_sources(ra, dec, wcs, size, catalogue, l_objects
     SkyCoord of their world coordinates
     """
     try:
-        RAarray = np.array(catalogue['ra'], dtype=float)
-        DECarray = np.array(catalogue['dec'], dtype=float)
+        ra_array = np.array(catalogue['ra'], dtype=float)
+        dec_array = np.array(catalogue['dec'], dtype=float)
     except:
-        RAarray = np.array(catalogue['ID_ra'], dtype=float)
-        DECarray = np.array(catalogue['ID_dec'], dtype=float)
-    sky_coords = SkyCoord(RAarray, DECarray, unit='deg')
+        ra_array = np.array(catalogue['ID_ra'], dtype=float)
+        dec_array = np.array(catalogue['ID_dec'], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit='deg')
 
     source_coord = SkyCoord(ra, dec, unit='deg')
     other_source = SkyCoord(l_objects['ID_ra'], l_objects['ID_dec'], unit="deg")
@@ -213,6 +213,7 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, verbose=False):
 def make_bounding_box(ra, dec, wcs, class_name="Optical source"):
     """
     Creates a bounding box and returns it in (xmin, ymin, xmax, ymax, class_name) format
+    :param class_name: Class name for the bounding box
     :param ra: RA of the object to make bounding box
     :param dec: Dec of object
     :param wcs: WCS to convert to pixel coordinates
@@ -228,11 +229,11 @@ def make_bounding_box(ra, dec, wcs, class_name="Optical source"):
     ymax = ymin + 1
     xmax = xmin + 1
 
-    return (xmin, ymin, xmax, ymax, class_name)
+    return xmin, ymin, xmax, ymax, class_name
 
 
 def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,
-                   save_cutout_directory, save_fits_directory, verbose=False):
+                   save_cutout_directory, verbose=False):
     """
     Create cutouts of all sources in a field
     :param mosaic: Name of the field to use
@@ -240,7 +241,6 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
     :param pan_wise_catalog: The PanSTARRS-ALLWISE catalogue used for Williams, 2018, the LoTSS III paper
     :param mosaic_location: The location of the LoTSS DR2 mosaics
     :param save_cutout_directory: Where to save the cutout npy files
-    :param save_fits_directory: Where to save the cutout FITS files
     :param verbose: Whether to print extra information or not
     :return:
     """
@@ -264,13 +264,11 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
         source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
         try:
             lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=False)
-            lhdu.writeto(os.path.join(save_fits_directory, source["Source_Name"] + '_radio_DR2.fits'), overwrite=True)
         except:
             print(f"Failed to make data cutout for source: {source['Source_Name']}")
             continue
         try:
             lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=False)
-            lrms.writeto(os.path.join(save_fits_directory, source["Source_Name"] + '_rms_DR2.fits'), overwrite=True)
         except:
             print(f"Failed to make rms cutout for source: {source['Source_Name']}")
             continue
@@ -287,6 +285,9 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
         # Get the catalog sources once, to speed things up
         cutout_catalog = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
                                                              pan_wise_catalog, source)
+        # Now determine if there are other sources in the area
+        other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
+                                                                    mosaic_cutouts, source)
         for layer in layers:
             img_array.append(
                 make_catalogue_layer(layer, wcs, img_array[0].shape, cutout_catalog))
@@ -296,11 +297,23 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             print(img_array.shape)
         img_array = np.moveaxis(img_array, 0, 2)
         # Include another array giving the bounding box for the source
-        source_bounding_box = np.array(make_bounding_box(source['ID_ra'], source['ID_dec'], wcs))
+        bounding_boxes = []
+        source_bounding_box = make_bounding_box(source['ID_ra'], source['ID_dec'], wcs)
+        bounding_boxes.append(source_bounding_box)
+        # Now go through and for any other sources in the field of view, add those
+        for other_source in other_visible_sources:
+            other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
+                                           wcs, class_name="Other Optical Source")
+            if other_bbox[0] != bounding_boxes[0][0] and other_bbox[1] != bounding_boxes[0][
+                1]:  # Make sure not same one
+                if other_bbox[0] >= 0 and other_bbox[1] >= 0 and other_bbox[2] < img_array.shape[0] and other_bbox[3] < \
+                        img_array.shape[1]:
+                    bounding_boxes.append(other_bbox)  # Only add the bounding box if it is within the image shape
         # Now save out the combined file
+        bounding_boxes = np.array(bounding_boxes)
         if verbose:
-            print(source_bounding_box)
-        combined_array = [img_array, source_bounding_box]
+            print(bounding_boxes)
+        combined_array = [img_array, bounding_boxes]
         try:
             np.save(os.path.join(save_cutout_directory, source['Source_Name']), combined_array)
         except Exception as e:
@@ -308,7 +321,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
 
 
 def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,
-                         save_cutout_directory, save_fits_directory, size_arcseconds=200, verbose=False):
+                         save_cutout_directory, size_arcseconds=200, verbose=False):
     """
     Create cutouts of all sources in a field, with the same size cutout. This means that each image
     will have at least one source, but potentially more, if the cutouts are large enough.
@@ -319,7 +332,6 @@ def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_l
     :param pan_wise_catalog: The PanSTARRS-ALLWISE catalogue used for Williams, 2018, the LoTSS III paper
     :param mosaic_location: The location of the LoTSS DR2 mosaics
     :param save_cutout_directory: Where to save the cutout npy files
-    :param save_fits_directory: Where to save the cutout FITS files
     :param size_arcseconds: The size, in arcseconds, of the cutouts (determines pixel size from that)
     :param verbose: Whether to print extra information or not
     :return:
@@ -344,13 +356,11 @@ def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_l
         source_size = size_arcseconds / 3600.  # in arcseconds converted to archours
         try:
             lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=False)
-            lhdu.writeto(os.path.join(save_fits_directory, source["Source_Name"] + '_radio_DR2.fits'), overwrite=True)
         except:
             print(f"Failed to make data cutout for source: {source['Source_Name']}")
             continue
         try:
             lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=False)
-            lrms.writeto(os.path.join(save_fits_directory, source["Source_Name"] + '_rms_DR2.fits'), overwrite=True)
         except:
             print(f"Failed to make rms cutout for source: {source['Source_Name']}")
             continue
@@ -387,7 +397,8 @@ def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_l
         for other_source in other_visible_sources:
             other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
                                            wcs, class_name="Other Optical Source")
-            if other_bbox[0] != bounding_boxes[0][0] and other_bbox[1] != bounding_boxes[0][1]: # Make sure not same one
+            if other_bbox[0] != bounding_boxes[0][0] and other_bbox[1] != bounding_boxes[0][
+                1]:  # Make sure not same one
                 if other_bbox[0] >= 0 and other_bbox[1] >= 0 and other_bbox[2] < img_array.shape[0] and other_bbox[3] < \
                         img_array.shape[1]:
                     bounding_boxes.append(other_bbox)  # Only add the bounding box if it is within the image shape
@@ -402,25 +413,23 @@ def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_l
             print(f"Failed to save: {e}")
 
 
-def main(use_multiprocessing=False, num_threads=os.cpu_count()):
+def create_fixed_source_dataset(cutout_directory, pan_wise_location,
+                                value_added_catalog_location, dr_two_location, fixed_size=300, use_multiprocessing=False,
+                                num_threads=os.cpu_count()):
     """
-    Build the COCO style dataset from the DR2 fits files, LGZ data, and the PanSTARRS-ALLWISE Catalogs
+    Creates fixed size dataset using LGZ data
+
+    :param cutout_directory: Directory to store the cutouts
+    :param pan_wise_location: The location of the PanSTARRS-ALLWISE catalog
+    :param value_added_catalog_location: Location of the LoTSS Value Added Catalog
+    :param dr_two_location: The location of the LoTSS DR2 Mosaic Locations
+    :param fixed_size: The size of the cutouts, in arcseconds default to 300 arcseconds
+    :param use_multiprocessing: Whether to use multiprocessing
+    :param num_threads: Number of threads to use, if multiprocessing is true
     :return:
     """
-    if environment == "ALICE":
-        DR_2_loc = "/home/s2153246/data/data/LoTSS_DR2/lofar-surveys.org/downloads/DR2/mosaics/"
-        fname = '/home/s2153246/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
-        cutout_directory = "/home/s2153246/data/processed/fixed/"
-        pan_wise_location = "/home/s2153246/data/catalogues/pan_allwise.fits"
-        save_fits_dir = "/home/s2153246/data/interim/fixed/"
-    else:
-        pan_wise_location = "/home/jacob/hetdex_ps1_allwise_photoz_v0.6.fits"
-        save_fits_dir = "/home/jacob/Development/LOFAR-ML/data/interim/fixed/"
-        DR_2_loc = "/run/media/jacob/34b36a2c-5b42-41cd-a1fa-7a09e5414860/lofar-surveys.org/downloads/DR2/mosaics/"
-        fname = '/home/jacob/Development/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
-        cutout_directory = "/home/jacob/Development/LOFAR-ML/data/processed/fixed/"
 
-    l_objects = get_lotss_objects(fname, True)
+    l_objects = get_lotss_objects(value_added_catalog_location, True)
     l_objects = l_objects[~np.isnan(l_objects['LGZ_Size'])]
     l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]
     mosaic_names = set(l_objects["Mosaic_ID"])
@@ -458,17 +467,75 @@ def main(use_multiprocessing=False, num_threads=os.cpu_count()):
     if use_multiprocessing:
         pool = multiprocessing.Pool(num_threads)
         pool.starmap(create_fixed_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_catalogue),
-                                               repeat(DR_2_loc), repeat(all_directory), repeat(save_fits_dir),
-                                               repeat(300), repeat(True)))
+                                               repeat(dr_two_location), repeat(all_directory),
+                                               repeat(fixed_size), repeat(True)))
     else:
         for mosaic in mosaic_names:
             create_fixed_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue,
-                                 mosaic_location=DR_2_loc,
+                                 mosaic_location=dr_two_location,
                                  save_cutout_directory=all_directory,
-                                 save_fits_directory=save_fits_dir,
-                                 size_arcseconds=300,
+                                 size_arcseconds=fixed_size,
                                  verbose=True)
 
 
-if __name__ == "__main__":
-    main(True)
+def create_variable_source_dataset(cutout_directory, pan_wise_location,
+                                   value_added_catalog_location, dr_two_location, use_multiprocessing=False,
+                                   num_threads=os.cpu_count()):
+    """
+    Create variable sized cutouts (hardcoded to 1.5 times the LGZ_Size) for each of the cutouts
+
+    :param cutout_directory: Directory to store the cutouts
+    :param pan_wise_location: The location of the PanSTARRS-ALLWISE catalog
+    :param value_added_catalog_location: Location of the LoTSS Value Added Catalog
+    :param dr_two_location: The location of the LoTSS DR2 Mosaic Locations
+    :param use_multiprocessing: Whether to use multiprocessing
+    :param num_threads: Number of threads to use, if multiprocessing is true
+    :return:
+    """
+
+    l_objects = get_lotss_objects(value_added_catalog_location, True)
+    l_objects = l_objects[~np.isnan(l_objects['LGZ_Size'])]
+    l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]
+    mosaic_names = set(l_objects["Mosaic_ID"])
+
+    # Go through each object, creating the cutout and saving to a directory
+    print(f'{"#" * 80} \nCreate and populate training directories for Detectron 2\n{"#" * 80}')
+    # Create a directory structure identical for detectron2
+    all_directory, train_directory, val_directory, test_directory, annotations_directory \
+        = create_COCO_style_directory_structure(cutout_directory)
+
+    # Now go through each source in l_objects and create a cutout of the fits file
+    # Open the Panstarrs and WISE catalogue
+    pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
+    pan_wise_catalogue = pan_wise_catalogue[1].data
+    if environment == "XPS":
+        i_mag = pan_wise_catalogue["iFApMag"]
+        i_mag = i_mag[~np.isinf(i_mag)]
+        i_mag = i_mag[i_mag > -98]
+        import matplotlib.pyplot as plt
+        plt.hist(i_mag, density=True, bins=40)
+        plt.xlabel('iFApMag')
+        plt.show()
+        del i_mag
+        i_mag = pan_wise_catalogue["w1Mag"]
+        i_mag = i_mag[~np.isinf(i_mag)]
+        i_mag = i_mag[i_mag > -98]
+        plt.hist(i_mag, density=True, bins=40)
+        plt.xlabel('w1Mag')
+        plt.show()
+        del i_mag
+        plt.hist(l_objects["LGZ_Size"], density=True, bins=40)
+        plt.xlabel("LGZ_Size")
+        plt.show()
+
+    if use_multiprocessing:
+        pool = multiprocessing.Pool(num_threads)
+        pool.starmap(create_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_catalogue),
+                                         repeat(dr_two_location), repeat(all_directory),
+                                         repeat(True)))
+    else:
+        for mosaic in mosaic_names:
+            create_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue,
+                           mosaic_location=dr_two_location,
+                           save_cutout_directory=all_directory,
+                           verbose=True)
