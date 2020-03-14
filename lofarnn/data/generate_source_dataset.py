@@ -3,6 +3,7 @@ import os
 import _pickle as pickle
 import astropy.units as u
 import numpy as np
+import sys
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
@@ -12,8 +13,9 @@ from astropy.wcs.utils import skycoord_to_pixel
 from lofarnn.utils.dataset import create_COCO_style_directory_structure
 from lofarnn.utils.fits import extract_subimage
 
+sys.path.insert(0, "/home/s2153246/lofarnn")
 
-# sys.path.insert(0, "/home/s2153246/lofar_frcnn_tools")
+environment = os.environ["LOFARNN_ARCH"]
 
 
 def get_lotss_objects(fname, verbose=False):
@@ -405,48 +407,53 @@ def main():
     Build the COCO style dataset from the DR2 fits files, LGZ data, and the PanSTARRS-ALLWISE Catalogs
     :return:
     """
-    save_fits_dir = "/home/jacob/Development/LOFAR-ML/data/interim/fixed/"
-    DR_2_loc = "/run/media/jacob/34b36a2c-5b42-41cd-a1fa-7a09e5414860/lofar-surveys.org/downloads/DR2/mosaics/"
-    # DR_2_loc = "/home/s2153246/data/data/LoTSS_DR2/lofar-surveys.org/downloads/DR2/mosaics/"
-    fname = '/home/jacob/Development/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
-    # fname = '/home/s2153246/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
+    if environment == "ALICE":
+        DR_2_loc = "/home/s2153246/data/data/LoTSS_DR2/lofar-surveys.org/downloads/DR2/mosaics/"
+        fname = '/home/s2153246/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
+        cutout_directory = "/home/s2153246/data/processed/fixed/"
+        pan_wise_location = "/home/s2153246/data/catalogues/pan_allwise.fits"
+        save_fits_dir = "/home/s2153246/data/interim/fixed/"
+    else:
+        pan_wise_location = "/home/jacob/hetdex_ps1_allwise_photoz_v0.6.fits"
+        save_fits_dir = "/home/jacob/Development/LOFAR-ML/data/interim/fixed/"
+        DR_2_loc = "/run/media/jacob/34b36a2c-5b42-41cd-a1fa-7a09e5414860/lofar-surveys.org/downloads/DR2/mosaics/"
+        fname = '/home/jacob/Development/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
+        cutout_directory = "/home/jacob/Development/LOFAR-ML/data/processed/fixed/"
+
     l_objects = get_lotss_objects(fname, True)
     l_objects = l_objects[~np.isnan(l_objects['LGZ_Size'])]
     l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]
     mosaic_names = set(l_objects["Mosaic_ID"])
 
     # Go through each object, creating the cutout and saving to a directory
-    cutout_directory = "/home/jacob/Development/LOFAR-ML/data/processed/fixed/"
-    # cutout_directory = "/home/s2153246/data/cutouts/"
     print(f'{"#" * 80} \nCreate and populate training directories for Detectron 2\n{"#" * 80}')
     # Create a directory structure identical for detectron2
     all_directory, train_directory, val_directory, test_directory, annotations_directory \
         = create_COCO_style_directory_structure(cutout_directory)
 
     # Now go through each source in l_objects and create a cutout of the fits file
-    pan_wise_location = "/home/jacob/hetdex_ps1_allwise_photoz_v0.6.fits"
-    # pan_wise_location = "/home/s2153246/data/catalogues/pan_allwise.fits"
     # Open the Panstarrs and WISE catalogue
     pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
     pan_wise_catalogue = pan_wise_catalogue[1].data
-    i_mag = pan_wise_catalogue["iFApMag"]
-    i_mag = i_mag[~np.isinf(i_mag)]
-    i_mag = i_mag[i_mag > -98]
-    import matplotlib.pyplot as plt
-    plt.hist(i_mag, density=True, bins=40)
-    plt.xlabel('iFApMag')
-    plt.show()
-    del i_mag
-    i_mag = pan_wise_catalogue["w1Mag"]
-    i_mag = i_mag[~np.isinf(i_mag)]
-    i_mag = i_mag[i_mag > -98]
-    plt.hist(i_mag, density=True, bins=40)
-    plt.xlabel('w1Mag')
-    plt.show()
-    del i_mag
-    plt.hist(l_objects["LGZ_Size"], density=True, bins=40)
-    plt.xlabel("LGZ_Size")
-    plt.show()
+    if environment == "XPS":
+        i_mag = pan_wise_catalogue["iFApMag"]
+        i_mag = i_mag[~np.isinf(i_mag)]
+        i_mag = i_mag[i_mag > -98]
+        import matplotlib.pyplot as plt
+        plt.hist(i_mag, density=True, bins=40)
+        plt.xlabel('iFApMag')
+        plt.show()
+        del i_mag
+        i_mag = pan_wise_catalogue["w1Mag"]
+        i_mag = i_mag[~np.isinf(i_mag)]
+        i_mag = i_mag[i_mag > -98]
+        plt.hist(i_mag, density=True, bins=40)
+        plt.xlabel('w1Mag')
+        plt.show()
+        del i_mag
+        plt.hist(l_objects["LGZ_Size"], density=True, bins=40)
+        plt.xlabel("LGZ_Size")
+        plt.show()
     for mosaic in mosaic_names:
         create_fixed_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue,
                              mosaic_location=DR_2_loc,
