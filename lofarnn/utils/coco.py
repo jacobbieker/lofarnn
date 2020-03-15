@@ -48,9 +48,9 @@ def create_coco_style_directory_structure(root_directory, suffix='', verbose=Fal
     if verbose:
         print(f'COCO style directory structure created in \'{root_directory}\'.\n')
     all_directory, train_directory, val_directory, test_directory, annotations_directory = \
-        os.path.join(root_directory, f'LGZ_COCOstyle{suffix}', 'all'), \
-        os.path.join(root_directory, f'LGZ_COCOstyle{suffix}', 'train'), \
-        os.path.join(root_directory, f'LGZ_COCOstyle{suffix}', 'val'), \
-        os.path.join(root_directory, f'LGZ_COCOstyle{suffix}', 'test'), \
-        os.path.join(root_directory, f'LGZ_COCOstyle{suffix}', 'annotations')
+        os.path.join(root_directory, f'COCO{suffix}', 'all'), \
+        os.path.join(root_directory, f'COCO{suffix}', 'train'), \
+        os.path.join(root_directory, f'COCO{suffix}', 'val'), \
+        os.path.join(root_directory, f'COCO{suffix}', 'test'), \
+        os.path.join(root_directory, f'COCO{suffix}', 'annotations')
     return all_directory, train_directory, val_directory, test_directory, annotations_directory
