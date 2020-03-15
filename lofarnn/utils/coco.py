@@ -1,6 +1,5 @@
 import os
 import pickle
-# from lofarnn.data.datasets import split_data
 import random
 from pathlib import Path
 
@@ -86,25 +85,24 @@ def create_coco_annotations(image_names,
     for i, image_name in enumerate(image_names):
         # Get image dimensions and insert them in a python dict
         image_dest_filename = os.path.join(image_destination_dir, image_name.name)
-        image = np.load(image_name, mmap_mode='r')[0]  # mmap_mode might allow faster read
+        image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
         width, height, depth = np.shape(image)
         np.save(image_dest_filename, image)  # Save to the final destination
-
         record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
 
         # Insert bounding boxes and their corresponding classes
         # print('scale_factor:',cutout.scale_factor)
         objs = []
         cache_list = []
-        cutouts = np.load(image_name, mmap_mode='r')[1]
         if not multiple_bboxes:
-            cutouts = cutouts[0]  # Only take the first one, the main optical source
+            cutouts = [cutouts[0]]  # Only take the first one, the main optical source
         for bbox in cutouts:
+            print(bbox)
             if bbox in cache_list:
                 continue
             cache_list.append(bbox)
-            assert bbox[2] > bbox[0]
-            assert bbox[3] > bbox[1]
+            assert int(bbox[2]) > int(bbox[0])
+            assert int(bbox[3]) > int(bbox[1])
 
             if bbox[4] == "Other Optical Source":
                 category_id = 1
@@ -112,7 +110,7 @@ def create_coco_annotations(image_names,
                 category_id = 0
 
             obj = {
-                "bbox": [bbox[0], bbox[1], bbox[2], bbox[3]],
+                "bbox": [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])],
                 "bbox_mode": None,
                 # "segmentation": [poly],
                 "category_id": category_id,
@@ -178,10 +176,14 @@ def split_data(image_directory, split=(0.6, 0.8)):
     """
 
     image_paths = Path(image_directory).rglob("*.npy")
-    image_paths = random.shuffle(list(image_paths))
-    train_images = image_paths[:int(len(image_paths)*split[0])]
-    val_images = image_paths[int(len(image_paths)*split[0]):int(len(image_paths)*split[1])]
-    test_images = image_paths[int(len(image_paths)*split[1]):]
+    im_paths = []
+    for p in image_paths:
+        im_paths.append(p)
+    random.shuffle(im_paths)
+    print(im_paths)
+    train_images = im_paths[:int(len(im_paths)*split[0])]
+    val_images = im_paths[int(len(im_paths)*split[0]):int(len(im_paths)*split[1])]
+    test_images = im_paths[int(len(im_paths)*split[1]):]
 
     return {"train": train_images,
             "val": val_images,

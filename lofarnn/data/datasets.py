@@ -1,7 +1,5 @@
 import multiprocessing
 import os
-import random
-from pathlib import Path
 
 import astropy.units as u
 import numpy as np
@@ -428,26 +426,3 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
                            mosaic_location=dr_two_location,
                            save_cutout_directory=all_directory,
                            verbose=True)
-
-
-def split_data(image_directory, split=(0.6, 0.8)):
-    """
-    Split up the data and return which images should go to which train, test, val directory
-    :param image_directory: The directory where all the images are located, i.e. the "all" directory
-    :param train_directory: Where to store the training data
-    :param val_directory: Where to store the validation data
-    :param test_directory: Where to store the test data
-    :param split: Tuple of train, val, test split,
-    in form of (train fraction, val fraction), with the rest being put in test directory
-    :return: A dict containing which images go to which directory
-    """
-
-    image_paths = Path(image_directory).rglob("*.npy")
-    image_paths = random.shuffle(list(image_paths))
-    train_images = image_paths[:int(len(image_paths)*split[0])]
-    val_images = image_paths[int(len(image_paths)*split[0]):int(len(image_paths)*split[1])]
-    test_images = image_paths[int(len(image_paths)*split[1]):]
-
-    return {"train": train_images,
-            "val": val_images,
-            "test": test_images}
