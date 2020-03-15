@@ -14,9 +14,6 @@ from itertools import repeat
 from lofarnn.utils.coco import create_coco_style_directory_structure
 from lofarnn.utils.fits import extract_subimage
 
-os.environ["LOFARNN_ARCH"] = "XPS"
-environment = os.environ["LOFARNN_ARCH"]
-
 
 def get_lotss_objects(fname, verbose=False):
     """
