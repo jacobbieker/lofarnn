@@ -11,7 +11,7 @@ from astropy.wcs import WCS
 from astropy.wcs.utils import skycoord_to_pixel
 from itertools import repeat
 
-from lofarnn.utils.dataset import create_COCO_style_directory_structure
+from lofarnn.utils.coco import create_coco_style_directory_structure
 from lofarnn.utils.fits import extract_subimage
 
 # os.environ["LOFARNN_ARCH"] = "XPS"
@@ -36,7 +36,7 @@ def get_lotss_objects(fname, verbose=False):
 def create_coco_annotations(image_names,
                             image_dir='images', image_destination_dir=None,
                             json_dir='', json_name='json_data.pkl', image_size=None,
-                            multiple_bboxes=True):
+                            multiple_bboxes=True, verbose=False):
     """
     Creates the annotations for the COCO-style dataset from the npy files available
     :param image_names: Image names, i.e., the source names
@@ -101,7 +101,8 @@ def create_coco_annotations(image_names,
     json_path = os.path.join(json_dir, json_name)
     with open(json_path, "wb") as outfile:
         pickle.dump(dataset_dicts, outfile)
-    print(f'COCO annotation file created in \'{json_dir}\'.\n')
+    if verbose:
+        print(f'COCO annotation file created in \'{json_dir}\'.\n')
 
 
 def pad_with(vector, pad_width, iaxis, kwargs):
@@ -310,7 +311,8 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
         try:
             np.save(os.path.join(save_cutout_directory, source['Source_Name']), combined_array)
         except Exception as e:
-            print(f"Failed to save: {e}")
+            if verbose:
+                print(f"Failed to save: {e}")
 
 
 def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,
@@ -336,7 +338,8 @@ def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_l
         fits.open(lofar_data_location, memmap=True)
         fits.open(lofar_rms_location, memmap=True)
     except:
-        print(f"Mosaic {mosaic} does not exist!")
+        if verbose:
+            print(f"Mosaic {mosaic} does not exist!")
 
     mosaic_cutouts = value_added_catalog[value_added_catalog["Mosaic_ID"] == mosaic]
     # Go through each cutout for that mosaic
@@ -350,12 +353,14 @@ def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_l
         try:
             lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=False)
         except:
-            print(f"Failed to make data cutout for source: {source['Source_Name']}")
+            if verbose:
+                print(f"Failed to make data cutout for source: {source['Source_Name']}")
             continue
         try:
             lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=False)
         except:
-            print(f"Failed to make rms cutout for source: {source['Source_Name']}")
+            if verbose:
+                print(f"Failed to make rms cutout for source: {source['Source_Name']}")
             continue
         img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
         header = lhdu[0].header
@@ -403,7 +408,8 @@ def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_l
         try:
             np.save(os.path.join(save_cutout_directory, source['Source_Name']), combined_array)
         except Exception as e:
-            print(f"Failed to save: {e}")
+            if verbose:
+                print(f"Failed to save: {e}")
 
 
 def create_fixed_source_dataset(cutout_directory, pan_wise_location,
@@ -429,10 +435,9 @@ def create_fixed_source_dataset(cutout_directory, pan_wise_location,
     mosaic_names = set(l_objects["Mosaic_ID"])
 
     # Go through each object, creating the cutout and saving to a directory
-    print(f'{"#" * 80} \nCreate and populate training directories for Detectron 2\n{"#" * 80}')
     # Create a directory structure identical for detectron2
     all_directory, train_directory, val_directory, test_directory, annotations_directory \
-        = create_COCO_style_directory_structure(cutout_directory)
+        = create_coco_style_directory_structure(cutout_directory)
 
     # Now go through each source in l_objects and create a cutout of the fits file
     # Open the Panstarrs and WISE catalogue
@@ -493,10 +498,9 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     mosaic_names = set(l_objects["Mosaic_ID"])
 
     # Go through each object, creating the cutout and saving to a directory
-    print(f'{"#" * 80} \nCreate and populate training directories for Detectron 2\n{"#" * 80}')
     # Create a directory structure identical for detectron2
     all_directory, train_directory, val_directory, test_directory, annotations_directory \
-        = create_COCO_style_directory_structure(cutout_directory)
+        = create_coco_style_directory_structure(cutout_directory)
 
     # Now go through each source in l_objects and create a cutout of the fits file
     # Open the Panstarrs and WISE catalogue
