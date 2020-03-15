@@ -14,7 +14,7 @@ from itertools import repeat
 from lofarnn.utils.coco import create_coco_style_directory_structure
 from lofarnn.utils.fits import extract_subimage
 
-# os.environ["LOFARNN_ARCH"] = "XPS"
+os.environ["LOFARNN_ARCH"] = "XPS"
 environment = os.environ["LOFARNN_ARCH"]
 
 
@@ -443,25 +443,6 @@ def create_fixed_source_dataset(cutout_directory, pan_wise_location,
     # Open the Panstarrs and WISE catalogue
     pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
     pan_wise_catalogue = pan_wise_catalogue[1].data
-    if environment == "XPS":
-        i_mag = pan_wise_catalogue["iFApMag"]
-        i_mag = i_mag[~np.isinf(i_mag)]
-        i_mag = i_mag[i_mag > -98]
-        import matplotlib.pyplot as plt
-        plt.hist(i_mag, density=True, bins=40)
-        plt.xlabel('iFApMag')
-        plt.show()
-        del i_mag
-        i_mag = pan_wise_catalogue["w1Mag"]
-        i_mag = i_mag[~np.isinf(i_mag)]
-        i_mag = i_mag[i_mag > -98]
-        plt.hist(i_mag, density=True, bins=40)
-        plt.xlabel('w1Mag')
-        plt.show()
-        del i_mag
-        plt.hist(l_objects["LGZ_Size"], density=True, bins=40)
-        plt.xlabel("LGZ_Size")
-        plt.show()
 
     if use_multiprocessing:
         pool = multiprocessing.Pool(num_threads)
@@ -506,25 +487,6 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     # Open the Panstarrs and WISE catalogue
     pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
     pan_wise_catalogue = pan_wise_catalogue[1].data
-    if environment == "XPS":
-        i_mag = pan_wise_catalogue["iFApMag"]
-        i_mag = i_mag[~np.isinf(i_mag)]
-        i_mag = i_mag[i_mag > -98]
-        import matplotlib.pyplot as plt
-        plt.hist(i_mag, density=True, bins=40)
-        plt.xlabel('iFApMag')
-        plt.show()
-        del i_mag
-        i_mag = pan_wise_catalogue["w1Mag"]
-        i_mag = i_mag[~np.isinf(i_mag)]
-        i_mag = i_mag[i_mag > -98]
-        plt.hist(i_mag, density=True, bins=40)
-        plt.xlabel('w1Mag')
-        plt.show()
-        del i_mag
-        plt.hist(l_objects["LGZ_Size"], density=True, bins=40)
-        plt.xlabel("LGZ_Size")
-        plt.show()
 
     if use_multiprocessing:
         pool = multiprocessing.Pool(num_threads)

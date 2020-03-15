@@ -23,7 +23,10 @@ def bbox_stats(image_paths):
     num_i_band_sources = []
     num_w_one_band_sources = []
     for image in image_paths:
-        cutout, bboxes = np.load(image)
+        try:
+            cutout, bboxes = np.load(image, allow_pickle=True)
+        except:
+            continue
         num_bounding_boxes.append(len(bboxes))
         num_i_band_sources.append(np.count_nonzero(cutout[:, :, 1]))
         num_w_one_band_sources.append(np.count_nonzero(cutout[:, :, 2]))
