@@ -1,6 +1,7 @@
 import os
 
 from lofarnn.data.datasets import create_variable_source_dataset
+from lofarnn.utils.coco import create_coco_dataset
 
 environment = os.environ["LOFARNN_ARCH"]
 
@@ -20,3 +21,4 @@ create_variable_source_dataset(cutout_directory=cutout_directory,
                                value_added_catalog_location=vac,
                                dr_two_location=dr_two,
                                use_multiprocessing=False)
+create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=False)

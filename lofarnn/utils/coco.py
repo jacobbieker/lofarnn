@@ -69,11 +69,9 @@ def create_coco_annotations(image_names,
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
     directory
     :param image_names: Image names, i.e., the source names
-    :param image_dir: The directory containing the images
     :param image_destination_dir: The directory the images will end up in
     :param json_dir: The directory where to put the JSON annotation file
     :param json_name: The name of the JSON file
-    :param image_size: The image size
     :param multiple_bboxes: Whether to use multiple bounding boxes, or only the first, for
     example, to only use the main source Optical source, or include others that fall within the
     defined area
