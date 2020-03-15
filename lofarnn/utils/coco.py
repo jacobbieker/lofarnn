@@ -4,6 +4,7 @@ import random
 from pathlib import Path
 
 import numpy as np
+from PIL import Image
 
 
 def mkdirs_safe(directory_list):
@@ -64,7 +65,7 @@ def create_coco_style_directory_structure(root_directory, suffix='', verbose=Fal
 def create_coco_annotations(image_names,
                             image_destination_dir=None,
                             json_dir='', json_name='json_data.pkl',
-                            multiple_bboxes=True, verbose=False):
+                            multiple_bboxes=True, resize=None, verbose=False):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
     directory
@@ -86,6 +87,11 @@ def create_coco_annotations(image_names,
         # Get image dimensions and insert them in a python dict
         image_dest_filename = os.path.join(image_destination_dir, image_name.name)
         image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
+        if resize is not None:
+            # Resize the image and boxes
+            for index, box in enumerate(cutouts):
+                cutouts[index] = scale_box(image, box, resize)
+            image = resize_array(image, resize, resize)
         width, height, depth = np.shape(image)
         np.save(image_dest_filename, image)  # Save to the final destination
         record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
@@ -97,12 +103,11 @@ def create_coco_annotations(image_names,
         if not multiple_bboxes:
             cutouts = [cutouts[0]]  # Only take the first one, the main optical source
         for bbox in cutouts:
-            print(bbox)
             if bbox in cache_list:
                 continue
             cache_list.append(bbox)
-            assert int(bbox[2]) > int(bbox[0])
-            assert int(bbox[3]) > int(bbox[1])
+            assert float(bbox[2]) > float(bbox[0])
+            assert float(bbox[3]) > float(bbox[1])
 
             if bbox[4] == "Other Optical Source":
                 category_id = 1
@@ -110,7 +115,7 @@ def create_coco_annotations(image_names,
                 category_id = 0
 
             obj = {
-                "bbox": [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])],
+                "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
                 "bbox_mode": None,
                 # "segmentation": [poly],
                 "category_id": category_id,
@@ -128,7 +133,7 @@ def create_coco_annotations(image_names,
         print(f'COCO annotation file created in \'{json_dir}\'.\n')
 
 
-def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0.6,0.8), verbose=False):
+def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0.6,0.8), resize=None, verbose=False):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
     directories, and create the COCO annotation file to be loaded into Detectron2, or other similar models
@@ -136,6 +141,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
     in form of (train fraction, val fraction), with the rest being put in test directory
     :param root_directory: root directory for the COCO dataset
     :param multiple_bboxes: Whether to include multiple bounding boxes, or only the main source
+    :param resize: Image size to resize to, or None if not resizing
     :param verbose: Whether to print more data to stdout or not
     :return:
     """
@@ -151,18 +157,21 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             image_destination_dir=train_directory,
                             json_name=f"json_train.pkl",
                             multiple_bboxes=multiple_bboxes,
+                            resize=resize,
                             verbose=verbose)
     create_coco_annotations(data_split["val"],
                             json_dir=annotations_directory,
                             image_destination_dir=val_directory,
                             json_name=f"json_val.pkl",
                             multiple_bboxes=multiple_bboxes,
+                            resize=resize,
                             verbose=verbose)
     create_coco_annotations(data_split["test"],
                             json_dir=annotations_directory,
                             image_destination_dir=test_directory,
                             json_name=f"json_test.pkl",
                             multiple_bboxes=multiple_bboxes,
+                            resize=resize,
                             verbose=verbose)
 
 
@@ -180,7 +189,6 @@ def split_data(image_directory, split=(0.6, 0.8)):
     for p in image_paths:
         im_paths.append(p)
     random.shuffle(im_paths)
-    print(im_paths)
     train_images = im_paths[:int(len(im_paths)*split[0])]
     val_images = im_paths[int(len(im_paths)*split[0]):int(len(im_paths)*split[1])]
     test_images = im_paths[int(len(im_paths)*split[1]):]
@@ -188,3 +196,17 @@ def split_data(image_directory, split=(0.6, 0.8)):
     return {"train": train_images,
             "val": val_images,
             "test": test_images}
+
+
+def resize_array(arr, width, height, interpolation=Image.BILINEAR):
+    """Resizes numpy array to a specified width and height using specified interpolation"""
+    return np.array(Image.fromarray(arr).resize((width,height),interpolation))
+
+
+def scale_box(arr, bounding_box, new_size):
+    scale_factor = arr.shape[0] / new_size
+    bounding_box[1] = bounding_box[1]*scale_factor
+    bounding_box[3] = bounding_box[3]*scale_factor
+    bounding_box[0] = bounding_box[0]*scale_factor
+    bounding_box[2] = bounding_box[2]*scale_factor
+    return bounding_box

@@ -2,7 +2,11 @@ import multiprocessing
 import os
 
 import astropy.units as u
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
 import numpy as np
+import scipy.ndimage
+from PIL import Image
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
@@ -128,7 +132,7 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, verbose=False):
     return layer
 
 
-def make_bounding_box(ra, dec, wcs, class_name="Optical source"):
+def make_bounding_box(ra, dec, wcs, resize=1, class_name="Optical source"):
     """
     Creates a bounding box and returns it in (xmin, ymin, xmax, ymax, class_name) format
     :param class_name: Class name for the bounding box
@@ -151,7 +155,7 @@ def make_bounding_box(ra, dec, wcs, class_name="Optical source"):
 
 
 def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,
-                   save_cutout_directory, verbose=False):
+                   save_cutout_directory, resize=None, verbose=False):
     """
     Create cutouts of all sources in a field
     :param mosaic: Name of the field to use
@@ -219,18 +223,28 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
         img_array = np.moveaxis(img_array, 0, 2)
         # Include another array giving the bounding box for the source
         bounding_boxes = []
-        source_bounding_box = make_bounding_box(source['ID_ra'], source['ID_dec'], wcs)
+        source_bounding_box = list(make_bounding_box(source['ID_ra'], source['ID_dec'], wcs))
         bounding_boxes.append(source_bounding_box)
         # Now go through and for any other sources in the field of view, add those
         for other_source in other_visible_sources:
             other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
                                            wcs, class_name="Other Optical Source")
-            if other_bbox[0] != bounding_boxes[0][0] and other_bbox[1] != bounding_boxes[0][
-                1]:  # Make sure not same one
+            if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][1]):  # Make sure not same one
                 if other_bbox[0] >= 0 and other_bbox[1] >= 0 and other_bbox[2] < img_array.shape[0] and other_bbox[3] < \
                         img_array.shape[1]:
-                    bounding_boxes.append(other_bbox)  # Only add the bounding box if it is within the image shape
+                    bounding_boxes.append(list(other_bbox))  # Only add the bounding box if it is within the image shape
         # Now save out the combined file
+
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, projection=wcs)
+        ax.imshow(lhdu[0].data/ lrms[0].data, origin='lower')
+        rect = patches.Rectangle((bounding_boxes[0][0], bounding_boxes[0][1]), 1, 1, linewidth=1, edgecolor='w', facecolor='none')
+        ax.add_patch(rect)
+        ax.scatter(source['ID_ra'] * u.deg, source['ID_dec'] * u.deg, marker = 'o',
+                   edgecolor = 'white', facecolor = 'none',
+                   s = 10, linewidth = 1,
+                   transform = ax.get_transform('icrs'))
+        plt.show()
         bounding_boxes = np.array(bounding_boxes)
         if verbose:
             print(bounding_boxes)
@@ -328,6 +342,17 @@ def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_l
                         img_array.shape[1]:
                     bounding_boxes.append(other_bbox)  # Only add the bounding box if it is within the image shape
         # Now save out the combined file
+
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, projection=wcs)
+        ax.imshow(lhdu[0].data, origin='lower')
+        rect = patches.Rectangle((bounding_boxes[0][0], bounding_boxes[0][1]), 1, 1, linewidth=1, edgecolor='w', facecolor='none')
+        ax.add_patch(rect)
+        ax.scatter(source['ID_ra'] * u.deg, source['ID_dec'] * u.deg, marker = 'o',
+                   edgecolor = 'white', facecolor = 'none',
+                   s = 5, linewidth = 1,
+                   transform = ax.get_transform('icrs'))
+        plt.show()
         bounding_boxes = np.array(bounding_boxes)
         if verbose:
             print(bounding_boxes)
@@ -386,7 +411,7 @@ def create_fixed_source_dataset(cutout_directory, pan_wise_location,
 
 
 def create_variable_source_dataset(cutout_directory, pan_wise_location,
-                                   value_added_catalog_location, dr_two_location, use_multiprocessing=False,
+                                   value_added_catalog_location, dr_two_location, resize=None, use_multiprocessing=False,
                                    num_threads=os.cpu_count()):
     """
     Create variable sized cutouts (hardcoded to 1.5 times the LGZ_Size) for each of the cutouts
@@ -425,4 +450,20 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
             create_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue,
                            mosaic_location=dr_two_location,
                            save_cutout_directory=all_directory,
+                           resize=resize,
                            verbose=True)
+
+
+def resize_array(arr, new_size, interpolation=Image.BILINEAR):
+    """Resizes numpy array to a specified width and height using specified interpolation"""
+    scale_factor = arr.shape[0] / new_size
+    return scipy.ndimage.zoom(arr, scale_factor, order=1)
+
+
+def scale_box(arr, bounding_box, new_size):
+    scale_factor = arr.shape[0] / new_size
+    bounding_box[1] = bounding_box[1]*scale_factor
+    bounding_box[3] = bounding_box[3]*scale_factor
+    bounding_box[0] = bounding_box[0]*scale_factor
+    bounding_box[2] = bounding_box[2]*scale_factor
+    return bounding_box
