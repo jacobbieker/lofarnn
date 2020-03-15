@@ -1,7 +1,8 @@
 import multiprocessing
 import os
+import random
+from pathlib import Path
 
-import _pickle as pickle
 import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord
@@ -28,78 +29,6 @@ def get_lotss_objects(fname, verbose=False):
 
     # convert from astropy.io.fits.fitsrec.FITS_rec to astropy.table.table.Table
     return Table(table)
-
-
-def create_coco_annotations(image_names,
-                            image_dir='images', image_destination_dir=None,
-                            json_dir='', json_name='json_data.pkl', image_size=None,
-                            multiple_bboxes=True, verbose=False):
-    """
-    Creates the annotations for the COCO-style dataset from the npy files available
-    :param image_names: Image names, i.e., the source names
-    :param image_dir: The directory containing the images
-    :param image_destination_dir: The directory the images will end up in
-    :param json_dir: The directory where to put the JSON annotation file
-    :param json_name: The name of the JSON file
-    :param image_size: The image size
-    :param multiple_bboxes: Whether to use multiple bounding boxes, or only the first, for
-    example, to only use the main source Optical source, or include others that fall within the
-    defined area
-    :return:
-    """
-
-    # List to store single dict for each image
-    dataset_dicts = []
-
-    # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
-    for i, image_name in enumerate(image_names):
-        # Get image dimensions and insert them in a python dict
-        image_filename = os.path.join(image_dir, image_name)
-        image_dest_filename = os.path.join(image_destination_dir, image_name)
-        if image_size is not None:
-            width, height = image_size, image_size
-        image = np.load(image_filename, mmap_mode='r')[0]  # mmap_mode might allow faster read
-        width, height, depth = np.shape(image)
-        np.save(image_dest_filename, image)  # Save to the final destination
-
-        record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
-
-        # Insert bounding boxes and their corresponding classes
-        # print('scale_factor:',cutout.scale_factor)
-        objs = []
-        cache_list = []
-        cutouts = np.load(image_filename, mmap_mode='r')[1]
-        if not multiple_bboxes:
-            cutouts = cutouts[0]  # Only take the first one, the main optical source
-        for bbox in cutouts:
-            if bbox in cache_list:
-                continue
-            cache_list.append(bbox)
-            assert bbox[2] > bbox[0]
-            assert bbox[3] > bbox[1]
-
-            if bbox[4] == "Other Optical Source":
-                category_id = 1
-            else:
-                category_id = 0
-
-            obj = {
-                "bbox": [bbox[0], bbox[1], bbox[2], bbox[3]],
-                "bbox_mode": None,
-                # "segmentation": [poly],
-                "category_id": category_id,
-                "iscrowd": 0
-            }
-            objs.append(obj)
-
-        record["annotations"] = objs
-        dataset_dicts.append(record)
-    # Write all image dictionaries to file as one json
-    json_path = os.path.join(json_dir, json_name)
-    with open(json_path, "wb") as outfile:
-        pickle.dump(dataset_dicts, outfile)
-    if verbose:
-        print(f'COCO annotation file created in \'{json_dir}\'.\n')
 
 
 def pad_with(vector, pad_width, iaxis, kwargs):
@@ -499,3 +428,26 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
                            mosaic_location=dr_two_location,
                            save_cutout_directory=all_directory,
                            verbose=True)
+
+
+def split_data(image_directory, split=(0.6, 0.8)):
+    """
+    Split up the data and return which images should go to which train, test, val directory
+    :param image_directory: The directory where all the images are located, i.e. the "all" directory
+    :param train_directory: Where to store the training data
+    :param val_directory: Where to store the validation data
+    :param test_directory: Where to store the test data
+    :param split: Tuple of train, val, test split,
+    in form of (train fraction, val fraction), with the rest being put in test directory
+    :return: A dict containing which images go to which directory
+    """
+
+    image_paths = Path(image_directory).rglob("*.npy")
+    image_paths = random.shuffle(list(image_paths))
+    train_images = image_paths[:int(len(image_paths)*split[0])]
+    val_images = image_paths[int(len(image_paths)*split[0]):int(len(image_paths)*split[1])]
+    test_images = image_paths[int(len(image_paths)*split[1]):]
+
+    return {"train": train_images,
+            "val": val_images,
+            "test": test_images}
