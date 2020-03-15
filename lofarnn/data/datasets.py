@@ -184,9 +184,9 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, verbose=False):
     :return: A Numpy array that holds the information in the correct location
     """
 
-    RAarray = np.array(catalogue['ra'], dtype=float)
-    DECarray = np.array(catalogue['dec'], dtype=float)
-    sky_coords = SkyCoord(RAarray, DECarray, unit='deg')
+    ra_array = np.array(catalogue['ra'], dtype=float)
+    dec_array = np.array(catalogue['dec'], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit='deg')
 
     # Now have the objects, need to convert those RA and Decs to pixel coordinates
     layer = np.zeros(shape=shape)
@@ -242,7 +242,8 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
         fits.open(lofar_data_location, memmap=True)
         fits.open(lofar_rms_location, memmap=True)
     except:
-        print(f"Mosaic {mosaic} does not exist!")
+        if verbose:
+            print(f"Mosaic {mosaic} does not exist!")
 
     mosaic_cutouts = value_added_catalog[value_added_catalog["Mosaic_ID"] == mosaic]
     # Go through each cutout for that mosaic
@@ -256,12 +257,14 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
         try:
             lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=False)
         except:
-            print(f"Failed to make data cutout for source: {source['Source_Name']}")
+            if verbose:
+                print(f"Failed to make data cutout for source: {source['Source_Name']}")
             continue
         try:
             lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=False)
         except:
-            print(f"Failed to make rms cutout for source: {source['Source_Name']}")
+            if verbose:
+                print(f"Failed to make rms cutout for source: {source['Source_Name']}")
             continue
         img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
         header = lhdu[0].header
