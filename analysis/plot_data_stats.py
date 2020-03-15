@@ -3,6 +3,9 @@ mpl.use('Agg')
 
 import matplotlib.pyplot as plt
 import lofarnn.visualization.cutouts as vis
+from lofarnn.data.datasets import get_lotss_objects
+import numpy as np
+from astropy.io import fits
 import os
 from pathlib import Path
 
@@ -20,7 +23,7 @@ else:
     pan_wise_location = "/home/jacob/hetdex_ps1_allwise_photoz_v0.6.fits"
     prefix = "/home/jacob/Development/LOFAR-ML/reports/"
 
-"""
+
 l_objects = get_lotss_objects(vac, True)
 l_objects = l_objects[~np.isnan(l_objects['LGZ_Size'])]
 l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]
@@ -34,7 +37,7 @@ i_mag = i_mag[~np.isinf(i_mag)]
 i_mag = i_mag[i_mag > -98]
 plt.hist(i_mag, density=True, bins=40)
 plt.xlabel('iFApMag')
-plt.savefig("iFApMagDist.png")
+plt.savefig(os.path.join(prefix,"iFApMagDist.png"))
 plt.close()
 del i_mag
 i_mag = pan_wise_catalogue["w1Mag"]
@@ -42,14 +45,14 @@ i_mag = i_mag[~np.isinf(i_mag)]
 i_mag = i_mag[i_mag > -98]
 plt.hist(i_mag, density=True, bins=40)
 plt.xlabel('w1Mag')
-plt.savefig("w1MagDist.png")
+plt.savefig(os.path.join(prefix,"w1MagDist.png"))
 plt.close()
 del i_mag
 plt.hist(l_objects["LGZ_Size"], density=True, bins=40)
 plt.xlabel("LGZ_Size")
-plt.savefig("LGZSizeDist.png")
+plt.savefig(os.path.join(prefix,"LGZSizeDist.png"))
 plt.close()
-"""
+
 image_paths = Path(cutout_directory).rglob("*.npy")
 fig, ax = vis.plot_cutout_and_bboxes(next(image_paths), "Debug")
 plt.savefig(os.path.join(prefix, "Debug_test.png"))
