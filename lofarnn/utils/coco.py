@@ -271,11 +271,11 @@ def get_pixel_mean_and_std(image_paths):
             g_min = np.min(data[:,:,1])
         if np.min(data[:,:,2]) < b_min:
             b_min = np.min(data[:,:,2])
-        if np.min(data[:,:,0]) > r_max:
+        if np.max(data[:,:,0]) > r_max:
             r_max = np.max(data[:,:,0])
-        if np.min(data[:,:,1]) > g_max:
+        if np.max(data[:,:,1]) > g_max:
             g_max = np.max(data[:,:,0])
-        if np.min(data[:,:,1]) > b_max:
+        if np.max(data[:,:,1]) > b_max:
             b_max = np.max(data[:,:,0])
         r_val = np.reshape(data[:,:,0], -1)
         g_val = np.reshape(data[:,:,1], -1)
