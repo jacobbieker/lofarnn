@@ -39,7 +39,7 @@ else:
 from detectron2.data import DatasetCatalog, MetadataCatalog
 for d in ["train", "val", "test"]:
     DatasetCatalog.register(f"{DATASET_NAME}_" + d,
-                            lambda d=d: get_lofar_dicts(os.path.join(base_path,f"VIA_json_{d}.pkl")))
+                            lambda d=d: get_lofar_dicts(os.path.join(base_path,f"json_{d}.pkl")))
     MetadataCatalog.get(f"{DATASET_NAME}_" + d).set(thing_classes=["Optical source", "Other Optical source"])
 lofar_metadata = MetadataCatalog.get(f"{DATASET_NAME}_train")
 
