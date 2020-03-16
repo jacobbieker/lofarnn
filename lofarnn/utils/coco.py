@@ -3,8 +3,10 @@ import pickle
 import random
 from pathlib import Path
 
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
+import scipy.ndimage
 
 
 def mkdirs_safe(directory_list):
@@ -87,11 +89,31 @@ def create_coco_annotations(image_names,
         # Get image dimensions and insert them in a python dict
         image_dest_filename = os.path.join(image_destination_dir, image_name.name)
         image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
+        if verbose:
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            ax.imshow(image, origin='lower')
+            rect = patches.Rectangle((float(cutouts[0][0]), float(cutouts[0][1])), 1, 1, linewidth=1, edgecolor='w', facecolor='none')
+            ax.add_patch(rect)
+            plt.title("Before")
+            plt.show()
+        prev_shape = image.shape[0]
         if resize is not None:
             # Resize the image and boxes
             for index, box in enumerate(cutouts):
+                print(box)
                 cutouts[index] = scale_box(image, box, resize)
-            image = resize_array(image, resize, resize)
+            image = resize_array(image, resize)
+        if verbose:
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            ax.imshow(image, origin='lower')
+            rect = patches.Rectangle((float(cutouts[0][0]), float(cutouts[0][1])),
+                                     image.shape[0]/prev_shape, image.shape[0]/prev_shape,
+                                     linewidth=1, edgecolor='w', facecolor='none')
+            ax.add_patch(rect)
+            plt.title("After")
+            plt.show()
         width, height, depth = np.shape(image)
         np.save(image_dest_filename, image)  # Save to the final destination
         record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
@@ -198,15 +220,16 @@ def split_data(image_directory, split=(0.6, 0.8)):
             "test": test_images}
 
 
-def resize_array(arr, width, height, interpolation=Image.BILINEAR):
+def resize_array(arr, new_size):
     """Resizes numpy array to a specified width and height using specified interpolation"""
-    return np.array(Image.fromarray(arr).resize((width,height),interpolation))
+    scale_factor = new_size / arr.shape[0]
+    return scipy.ndimage.zoom(arr, [scale_factor, scale_factor, 1], order=1)
 
 
 def scale_box(arr, bounding_box, new_size):
-    scale_factor = arr.shape[0] / new_size
-    bounding_box[1] = bounding_box[1]*scale_factor
-    bounding_box[3] = bounding_box[3]*scale_factor
-    bounding_box[0] = bounding_box[0]*scale_factor
-    bounding_box[2] = bounding_box[2]*scale_factor
+    scale_factor = new_size / arr.shape[0]
+    bounding_box[1] = float(bounding_box[1])*scale_factor
+    bounding_box[3] = float(bounding_box[3])*scale_factor
+    bounding_box[0] = float(bounding_box[0])*scale_factor
+    bounding_box[2] = float(bounding_box[2])*scale_factor
     return bounding_box
