@@ -52,7 +52,7 @@ lofar_metadata = MetadataCatalog.get(f"{DATASET_NAME}_train")
 # for train eval those things are somewhere within a model 
 # specifically a model that takes data and retuns a dict of losses
 
-from detectron2.engine import LOFARTrainer
+from detectron2.engine import DefaultTrainer
 from detectron2.config import get_cfg
 
 cfg = get_cfg()
@@ -76,7 +76,7 @@ cfg.SOLVER.MAX_ITER = 30000 # iterations seems good enough for this toy dataset;
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256   # faster, and good enough for this toy dataset (default: 512)
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (ballon)
 
-trainer = LOFARTrainer(cfg)
+trainer = DefaultTrainer(cfg)
 trainer.resume_or_load(resume=False)
 
 trainer.train()
