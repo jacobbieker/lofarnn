@@ -7,6 +7,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage
+from PIL import Image
 from detectron2.structures import BoxMode
 
 
@@ -68,7 +69,7 @@ def create_coco_style_directory_structure(root_directory, suffix='', verbose=Fal
 def create_coco_annotations(image_names,
                             image_destination_dir=None,
                             json_dir='', json_name='json_data.pkl',
-                            multiple_bboxes=True, resize=None, verbose=False):
+                            multiple_bboxes=True, resize=None, all_directory=None, verbose=False):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
     directory
@@ -85,10 +86,13 @@ def create_coco_annotations(image_names,
     # List to store single dict for each image
     dataset_dicts = []
 
+    image_paths = Path(all_directory).rglob("*.npy")
+    r_range, g_range, b_range = get_pixel_mean_and_std(image_paths)
+
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
     for i, image_name in enumerate(image_names):
         # Get image dimensions and insert them in a python dict
-        image_dest_filename = os.path.join(image_destination_dir, image_name.name)
+        image_dest_filename = os.path.join(image_destination_dir, image_name.stem + ".png")
         image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
         if verbose:
             fig = plt.figure()
@@ -116,7 +120,16 @@ def create_coco_annotations(image_names,
             plt.title("After")
             plt.show()
         width, height, depth = np.shape(image)
-        np.save(image_dest_filename, image)  # Save to the final destination
+        # Rescale to between 0 and 1
+        # First R channel
+        image[:,:,0] = (image[:,:,0] - r_range[1])/(r_range[0]-r_range[1])
+        # Then G Channel
+        image[:,:,1] = (image[:,:,1] - g_range[1])/(g_range[0]-g_range[1])
+        # Then B channel
+        image[:,:,2] = (image[:,:,2] - b_range[1])/(b_range[0]-b_range[1])
+        im = Image.fromarray(image, 'RGB')
+        im.save(image_dest_filename)
+        # np.save(image_dest_filename, image)  # Save to the final destination
         record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
 
         # Insert bounding boxes and their corresponding classes
@@ -177,6 +190,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             json_name=f"json_train.pkl",
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
+                            all_directory=all_directory,
                             verbose=verbose)
     create_coco_annotations(data_split["val"],
                             json_dir=annotations_directory,
@@ -184,6 +198,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             json_name=f"json_val.pkl",
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
+                            all_directory=all_directory,
                             verbose=verbose)
     create_coco_annotations(data_split["test"],
                             json_dir=annotations_directory,
@@ -191,6 +206,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             json_name=f"json_test.pkl",
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
+                            all_directory=all_directory,
                             verbose=verbose)
 
 
@@ -203,8 +219,6 @@ def split_data(image_directory, split=(0.6, 0.8)):
     :return: A dict containing which images go to which directory
     """
 
-    image_paths = Path(image_directory).rglob("*.npy")
-    get_pixel_mean_and_std(image_paths)
     image_paths = Path(image_directory).rglob("*.npy")
     im_paths = []
     for p in image_paths:
@@ -259,5 +273,13 @@ def get_pixel_mean_and_std(image_paths):
     g_std = np.std(g)
     b_mean = np.mean(b)
     b_std = np.std(b)
+    r_max = np.max(r)
+    r_min = np.min(r)
+    g_max = np.max(g)
+    g_min = np.min(g)
+    b_max = np.max(b)
+    b_min = np.min(b)
 
     print(f"R Mean: {r_mean}, {r_std} \n G Mean: {g_mean}, {g_std} \n B Mean: {b_mean}, {b_std}")
+
+    return (r_max, r_min), (g_max, g_min), (b_max, b_min)
