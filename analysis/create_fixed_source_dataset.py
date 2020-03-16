@@ -1,8 +1,8 @@
 import os
 
-from lofarnn.data.datasets import create_fixed_source_dataset
 from lofarnn.utils.coco import create_coco_dataset
 
+os.environ["LOFARNN_ARCH"] = "XPS"
 environment = os.environ["LOFARNN_ARCH"]
 
 if environment == "ALICE":
@@ -16,10 +16,10 @@ else:
     vac = '/home/jacob/Development/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
     cutout_directory = "/home/jacob/Development/LOFAR-ML/data/processed/fixed/"
 
-create_fixed_source_dataset(cutout_directory=cutout_directory,
-                            pan_wise_location=pan_wise_location,
-                            value_added_catalog_location=vac,
-                            dr_two_location=dr_two,
-                            fixed_size=300,
-                            use_multiprocessing=False)
+#create_fixed_source_dataset(cutout_directory=cutout_directory,
+#                            pan_wise_location=pan_wise_location,
+#                            value_added_catalog_location=vac,
+#                            dr_two_location=dr_two,
+#                            fixed_size=300,
+#                            use_multiprocessing=False)
 create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=True)
