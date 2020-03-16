@@ -7,6 +7,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage
+from detectron2.structures import BoxMode
 
 
 def mkdirs_safe(directory_list):
@@ -134,7 +135,7 @@ def create_coco_annotations(image_names,
 
             obj = {
                 "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
-                "bbox_mode": None,
+                "bbox_mode": BoxMode.XYXY_ABS,
                 # "segmentation": [poly],
                 "category_id": category_id,
                 "iscrowd": 0
