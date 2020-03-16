@@ -121,13 +121,9 @@ def create_coco_annotations(image_names,
         # Insert bounding boxes and their corresponding classes
         # print('scale_factor:',cutout.scale_factor)
         objs = []
-        cache_list = []
         if not multiple_bboxes:
             cutouts = [cutouts[0]]  # Only take the first one, the main optical source
         for bbox in cutouts:
-            if bbox in cache_list:
-                continue
-            cache_list.append(bbox)
             assert float(bbox[2]) > float(bbox[0])
             assert float(bbox[3]) > float(bbox[1])
 
@@ -207,6 +203,8 @@ def split_data(image_directory, split=(0.6, 0.8)):
     """
 
     image_paths = Path(image_directory).rglob("*.npy")
+    get_pixel_mean_and_std(image_paths)
+    image_paths = Path(image_directory).rglob("*.npy")
     im_paths = []
     for p in image_paths:
         im_paths.append(p)
@@ -233,3 +231,32 @@ def scale_box(arr, bounding_box, new_size):
     bounding_box[0] = float(bounding_box[0])*scale_factor
     bounding_box[2] = float(bounding_box[2])*scale_factor
     return bounding_box
+
+
+def get_pixel_mean_and_std(image_paths):
+    """
+    Get the channelwise mean and std dev of all the images
+    :param image_paths: Paths to the images
+    :return:
+    """
+    r = []
+    g = []
+    b = []
+    for image in image_paths:
+        data = np.load(image, allow_pickle=True)[0]
+        print(data.shape)
+        r_val = np.reshape(data[:,:,0], -1)
+        g_val = np.reshape(data[:,:,1], -1)
+        b_val = np.reshape(data[:,:,2], -1)
+        r.append(r_val)
+        g.append(g_val)
+        b.append(b_val)
+    # Now calc stats
+    r_mean = np.mean(r)
+    r_std = np.std(r)
+    g_mean = np.mean(g)
+    g_std = np.std(g)
+    b_mean = np.mean(b)
+    b_std = np.std(b)
+
+    print(f"R Mean: {r_mean}, {r_std} \n G Mean: {g_mean}, {g_std} \n B Mean: {b_mean}, {b_std}")
