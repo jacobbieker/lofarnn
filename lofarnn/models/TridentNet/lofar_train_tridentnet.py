@@ -12,8 +12,9 @@ from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
 from detectron2.engine import LOFARTrainer, DefaultTrainer, default_argument_parser, default_setup, launch
 from detectron2.evaluation import COCOEvaluator
-from detectron2.projects.tridentnet import add_tridentnet_config
 from detectron2.structures import BoxMode
+
+from .tridentnet import add_tridentnet_config
 
 
 class Trainer(DefaultTrainer):
