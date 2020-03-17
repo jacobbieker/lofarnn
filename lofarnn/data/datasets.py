@@ -341,7 +341,7 @@ def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_l
 
 def create_fixed_source_dataset(cutout_directory, pan_wise_location,
                                 value_added_catalog_location, dr_two_location, fixed_size=300,
-                                use_multiprocessing=False,
+                                use_multiprocessing=False, filter_lgz=True,
                                 num_threads=os.cpu_count()):
     """
     Creates fixed size dataset using LGZ data
@@ -352,12 +352,15 @@ def create_fixed_source_dataset(cutout_directory, pan_wise_location,
     :param dr_two_location: The location of the LoTSS DR2 Mosaic Locations
     :param fixed_size: The size of the cutouts, in arcseconds default to 300 arcseconds
     :param use_multiprocessing: Whether to use multiprocessing
+    :param filter_lgz: Whether to filter by sources that have an LGZ_Size parameter
     :param num_threads: Number of threads to use, if multiprocessing is true
     :return:
     """
 
     l_objects = get_lotss_objects(value_added_catalog_location, True)
-    l_objects = l_objects[~np.isnan(l_objects['LGZ_Size'])]
+    if filter_lgz:
+        l_objects = l_objects[~np.isnan(l_objects['LGZ_Size'])]
+    # Still need to filter by ID ra to make sure there is an optical source
     l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]
     mosaic_names = set(l_objects["Mosaic_ID"])
 
