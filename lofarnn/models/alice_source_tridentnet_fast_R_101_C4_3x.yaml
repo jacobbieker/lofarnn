@@ -27,6 +27,6 @@ INPUT:
   #SCALE_FACTOR: 4.545454545454546
 DATASETS:
   OUTPUT_DIR: "/home/s2153246/data/SourceOutputs/"
-  IMAGE_DIR: "/home/s2153246/data/processed/fixed/"
+  IMAGE_DIR: "/home/s2153246/data/processed/variable/"
   COMP_CAT_PATH: '/home/s2153246/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits'
   #FITS_PATH: "/data/mostertrij/data/frcnn_images/cutouts/"
