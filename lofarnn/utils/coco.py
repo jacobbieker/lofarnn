@@ -120,15 +120,16 @@ def create_coco_annotations(image_names,
             plt.show()
         width, height, depth = np.shape(image)
         # Rescale to between 0 and 1
+        scale_size = image.shape[0]/prev_shape
         if verbose:
-            plot_three_channel_debug(image)
+            plot_three_channel_debug(image, cutouts, scale_size)
         # First R channel
         image[:,:,0] = convert_to_valid_color(image[:,:,0], clip=True, lower_clip=0.0, upper_clip=1000, normalize=True, scaling=None)
         image[:,:,1] = convert_to_valid_color(image[:,:,1], clip=True, lower_clip=0., upper_clip=100., normalize=True, scaling=None)
         image[:,:,2] = convert_to_valid_color(image[:,:,2], clip=True, lower_clip=0., upper_clip=100., normalize=True, scaling=None)
         im = Image.fromarray(image, 'RGB')
         if verbose:
-            plot_three_channel_debug(image)
+            plot_three_channel_debug(image, cutouts, scale_size, save_path=os.path.join("/home/jacob/Development/lofarnn/reports/", image_name.name + ".png"))
         im.save(image_dest_filename)
         # np.save(image_dest_filename, image)  # Save to the final destination
         record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
@@ -148,7 +149,7 @@ def create_coco_annotations(image_names,
                 category_id = 0
 
             obj = {
-                "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
+                "bbox": [float(bbox[1]), float(bbox[0]), float(bbox[3]), float(bbox[2])],
                 "bbox_mode": BoxMode.XYXY_ABS,
                 # "segmentation": [poly],
                 "category_id": category_id,
