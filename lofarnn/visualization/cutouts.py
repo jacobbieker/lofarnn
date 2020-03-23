@@ -56,3 +56,30 @@ def plot_statistics(image_paths, save_path):
     plt.close()
 
 
+def plot_three_channel_debug(image_stack, save_path="./"):
+    """
+    Plots the 3 channel image in debug
+    """
+    # Plot
+    fig, axs = plt.subplots(2,2)
+
+    cax_00 = axs[0,0].imshow(image_stack)
+    axs[0,0].xaxis.set_major_formatter(plt.NullFormatter())  # kill xlabels
+    axs[0,0].yaxis.set_major_formatter(plt.NullFormatter())  # kill ylabels
+
+    cax_01 = axs[0,1].imshow(image_stack[:,:,0], cmap='Reds')
+    fig.colorbar(cax_01, ax=axs[0,1])
+    axs[0,1].xaxis.set_major_formatter(plt.NullFormatter())
+    axs[0,1].yaxis.set_major_formatter(plt.NullFormatter())
+
+    cax_10 = axs[1,0].imshow(image_stack[:,:,1], cmap='Greens')
+    fig.colorbar(cax_10, ax=axs[1,0])
+    axs[1,0].xaxis.set_major_formatter(plt.NullFormatter())
+    axs[1,0].yaxis.set_major_formatter(plt.NullFormatter())
+
+    cax_11 = axs[1,1].imshow(image_stack[:,:,2], cmap='Blues')
+    fig.colorbar(cax_11, ax=axs[1,1])
+    axs[1,1].xaxis.set_major_formatter(plt.NullFormatter())
+    axs[1,1].yaxis.set_major_formatter(plt.NullFormatter())
+    plt.show()
+
