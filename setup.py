@@ -9,7 +9,7 @@ setup(name='lofarnn',
       download_url="https://github.com/jacobbieker/lofarnn/archive/v0.6.0.tar.gz",
       keywords=["Radio Astronomy", "PyTorch", "Machine Learning"],
       packages=find_packages(),
-      install_requires=['astropy', 'numpy'],
+      install_requires=['astropy', 'numpy', 'scikit-image', 'pillow'],
       classifiers=[
           'Development Status :: 3 - Alpha',
           'Intended Audience :: Developers',

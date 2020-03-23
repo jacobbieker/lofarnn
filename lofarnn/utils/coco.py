@@ -10,6 +10,9 @@ import scipy.ndimage
 from PIL import Image
 from detectron2.structures import BoxMode
 
+from lofarnn.visualization.cutouts import plot_three_channel_debug
+from lofarnn.data.cutouts import convert_to_valid_color
+
 
 def mkdirs_safe(directory_list):
     """When given a list containing directories,
@@ -85,10 +88,6 @@ def create_coco_annotations(image_names,
 
     # List to store single dict for each image
     dataset_dicts = []
-
-    image_paths = Path(all_directory).rglob("*.npy")
-    r_range, g_range, b_range = get_pixel_mean_and_std(image_paths)
-
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
     for i, image_name in enumerate(image_names):
         # Get image dimensions and insert them in a python dict
@@ -121,13 +120,16 @@ def create_coco_annotations(image_names,
             plt.show()
         width, height, depth = np.shape(image)
         # Rescale to between 0 and 1
+        scale_size = image.shape[0]/prev_shape
+        if verbose:
+            plot_three_channel_debug(image, cutouts, scale_size)
         # First R channel
-        image[:,:,0] = (image[:,:,0] - r_range[1])/(r_range[0]-r_range[1])
-        # Then G Channel
-        image[:,:,1] = (image[:,:,1] - g_range[1])/(g_range[0]-g_range[1])
-        # Then B channel
-        image[:,:,2] = (image[:,:,2] - b_range[1])/(b_range[0]-b_range[1])
+        image[:,:,0] = convert_to_valid_color(image[:,:,0], clip=True, lower_clip=0.0, upper_clip=1000, normalize=True, scaling=None)
+        image[:,:,1] = convert_to_valid_color(image[:,:,1], clip=True, lower_clip=0., upper_clip=100., normalize=True, scaling=None)
+        image[:,:,2] = convert_to_valid_color(image[:,:,2], clip=True, lower_clip=0., upper_clip=100., normalize=True, scaling=None)
         im = Image.fromarray(image, 'RGB')
+        if verbose:
+            plot_three_channel_debug(image, cutouts, scale_size, save_path=os.path.join("/home/jacob/Development/lofarnn/reports/", image_name.name + ".png"))
         im.save(image_dest_filename)
         # np.save(image_dest_filename, image)  # Save to the final destination
         record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
@@ -147,7 +149,7 @@ def create_coco_annotations(image_names,
                 category_id = 0
 
             obj = {
-                "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
+                "bbox": [float(bbox[1]), float(bbox[0]), float(bbox[3]), float(bbox[2])],
                 "bbox_mode": BoxMode.XYXY_ABS,
                 # "segmentation": [poly],
                 "category_id": category_id,
