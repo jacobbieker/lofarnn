@@ -10,8 +10,8 @@ import scipy.ndimage
 from PIL import Image
 from detectron2.structures import BoxMode
 
-from lofarnn.visualization.cutouts import plot_three_channel_debug
 from lofarnn.data.cutouts import convert_to_valid_color
+from lofarnn.visualization.cutouts import plot_three_channel_debug
 
 
 def mkdirs_safe(directory_list):
@@ -89,82 +89,83 @@ def create_coco_annotations(image_names,
     # List to store single dict for each image
     dataset_dicts = []
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
-    for i, image_name in enumerate(image_names):
-        # Get image dimensions and insert them in a python dict
-        image_dest_filename = os.path.join(image_destination_dir, image_name.stem + ".png")
-        image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
-        if verbose:
-            fig = plt.figure()
-            ax = fig.add_subplot(1, 1, 1)
-            ax.imshow(image, origin='lower')
-            rect = patches.Rectangle((float(cutouts[0][0]), float(cutouts[0][1])), 1, 1, linewidth=1, edgecolor='w', facecolor='none')
-            ax.add_patch(rect)
-            plt.title("Before")
-            plt.show()
-        prev_shape = image.shape[0]
-        if resize is not None:
-            # Resize the image and boxes
-            for index, box in enumerate(cutouts):
-                print(box)
-                cutouts[index] = scale_box(image, box, resize)
-            image = resize_array(image, resize)
-        if verbose:
-            fig = plt.figure()
-            ax = fig.add_subplot(1, 1, 1)
-            ax.imshow(image, origin='lower')
-            rect = patches.Rectangle((float(cutouts[0][0]), float(cutouts[0][1])),
-                                     image.shape[0]/prev_shape, image.shape[0]/prev_shape,
-                                     linewidth=1, edgecolor='w', facecolor='none')
-            ax.add_patch(rect)
-            plt.title("After")
-            plt.show()
-        width, height, depth = np.shape(image)
-        # Rescale to between 0 and 1
-        scale_size = image.shape[0]/prev_shape
-        if verbose:
-            plot_three_channel_debug(image, cutouts, scale_size)
-        # First R channel
-        image[:,:,0] = convert_to_valid_color(image[:,:,0], clip=True, lower_clip=0.0, upper_clip=1000, normalize=True, scaling=None)
-        image[:,:,1] = convert_to_valid_color(image[:,:,1], clip=True, lower_clip=0., upper_clip=100., normalize=True, scaling=None)
-        image[:,:,2] = convert_to_valid_color(image[:,:,2], clip=True, lower_clip=0., upper_clip=100., normalize=True, scaling=None)
-        im = Image.fromarray(image, 'RGB')
-        if verbose:
-            plot_three_channel_debug(image, cutouts, scale_size, save_path=os.path.join("/home/jacob/Development/lofarnn/reports/", image_name.name + ".png"))
-        im.save(image_dest_filename)
-        # np.save(image_dest_filename, image)  # Save to the final destination
-        record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
+    for m in range(100):
+        for i, image_name in enumerate(image_names):
+            # Get image dimensions and insert them in a python dict
+            image_dest_filename = os.path.join(image_destination_dir, image_name.stem + ".m.png")
+            image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
+            if verbose:
+                fig = plt.figure()
+                ax = fig.add_subplot(1, 1, 1)
+                ax.imshow(image, origin='lower')
+                rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])), 1, 1, linewidth=1, edgecolor='w', facecolor='none')
+                ax.add_patch(rect)
+                plt.title("Before")
+                plt.show()
+            prev_shape = image.shape[0]
+            if resize is not None:
+                # Resize the image and boxes
+                for index, box in enumerate(cutouts):
+                    print(box)
+                    cutouts[index] = scale_box(image, box, resize)
+                image = resize_array(image, resize)
+            if verbose:
+                fig = plt.figure()
+                ax = fig.add_subplot(1, 1, 1)
+                ax.imshow(image, origin='lower')
+                rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])),
+                                         image.shape[0]/prev_shape, image.shape[0]/prev_shape,
+                                         linewidth=1, edgecolor='w', facecolor='none')
+                ax.add_patch(rect)
+                plt.title("After")
+                plt.show()
+            width, height, depth = np.shape(image)
+            # Rescale to between 0 and 1
+            scale_size = image.shape[0]/prev_shape
+            #if verbose:
+                #plot_three_channel_debug(image, cutouts, scale_size)
+            # First R channel
+            image[:,:,0] = convert_to_valid_color(image[:,:,0], clip=True, lower_clip=0.0, upper_clip=1000, normalize=True, scaling=None)
+            image[:,:,1] = convert_to_valid_color(image[:,:,1], clip=True, lower_clip=0., upper_clip=25., normalize=True, scaling=None)
+            image[:,:,2] = convert_to_valid_color(image[:,:,2], clip=True, lower_clip=0., upper_clip=25., normalize=True, scaling=None)
+            im = Image.fromarray(image, 'RGB')
+            if False:
+                plot_three_channel_debug(image, cutouts, scale_size, save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/interim/", image_name.name + ".png"))
+            im.save(image_dest_filename)
+            # np.save(image_dest_filename, image)  # Save to the final destination
+            record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
 
-        # Insert bounding boxes and their corresponding classes
-        # print('scale_factor:',cutout.scale_factor)
-        objs = []
-        if not multiple_bboxes:
-            cutouts = [cutouts[0]]  # Only take the first one, the main optical source
-        for bbox in cutouts:
-            assert float(bbox[2]) > float(bbox[0])
-            assert float(bbox[3]) > float(bbox[1])
+            # Insert bounding boxes and their corresponding classes
+            # print('scale_factor:',cutout.scale_factor)
+            objs = []
+            if not multiple_bboxes:
+                cutouts = [cutouts[0]]  # Only take the first one, the main optical source
+            for bbox in cutouts:
+                assert float(bbox[2]) > float(bbox[0])
+                assert float(bbox[3]) > float(bbox[1])
 
-            if bbox[4] == "Other Optical Source":
-                category_id = 1
-            else:
-                category_id = 0
+                if bbox[4] == "Other Optical Source":
+                    category_id = 1
+                else:
+                    category_id = 0
 
-            obj = {
-                "bbox": [float(bbox[1]), float(bbox[0]), float(bbox[3]), float(bbox[2])],
-                "bbox_mode": BoxMode.XYXY_ABS,
-                # "segmentation": [poly],
-                "category_id": category_id,
-                "iscrowd": 0
-            }
-            objs.append(obj)
+                obj = {
+                    "bbox": [float(bbox[1]), float(bbox[0]), float(bbox[3]), float(bbox[2])],
+                    "bbox_mode": BoxMode.XYXY_ABS,
+                    # "segmentation": [poly],
+                    "category_id": category_id,
+                    "iscrowd": 0
+                }
+                objs.append(obj)
 
-        record["annotations"] = objs
-        dataset_dicts.append(record)
-    # Write all image dictionaries to file as one json
-    json_path = os.path.join(json_dir, json_name)
-    with open(json_path, "wb") as outfile:
-        pickle.dump(dataset_dicts, outfile)
-    if verbose:
-        print(f'COCO annotation file created in \'{json_dir}\'.\n')
+            record["annotations"] = objs
+            dataset_dicts.append(record)
+        # Write all image dictionaries to file as one json
+        json_path = os.path.join(json_dir, json_name)
+        with open(json_path, "wb") as outfile:
+            pickle.dump(dataset_dicts, outfile)
+        if verbose:
+            print(f'COCO annotation file created in \'{json_dir}\'.\n')
 
 
 def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0.6,0.8), resize=None, verbose=False):
