@@ -94,14 +94,15 @@ def determine_visible_catalogue_sources(ra, dec, wcs, size, catalogue, l_objects
     if verbose:
         print(source_coord)
         print(other_source)
-        print(skycoord_to_pixel(other_source, wcs))
-        print(search_radius)
-        print(len(objects))
+        print(skycoord_to_pixel(source_coord, wcs, 0))
+        print(skycoord_to_pixel(other_source, wcs, 0))
+        #print(search_radius)
+        #print(len(objects))
 
     return objects
 
 
-def make_catalogue_layer(column_name, wcs, shape, catalogue, verbose=False):
+def make_catalogue_layer(column_name, wcs, shape, catalogue, other_source, verbose=False):
     """
     Create a layer based off the data in
     :param column_name: Name in catalogue of data to include
@@ -121,7 +122,7 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, verbose=False):
     for index, x in enumerate(coords[0]):
         try:
             if ~np.isnan(catalogue[index][column_name]):  # Make sure not putting in NaNs
-                layer[int(x)][int(coords[1][index])] = catalogue[index][column_name]
+                layer[int(np.floor(coords[0][index]))][int(np.floor(coords[1][index]))] = catalogue[index][column_name]
         except Exception as e:
             if verbose:
                 print(f"Failed: {e}")
@@ -137,17 +138,15 @@ def make_bounding_box(ra, dec, wcs, class_name="Optical source"):
     :param wcs: WCS to convert to pixel coordinates
     :return: Bounding box coordinates for COCO style annotation
     """
-
-    coord = SkyCoord(ra, dec, unit='deg')
-    box_center = skycoord_to_pixel(coord, wcs, 0)
-
+    source_skycoord = SkyCoord(ra, dec, unit='deg')
+    box_center = skycoord_to_pixel(source_skycoord, wcs, 0)
     # Now create box, which will be accomplished by taking int to get xmin, ymin, and int + 1 for xmax, ymax
-    xmin = box_center[0] - 0.5
-    ymin = box_center[1] - 0.5
-    ymax = ymin + 1
-    xmax = xmin + 1
+    xmin = int(np.floor(box_center[0])) - 1
+    ymin = int(np.floor(box_center[1])) - 1
+    ymax = ymin + 2
+    xmax = xmin + 2
 
-    return xmin, ymin, xmax, ymax, class_name
+    return xmin, ymin, xmax, ymax, class_name, box_center
 
 
 def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,
@@ -162,6 +161,10 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
     :param verbose: Whether to print extra information or not
     :return:
     """
+
+    if type(pan_wise_catalog) == str:
+        pan_wise_catalog = fits.open(pan_wise_catalog, memmap=True)
+        pan_wise_catalog = pan_wise_catalog[1].data
     # Load the data once, then do multiple cutouts
     lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
     lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
@@ -209,9 +212,13 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
         # Now determine if there are other sources in the area
         other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
                                                                     mosaic_cutouts, source)
+        other_source = SkyCoord(source['ID_ra'], source['ID_dec'], unit="deg")
         for layer in layers:
-            img_array.append(
-                make_catalogue_layer(layer, wcs, img_array[0].shape, cutout_catalog))
+            tmp = make_catalogue_layer(layer, wcs, img_array[0].shape, cutout_catalog, other_source)
+            print("Pixel Source")
+            print(skycoord_to_pixel(other_source, wcs, 0))
+            print("End Pixel Source")
+            img_array.append(tmp)
 
         img_array = np.array(img_array)
         if verbose:
@@ -389,7 +396,7 @@ def create_fixed_source_dataset(cutout_directory, pan_wise_location,
 
 
 def create_variable_source_dataset(cutout_directory, pan_wise_location,
-                                   value_added_catalog_location, dr_two_location, resize=None, use_multiprocessing=False,
+                                   value_added_catalog_location, dr_two_location, use_multiprocessing=False,
                                    num_threads=os.cpu_count()):
     """
     Create variable sized cutouts (hardcoded to 1.5 times the LGZ_Size) for each of the cutouts
@@ -415,15 +422,15 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
 
     # Now go through each source in l_objects and create a cutout of the fits file
     # Open the Panstarrs and WISE catalogue
-    pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
-    pan_wise_catalogue = pan_wise_catalogue[1].data
 
     if use_multiprocessing:
         pool = multiprocessing.Pool(num_threads)
-        pool.starmap(create_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_catalogue),
+        pool.starmap(create_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_location),
                                          repeat(dr_two_location), repeat(all_directory),
                                          repeat(True)))
     else:
+        pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
+        pan_wise_catalogue = pan_wise_catalogue[1].data
         for mosaic in mosaic_names:
             create_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue,
                            mosaic_location=dr_two_location,

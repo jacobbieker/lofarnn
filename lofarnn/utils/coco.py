@@ -89,7 +89,7 @@ def create_coco_annotations(image_names,
     # List to store single dict for each image
     dataset_dicts = []
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
-    for m in range(100):
+    for m in range(1):
         for i, image_name in enumerate(image_names):
             # Get image dimensions and insert them in a python dict
             image_dest_filename = os.path.join(image_destination_dir, image_name.stem + ".m.png")
@@ -122,15 +122,16 @@ def create_coco_annotations(image_names,
             width, height, depth = np.shape(image)
             # Rescale to between 0 and 1
             scale_size = image.shape[0]/prev_shape
-            #if verbose:
-                #plot_three_channel_debug(image, cutouts, scale_size)
+            if True:
+                plot_three_channel_debug(image, cutouts, 1, cutouts[0][5], save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/raw/", image_name.name + ".jpg"))
             # First R channel
             image[:,:,0] = convert_to_valid_color(image[:,:,0], clip=True, lower_clip=0.0, upper_clip=1000, normalize=True, scaling=None)
             image[:,:,1] = convert_to_valid_color(image[:,:,1], clip=True, lower_clip=0., upper_clip=25., normalize=True, scaling=None)
             image[:,:,2] = convert_to_valid_color(image[:,:,2], clip=True, lower_clip=0., upper_clip=25., normalize=True, scaling=None)
+            image = (255.0 * image).astype(np.uint8)
             im = Image.fromarray(image, 'RGB')
-            if False:
-                plot_three_channel_debug(image, cutouts, scale_size, save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/interim/", image_name.name + ".png"))
+            if True:
+                plot_three_channel_debug(image, cutouts, scale_size, cutouts[0][5], save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/raw/", image_name.name + ".png"))
             im.save(image_dest_filename)
             # np.save(image_dest_filename, image)  # Save to the final destination
             record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
@@ -248,6 +249,7 @@ def scale_box(arr, bounding_box, new_size):
     bounding_box[3] = float(bounding_box[3])*scale_factor
     bounding_box[0] = float(bounding_box[0])*scale_factor
     bounding_box[2] = float(bounding_box[2])*scale_factor
+    bounding_box[5] = (float(bounding_box[5][0])*scale_factor, float(bounding_box[5][1])*scale_factor)
     return bounding_box
 
 

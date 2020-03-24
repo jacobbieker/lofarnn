@@ -56,7 +56,7 @@ def plot_statistics(image_paths, save_path):
     plt.close()
 
 
-def plot_three_channel_debug(image_stack, cutouts, scale_size, save_path="./"):
+def plot_three_channel_debug(image_stack, cutouts, scale_size, source_loc, save_path="./"):
     """
     Plots the 3 channel image in debug
     """
@@ -70,9 +70,10 @@ def plot_three_channel_debug(image_stack, cutouts, scale_size, save_path="./"):
 
     cax_00 = axs[0,0].imshow(image_stack)
     rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])),
-                             float(cutouts[0][3]) - float(cutouts[0][1]), float(cutouts[0][2]) - float(cutouts[0][0]),
+                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
                              linewidth=1, edgecolor='r', facecolor='none')
     axs[0,0].add_patch(rect)
+    axs[0,0].scatter(source_loc[1], source_loc[0], s=scale_size, edgecolor='black', facecolor=(1,1,1,0.15))
     axs[0,0].xaxis.set_major_formatter(plt.NullFormatter())  # kill xlabels
     axs[0,0].yaxis.set_major_formatter(plt.NullFormatter())  # kill ylabels
     axs[0,0].set_title("Combined")
@@ -80,29 +81,46 @@ def plot_three_channel_debug(image_stack, cutouts, scale_size, save_path="./"):
     cax_01 = axs[0,1].imshow(image_stack[:,:,0], cmap='Reds')
     fig.colorbar(cax_01, ax=axs[0,1])
     rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])),
-                             float(cutouts[0][3]) - float(cutouts[0][1]), float(cutouts[0][2]) - float(cutouts[0][0]),
+                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
                              linewidth=1, edgecolor='r', facecolor='none')
     axs[0,1].add_patch(rect)
+    axs[0,1].scatter(source_loc[1], source_loc[0], s=scale_size, edgecolor='black', facecolor=(1,1,1,0.15))
     axs[0,1].xaxis.set_major_formatter(plt.NullFormatter())
     axs[0,1].yaxis.set_major_formatter(plt.NullFormatter())
     axs[0,1].set_title("LOFAR")
 
     cax_10 = axs[1,0].imshow(image_stack[:,:,1], cmap='Greens')
+    print("Green Max,max")
+    print(np.argmax(image_stack[:,:,1], axis=0))
+    print(np.argmax(image_stack[:,:,1], axis=1))
+    print("Box elements, lower right")
+    print((float(cutouts[0][0]), float(cutouts[0][1])))
+    print("Box elements, upper left")
+    print((float(cutouts[0][2]), float(cutouts[0][3])))
     fig.colorbar(cax_10, ax=axs[1,0])
     rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])),
-                             float(cutouts[0][3]) - float(cutouts[0][1]), float(cutouts[0][2]) - float(cutouts[0][0]),
+                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
                              linewidth=1, edgecolor='r', facecolor='none')
     axs[1,0].add_patch(rect)
+    axs[1,0].scatter(source_loc[1], source_loc[0], s=scale_size, edgecolor='black', facecolor=(1,1,1,0.15))
     axs[1,0].xaxis.set_major_formatter(plt.NullFormatter())
     axs[1,0].yaxis.set_major_formatter(plt.NullFormatter())
     axs[1,0].set_title("i Band")
 
     cax_11 = axs[1,1].imshow(image_stack[:,:,2], cmap='Blues')
+    print("Blue Max,max")
+    print(np.argmax(image_stack[:,:,2], axis=0))
+    print(np.argmax(image_stack[:,:,2], axis=1))
+    print("Box elements, lower right")
+    print((float(cutouts[0][0]), float(cutouts[0][1])))
+    print("Box elements, upper left")
+    print((float(cutouts[0][2]), float(cutouts[0][3])))
     fig.colorbar(cax_11, ax=axs[1,1])
     rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])),
-                             float(cutouts[0][3]) - float(cutouts[0][1]), float(cutouts[0][2]) - float(cutouts[0][0]),
+                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
                              linewidth=1, edgecolor='r', facecolor='none')
     axs[1,1].add_patch(rect)
+    axs[1,1].scatter(source_loc[1], source_loc[0], s=scale_size, edgecolor='black', facecolor=(1,1,1,0.15))
     axs[1,1].xaxis.set_major_formatter(plt.NullFormatter())
     axs[1,1].yaxis.set_major_formatter(plt.NullFormatter())
     axs[1,1].set_title("W1 Band")
