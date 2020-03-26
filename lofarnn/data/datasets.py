@@ -177,76 +177,79 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
 
     mosaic_cutouts = value_added_catalog[value_added_catalog["Mosaic_ID"] == mosaic]
     # Go through each cutout for that mosaic
-    for source in mosaic_cutouts:
-        img_array = []
-        # Get the ra and dec of the radio source
-        source_ra = source["RA"]
-        source_dec = source["DEC"]
-        # Get the size of the cutout needed
-        source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
-        try:
-            lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=False)
-        except:
-            if verbose:
-                print(f"Failed to make data cutout for source: {source['Source_Name']}")
-            continue
-        try:
-            lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=False)
-        except:
-            if verbose:
-                print(f"Failed to make rms cutout for source: {source['Source_Name']}")
-            continue
-        img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
-        header = lhdu[0].header
-        wcs = WCS(header)
+    for l, source in enumerate(mosaic_cutouts):
+        if not os.path.exists(os.path.join(save_cutout_directory, source['Source_Name'])):
+            img_array = []
+            # Get the ra and dec of the radio source
+            source_ra = source["RA"]
+            source_dec = source["DEC"]
+            # Get the size of the cutout needed
+            source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
+            try:
+                lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=False)
+            except:
+                if verbose:
+                    print(f"Failed to make data cutout for source: {source['Source_Name']}")
+                continue
+            try:
+                lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=False)
+            except:
+                if verbose:
+                    print(f"Failed to make rms cutout for source: {source['Source_Name']}")
+                continue
+            img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
+            header = lhdu[0].header
+            wcs = WCS(header)
 
-        # Now time to get the data from the catalogue and add that in their own channels
-        if verbose:
-            print(f"Image Shape: {img_array[0].data.shape}")
-        # Should now be in Radio/RMS, i, W1 format, else we skip it
-        # Need from catalog ra, dec, iFApMag, w1Mag, also have a z_best, which might or might not be available for all
-        layers = ["iFApMag", "w1Mag"]
-        # Get the catalog sources once, to speed things up
-        cutout_catalog = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
-                                                             pan_wise_catalog, source)
-        # Now determine if there are other sources in the area
-        other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
-                                                                    mosaic_cutouts, source)
-        other_source = SkyCoord(source['ID_ra'], source['ID_dec'], unit="deg")
-        for layer in layers:
-            tmp = make_catalogue_layer(layer, wcs, img_array[0].shape, cutout_catalog, other_source)
-            print("Pixel Source")
-            print(skycoord_to_pixel(other_source, wcs, 0))
-            print("End Pixel Source")
-            img_array.append(tmp)
-
-        img_array = np.array(img_array)
-        if verbose:
-            print(img_array.shape)
-        img_array = np.moveaxis(img_array, 0, 2)
-        # Include another array giving the bounding box for the source
-        bounding_boxes = []
-        source_bounding_box = list(make_bounding_box(source['ID_ra'], source['ID_dec'], wcs))
-        bounding_boxes.append(source_bounding_box)
-        # Now go through and for any other sources in the field of view, add those
-        for other_source in other_visible_sources:
-            other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
-                                           wcs, class_name="Other Optical Source")
-            if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][1]):  # Make sure not same one
-                if other_bbox[0] >= 0 and other_bbox[1] >= 0 and other_bbox[2] < img_array.shape[0] and other_bbox[3] < \
-                        img_array.shape[1]:
-                    bounding_boxes.append(list(other_bbox))  # Only add the bounding box if it is within the image shape
-        # Now save out the combined file
-
-        bounding_boxes = np.array(bounding_boxes)
-        if verbose:
-            print(bounding_boxes)
-        combined_array = [img_array, bounding_boxes]
-        try:
-            np.save(os.path.join(save_cutout_directory, source['Source_Name']), combined_array)
-        except Exception as e:
+            # Now time to get the data from the catalogue and add that in their own channels
             if verbose:
-                print(f"Failed to save: {e}")
+                print(f"Image Shape: {img_array[0].data.shape}")
+            # Should now be in Radio/RMS, i, W1 format, else we skip it
+            # Need from catalog ra, dec, iFApMag, w1Mag, also have a z_best, which might or might not be available for all
+            layers = ["iFApMag", "w1Mag"]
+            # Get the catalog sources once, to speed things up
+            cutout_catalog = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
+                                                                 pan_wise_catalog, source)
+            # Now determine if there are other sources in the area
+            other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
+                                                                        mosaic_cutouts, source)
+            other_source = SkyCoord(source['ID_ra'], source['ID_dec'], unit="deg")
+            for layer in layers:
+                tmp = make_catalogue_layer(layer, wcs, img_array[0].shape, cutout_catalog, other_source)
+                print("Pixel Source")
+                print(skycoord_to_pixel(other_source, wcs, 0))
+                print("End Pixel Source")
+                img_array.append(tmp)
+
+            img_array = np.array(img_array)
+            if verbose:
+                print(img_array.shape)
+            img_array = np.moveaxis(img_array, 0, 2)
+            # Include another array giving the bounding box for the source
+            bounding_boxes = []
+            source_bounding_box = list(make_bounding_box(source['ID_ra'], source['ID_dec'], wcs))
+            bounding_boxes.append(source_bounding_box)
+            # Now go through and for any other sources in the field of view, add those
+            for other_source in other_visible_sources:
+                other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
+                                               wcs, class_name="Other Optical Source")
+                if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][1]):  # Make sure not same one
+                    if other_bbox[0] >= 0 and other_bbox[1] >= 0 and other_bbox[2] < img_array.shape[0] and other_bbox[3] < \
+                            img_array.shape[1]:
+                        bounding_boxes.append(list(other_bbox))  # Only add the bounding box if it is within the image shape
+            # Now save out the combined file
+
+            bounding_boxes = np.array(bounding_boxes)
+            if verbose:
+                print(bounding_boxes)
+            combined_array = [img_array, bounding_boxes]
+            try:
+                np.save(os.path.join(save_cutout_directory, source['Source_Name']), combined_array)
+            except Exception as e:
+                if verbose:
+                    print(f"Failed to save: {e}")
+        else:
+            print(f"Skipped: {l}")
 
 
 def create_fixed_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,

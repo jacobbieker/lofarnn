@@ -6,42 +6,51 @@
 # Some basic setup
 # Setup detectron2 logger
 from detectron2.utils.logger import setup_logger
+
 setup_logger()
 
 # import some common libraries
 import os
-import pickle
 
 # import some common detectron2 utilities
-from detectron2.structures import BoxMode
 
+from detectron2.engine import LOFARTrainer
+from detectron2.evaluation import COCOEvaluator
 
+# os.environ["LOFARNN_ARCH"] = "XPS"
 environment = os.environ["LOFARNN_ARCH"]
+
+
+class Trainer(LOFARTrainer):
+    @classmethod
+    def build_evaluator(cls, cfg, dataset_name, output_folder=None):
+        if output_folder is None:
+            output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
+        return COCOEvaluator(dataset_name, cfg, True, output_folder)
+
 
 # # Load and inspect our data
 def get_lofar_dicts(annotation_filepath):
     with open(annotation_filepath, "rb") as f:
         dataset_dicts = pickle.load(f)
-    new_data = []
-    for i in range(len(dataset_dicts)):
-        for ob in dataset_dicts[i]['annotations']:
-            ob['bbox_mode'] = BoxMode.XYXY_ABS
-    return new_data
+    return dataset_dicts
 
-DATASET_NAME= "fixed"
+
+DATASET_NAME = "variable_fixed"
 if environment == "ALICE":
     base_path = f"/home/s2153246/data/processed/{DATASET_NAME}/COCO/annotations/"
 else:
     base_path = f"/home/jacob/Development/LOFAR-ML/data/processed/{DATASET_NAME}/COCO/annotations/"
 
-
-
 from detectron2.data import DatasetCatalog, MetadataCatalog
+
 for d in ["train", "val", "test"]:
     DatasetCatalog.register(f"{DATASET_NAME}_" + d,
-                            lambda d=d: get_lofar_dicts(os.path.join(base_path,f"json_{d}.pkl")))
+                            lambda d=d: get_lofar_dicts(os.path.join(base_path, f"json_{d}.pkl")))
     MetadataCatalog.get(f"{DATASET_NAME}_" + d).set(thing_classes=["Optical source", "Other Optical source"])
 lofar_metadata = MetadataCatalog.get(f"{DATASET_NAME}_train")
+
+import pickle
 
 # # Train mode
 
@@ -52,12 +61,11 @@ lofar_metadata = MetadataCatalog.get(f"{DATASET_NAME}_train")
 # for train eval those things are somewhere within a model 
 # specifically a model that takes data and retuns a dict of losses
 
-from detectron2.engine import DefaultTrainer
 from detectron2.config import get_cfg
 
 cfg = get_cfg()
-#cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-#cfg.merge_from_file(model_zoo.get_config_file("/data/mostertrij/tridentnet/detectron2/configs/COCO-Detection/my_script_faster_rcnn_X_101_32x8d_FPN_3x.yaml"))
+# cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+# cfg.merge_from_file(model_zoo.get_config_file("/data/mostertrij/tridentnet/detectron2/configs/COCO-Detection/my_script_faster_rcnn_X_101_32x8d_FPN_3x.yaml"))
 if environment == "ALICE":
     cfg.merge_from_file("/home/s2153246/LOFAR-ML/lofarnn/models/source_faster_rcnn_X_101_32x8d_FPN_3x.yaml")
 else:
@@ -65,19 +73,18 @@ else:
 cfg.DATASETS.TRAIN = (f"{DATASET_NAME}_train",)
 cfg.DATASETS.VAL = (f"{DATASET_NAME}_val",)
 cfg.DATASETS.TEST = (f"{DATASET_NAME}_test",)
-cfg.DATALOADER.NUM_WORKERS = 1
+cfg.DATALOADER.NUM_WORKERS = 8
 os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-cfg.SOLVER.IMS_PER_BATCH = 2
+cfg.SOLVER.IMS_PER_BATCH = 8
 cfg.SOLVER.BASE_LR = 0.0001  # pick a good LR
-cfg.SOLVER.MAX_ITER = 30000 # iterations seems good enough for this toy dataset; you may need to train longer for a practical dataset
-cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512   # faster, and good enough for this toy dataset (default: 512)
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (ballon)
+cfg.SOLVER.MAX_ITER = 90000  # iterations seems good enough for this toy dataset; you may need to train longer for a practical dataset
+cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 1024  # faster, and good enough for this toy dataset (default: 512)
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 2  # only has one class (Optical Source, Other Optical Source)
 
-trainer = DefaultTrainer(cfg)
+trainer = Trainer(cfg)
 trainer.resume_or_load(resume=False)
 
 trainer.train()
-
 
 # ### trainer.storage.history('loss_cls').latest()
 
@@ -93,9 +100,7 @@ get_ipython().run_line_magic('tensorboard', '--logdir output  --port 6006')
 # Then open localhost:8890 to see tensorboard
 """
 
-
 # # Inference mode
-
 
 
 """
