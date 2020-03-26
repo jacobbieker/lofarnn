@@ -291,7 +291,7 @@ class RandomRotate(object):
 
     """
 
-    def __init__(self, angle=10):
+    def __init__(self, angle=180):
         self.angle = angle
 
         if type(self.angle) == tuple:

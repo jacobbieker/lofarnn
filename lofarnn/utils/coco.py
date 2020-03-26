@@ -6,11 +6,11 @@ from pathlib import Path
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.ndimage
+import cv2
 from PIL import Image
 from detectron2.structures import BoxMode
 
-from lofarnn.data.cutouts import convert_to_valid_color
+from lofarnn.data.cutouts import convert_to_valid_color, RandomRotate, Rotate
 from lofarnn.visualization.cutouts import plot_three_channel_debug
 
 
@@ -72,7 +72,7 @@ def create_coco_style_directory_structure(root_directory, suffix='', verbose=Fal
 def create_coco_annotations(image_names,
                             image_destination_dir=None,
                             json_dir='', json_name='json_data.pkl',
-                            multiple_bboxes=True, resize=None, all_directory=None, verbose=False):
+                            multiple_bboxes=True, resize=None, rotation=None, verbose=False):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
     directory
@@ -83,55 +83,80 @@ def create_coco_annotations(image_names,
     :param multiple_bboxes: Whether to use multiple bounding boxes, or only the first, for
     example, to only use the main source Optical source, or include others that fall within the
     defined area
+    :param rotation: Whether to rotate the images or not, if given as a tuple, it is taken as rotate each image by that amount,
+    if a single float, then rotates images randomly between -rotation,rotation 50 times
     :return:
     """
 
+    if rotation is not None:
+        if type(rotation) == tuple:
+            num_copies = len(rotation)
+        else:
+            num_copies = 50
+    else:
+        num_copies = 1
     # List to store single dict for each image
     dataset_dicts = []
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
-    for m in range(1):
+    for m in range(num_copies):
         for i, image_name in enumerate(image_names):
             # Get image dimensions and insert them in a python dict
-            image_dest_filename = os.path.join(image_destination_dir, image_name.stem + ".m.png")
+            image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f"{m}.png")
             image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
-            if verbose:
-                fig = plt.figure()
-                ax = fig.add_subplot(1, 1, 1)
-                ax.imshow(image, origin='lower')
-                rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])), 1, 1, linewidth=1, edgecolor='w', facecolor='none')
-                ax.add_patch(rect)
-                plt.title("Before")
-                plt.show()
             prev_shape = image.shape[0]
+            if rotation is not None:
+                if type(rotation) == tuple:
+                    transforms = Rotate(angle=rotation[m])
+                    tmp_bboxes = []
+                    for index, bbox in enumerate(cutouts):
+                        # convert to proper coordinates
+                        tmp_bbox = [float(bbox[1]), float(bbox[0]), float(bbox[3]), float(bbox[2])]
+                        tmp_bboxes.append(tmp_bbox)
+                    image, tmp_bboxes = transforms(image, np.asarray(tmp_bboxes))
+                    for index, _ in enumerate(cutouts):
+                        # Convert back to the messed up coordinates that are expected
+                        cutouts[index] = [float(tmp_bboxes[index][1]), float(tmp_bboxes[index][0]),
+                                          float(tmp_bboxes[index][3]), float(tmp_bboxes[index][2]),
+                                          cutouts[index][4], cutouts[index][5]]
+            else:
+                transforms = RandomRotate(angle=rotation)
+                tmp_bboxes = []
+                for index, bbox in enumerate(cutouts):
+                    # convert to proper coordinates
+                    tmp_bbox = [float(bbox[1]), float(bbox[0]), float(bbox[3]), float(bbox[2])]
+                    tmp_bboxes.append(tmp_bbox)
+                image, tmp_bboxes = transforms(image, np.asarray(tmp_bboxes))
+                for index, _ in enumerate(cutouts):
+                    # Convert back to the messed up coordinates that are expected
+                    cutouts[index] = [float(tmp_bboxes[index][1]), float(tmp_bboxes[index][0]),
+                                      float(tmp_bboxes[index][3]), float(tmp_bboxes[index][2]),
+                                      cutouts[index][4], cutouts[index][5]]
             if resize is not None:
                 # Resize the image and boxes
                 for index, box in enumerate(cutouts):
                     print(box)
                     cutouts[index] = scale_box(image, box, resize)
                 image = resize_array(image, resize)
-            if verbose:
-                fig = plt.figure()
-                ax = fig.add_subplot(1, 1, 1)
-                ax.imshow(image, origin='lower')
-                rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])),
-                                         image.shape[0]/prev_shape, image.shape[0]/prev_shape,
-                                         linewidth=1, edgecolor='w', facecolor='none')
-                ax.add_patch(rect)
-                plt.title("After")
-                plt.show()
             width, height, depth = np.shape(image)
             # Rescale to between 0 and 1
-            scale_size = image.shape[0]/prev_shape
+            scale_size = image.shape[0] / prev_shape
             if True:
-                plot_three_channel_debug(image, cutouts, 1, cutouts[0][5], save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/raw/", image_name.name + ".jpg"))
+                plot_three_channel_debug(image, cutouts, 1, cutouts[0][5],
+                                         save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
+                                                                image_name.name + ".jpg"))
             # First R channel
-            image[:,:,0] = convert_to_valid_color(image[:,:,0], clip=True, lower_clip=0.0, upper_clip=1000, normalize=True, scaling=None)
-            image[:,:,1] = convert_to_valid_color(image[:,:,1], clip=True, lower_clip=0., upper_clip=25., normalize=True, scaling=None)
-            image[:,:,2] = convert_to_valid_color(image[:,:,2], clip=True, lower_clip=0., upper_clip=25., normalize=True, scaling=None)
+            image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
+                                                    normalize=True, scaling=None)
+            image[:, :, 1] = convert_to_valid_color(image[:, :, 1], clip=True, lower_clip=0., upper_clip=25.,
+                                                    normalize=True, scaling=None)
+            image[:, :, 2] = convert_to_valid_color(image[:, :, 2], clip=True, lower_clip=0., upper_clip=25.,
+                                                    normalize=True, scaling=None)
             image = (255.0 * image).astype(np.uint8)
             im = Image.fromarray(image, 'RGB')
             if True:
-                plot_three_channel_debug(image, cutouts, scale_size, cutouts[0][5], save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/raw/", image_name.name + ".png"))
+                plot_three_channel_debug(image, cutouts, scale_size, cutouts[0][5],
+                                         save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
+                                                                image_name.name + ".png"))
             im.save(image_dest_filename)
             # np.save(image_dest_filename, image)  # Save to the final destination
             record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
@@ -169,7 +194,7 @@ def create_coco_annotations(image_names,
             print(f'COCO annotation file created in \'{json_dir}\'.\n')
 
 
-def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0.6,0.8), resize=None, verbose=False):
+def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0.6, 0.8), resize=None, verbose=False):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
     directories, and create the COCO annotation file to be loaded into Detectron2, or other similar models
@@ -228,9 +253,9 @@ def split_data(image_directory, split=(0.6, 0.8)):
     for p in image_paths:
         im_paths.append(p)
     random.shuffle(im_paths)
-    train_images = im_paths[:int(len(im_paths)*split[0])]
-    val_images = im_paths[int(len(im_paths)*split[0]):int(len(im_paths)*split[1])]
-    test_images = im_paths[int(len(im_paths)*split[1]):]
+    train_images = im_paths[:int(len(im_paths) * split[0])]
+    val_images = im_paths[int(len(im_paths) * split[0]):int(len(im_paths) * split[1])]
+    test_images = im_paths[int(len(im_paths) * split[1]):]
 
     return {"train": train_images,
             "val": val_images,
@@ -240,16 +265,16 @@ def split_data(image_directory, split=(0.6, 0.8)):
 def resize_array(arr, new_size):
     """Resizes numpy array to a specified width and height using specified interpolation"""
     scale_factor = new_size / arr.shape[0]
-    return scipy.ndimage.zoom(arr, [scale_factor, scale_factor, 1], order=1)
+    return cv2.resize(arr, dsize=(new_size, new_size), interpolation=cv2.INTER_LINEAR)
 
 
 def scale_box(arr, bounding_box, new_size):
     scale_factor = new_size / arr.shape[0]
-    bounding_box[1] = float(bounding_box[1])*scale_factor
-    bounding_box[3] = float(bounding_box[3])*scale_factor
-    bounding_box[0] = float(bounding_box[0])*scale_factor
-    bounding_box[2] = float(bounding_box[2])*scale_factor
-    bounding_box[5] = (float(bounding_box[5][0])*scale_factor, float(bounding_box[5][1])*scale_factor)
+    bounding_box[1] = float(bounding_box[1]) * scale_factor
+    bounding_box[3] = float(bounding_box[3]) * scale_factor
+    bounding_box[0] = float(bounding_box[0]) * scale_factor
+    bounding_box[2] = float(bounding_box[2]) * scale_factor
+    bounding_box[5] = (float(bounding_box[5][0]) * scale_factor, float(bounding_box[5][1]) * scale_factor)
     return bounding_box
 
 
@@ -270,22 +295,22 @@ def get_pixel_mean_and_std(image_paths):
     b_min = 1000
     for image in image_paths:
         data = np.load(image, allow_pickle=True)[0]
-        if np.min(data[:,:,0]) < r_min:
-            r_min = np.min(data[:,:,0])
-        if np.min(data[:,:,1]) < g_min:
-            g_min = np.min(data[:,:,1])
-        if np.min(data[:,:,2]) < b_min:
-            b_min = np.min(data[:,:,2])
-        if np.max(data[:,:,0]) > r_max:
-            r_max = np.max(data[:,:,0])
-        if np.max(data[:,:,1]) > g_max:
-            g_max = np.max(data[:,:,0])
-        if np.max(data[:,:,1]) > b_max:
-            b_max = np.max(data[:,:,0])
-        r_val = np.reshape(data[:,:,0], -1)
-        g_val = np.reshape(data[:,:,1], -1)
-        b_val = np.reshape(data[:,:,2], -1)
+        if np.min(data[:, :, 0]) < r_min:
+            r_min = np.min(data[:, :, 0])
+        if np.min(data[:, :, 1]) < g_min:
+            g_min = np.min(data[:, :, 1])
+        if np.min(data[:, :, 2]) < b_min:
+            b_min = np.min(data[:, :, 2])
+        if np.max(data[:, :, 0]) > r_max:
+            r_max = np.max(data[:, :, 0])
+        if np.max(data[:, :, 1]) > g_max:
+            g_max = np.max(data[:, :, 0])
+        if np.max(data[:, :, 1]) > b_max:
+            b_max = np.max(data[:, :, 0])
+        r_val = np.reshape(data[:, :, 0], -1)
+        g_val = np.reshape(data[:, :, 1], -1)
+        b_val = np.reshape(data[:, :, 2], -1)
 
-    #print(f"R Mean: {r_mean}, {r_std} \n G Mean: {g_mean}, {g_std} \n B Mean: {b_mean}, {b_std}")
+    # print(f"R Mean: {r_mean}, {r_std} \n G Mean: {g_mean}, {g_std} \n B Mean: {b_mean}, {b_std}")
 
     return (r_max, r_min), (g_max, g_min), (b_max, b_min)
