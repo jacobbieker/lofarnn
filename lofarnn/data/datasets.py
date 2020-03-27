@@ -148,7 +148,7 @@ def make_bounding_box(ra, dec, wcs, class_name="Optical source"):
 
     return xmin, ymin, xmax, ymax, class_name, box_center
 
-
+import time
 def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,
                    save_cutout_directory, verbose=False):
     """
@@ -163,8 +163,11 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
     """
 
     if type(pan_wise_catalog) == str:
+        time.sleep(np.random.randint(0,10))
+        print("Trying To Open")
         pan_wise_catalog = fits.open(pan_wise_catalog, memmap=True)
         pan_wise_catalog = pan_wise_catalog[1].data
+        print("Opened CAtalog")
     # Load the data once, then do multiple cutouts
     lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
     lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")

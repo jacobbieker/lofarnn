@@ -10,8 +10,10 @@ import cv2
 from PIL import Image
 from detectron2.structures import BoxMode
 
-from lofarnn.data.cutouts import convert_to_valid_color, RandomRotate, Rotate
+from lofarnn.data.cutouts import convert_to_valid_color, rotate_image_and_bboxes, augment_image_and_bboxes
 from lofarnn.visualization.cutouts import plot_three_channel_debug
+
+from multiprocessing import Pool, Process, Manager, Queue
 
 
 def mkdirs_safe(directory_list):
@@ -69,6 +71,80 @@ def create_coco_style_directory_structure(root_directory, suffix='', verbose=Fal
     return all_directory, train_directory, val_directory, test_directory, annotations_directory
 
 
+def make_single_coco_annotation_set(image_names, L, m,
+                                    image_destination_dir=None,
+                                    multiple_bboxes=True, resize=None, rotation=None, verbose=False):
+    """
+    For use with multiprocessing, goes through and does one rotation for the COCO annotations
+    """
+    for i, image_name in enumerate(image_names):
+        # Get image dimensions and insert them in a python dict
+        image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.png")
+        image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
+        if verbose:
+            plot_three_channel_debug(image, cutouts, 1, cutouts[0][5],
+                                     save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
+                                                            image_name.stem + f".{m}.jpg"))
+        if rotation is not None:
+            if type(rotation) == tuple:
+                image, cutouts = augment_image_and_bboxes(image, cutouts=cutouts, angle=rotation[m])
+            else:
+                image, cutouts = augment_image_and_bboxes(image, cutouts=cutouts,
+                                                          angle=np.random.uniform(-rotation, rotation))
+        prev_shape = image.shape[0]
+        if resize is not None:
+            # Resize the image and boxes
+            for index, box in enumerate(cutouts):
+                print(box)
+                cutouts[index] = scale_box(image, box, resize)
+            image = resize_array(image, resize)
+        width, height, depth = np.shape(image)
+        # Rescale to between 0 and 1
+        scale_size = image.shape[0] / prev_shape
+        # First R channel
+        image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
+                                                normalize=True, scaling=None)
+        image[:, :, 1] = convert_to_valid_color(image[:, :, 1], clip=True, lower_clip=0., upper_clip=25.,
+                                                normalize=True, scaling=None)
+        image[:, :, 2] = convert_to_valid_color(image[:, :, 2], clip=True, lower_clip=0., upper_clip=25.,
+                                                normalize=True, scaling=None)
+        image = (255.0 * image).astype(np.uint8)
+        im = Image.fromarray(image, 'RGB')
+        if verbose:
+            plot_three_channel_debug(image, cutouts, scale_size, cutouts[0][5],
+                                     save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
+                                                            image_name.stem + f".{m}.png"))
+        im.save(image_dest_filename)
+        # np.save(image_dest_filename, image)  # Save to the final destination
+        record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
+
+        # Insert bounding boxes and their corresponding classes
+        # print('scale_factor:',cutout.scale_factor)
+        objs = []
+        if not multiple_bboxes:
+            cutouts = [cutouts[0]]  # Only take the first one, the main optical source
+        for bbox in cutouts:
+            assert float(bbox[2]) > float(bbox[0])
+            assert float(bbox[3]) > float(bbox[1])
+
+            if bbox[4] == "Other Optical Source":
+                category_id = 1
+            else:
+                category_id = 0
+
+            obj = {
+                "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
+                "bbox_mode": BoxMode.XYXY_ABS,
+                # "segmentation": [poly],
+                "category_id": category_id,
+                "iscrowd": 0
+            }
+            objs.append(obj)
+
+        record["annotations"] = objs
+        L.append(record)
+
+
 def create_coco_annotations(image_names,
                             image_destination_dir=None,
                             json_dir='', json_name='json_data.pkl',
@@ -97,40 +173,42 @@ def create_coco_annotations(image_names,
         num_copies = 1
     # List to store single dict for each image
     dataset_dicts = []
+    if num_copies > 1:
+        manager = Manager()
+        pool = Pool(processes=os.cpu_count())
+        L = manager.list()
+        [pool.apply_async(make_single_coco_annotation_set, args=[image_names, L, m, image_destination_dir, multiple_bboxes, resize, rotation, False]) for m in range(num_copies)]
+        pool.close()
+        pool.join()
+        print(len(L))
+        for element in L:
+            dataset_dicts.append(element)
+        # Write all image dictionaries to file as one json
+        json_path = os.path.join(json_dir, json_name)
+        with open(json_path, "wb") as outfile:
+            pickle.dump(dataset_dicts, outfile)
+        if verbose:
+            print(f'COCO annotation file created in \'{json_dir}\'.\n')
+        return 0 # Returns to doesnt go through it again
+
+
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
     for m in range(num_copies):
         for i, image_name in enumerate(image_names):
             # Get image dimensions and insert them in a python dict
-            image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f"{m}.png")
+            image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.png")
             image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
-            prev_shape = image.shape[0]
+            if False:
+                plot_three_channel_debug(image, cutouts, 1, cutouts[0][5],
+                                         save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
+                                                                image_name.stem + f".{m}.jpg"))
             if rotation is not None:
                 if type(rotation) == tuple:
-                    transforms = Rotate(angle=rotation[m])
-                    tmp_bboxes = []
-                    for index, bbox in enumerate(cutouts):
-                        # convert to proper coordinates
-                        tmp_bbox = [float(bbox[1]), float(bbox[0]), float(bbox[3]), float(bbox[2])]
-                        tmp_bboxes.append(tmp_bbox)
-                    image, tmp_bboxes = transforms(image, np.asarray(tmp_bboxes))
-                    for index, _ in enumerate(cutouts):
-                        # Convert back to the messed up coordinates that are expected
-                        cutouts[index] = [float(tmp_bboxes[index][1]), float(tmp_bboxes[index][0]),
-                                          float(tmp_bboxes[index][3]), float(tmp_bboxes[index][2]),
-                                          cutouts[index][4], cutouts[index][5]]
-            else:
-                transforms = RandomRotate(angle=rotation)
-                tmp_bboxes = []
-                for index, bbox in enumerate(cutouts):
-                    # convert to proper coordinates
-                    tmp_bbox = [float(bbox[1]), float(bbox[0]), float(bbox[3]), float(bbox[2])]
-                    tmp_bboxes.append(tmp_bbox)
-                image, tmp_bboxes = transforms(image, np.asarray(tmp_bboxes))
-                for index, _ in enumerate(cutouts):
-                    # Convert back to the messed up coordinates that are expected
-                    cutouts[index] = [float(tmp_bboxes[index][1]), float(tmp_bboxes[index][0]),
-                                      float(tmp_bboxes[index][3]), float(tmp_bboxes[index][2]),
-                                      cutouts[index][4], cutouts[index][5]]
+                    image, cutouts = augment_image_and_bboxes(image, cutouts=cutouts, angle=rotation[m])
+                else:
+                    image, cutouts = augment_image_and_bboxes(image, cutouts=cutouts,
+                                                              angle=np.random.uniform(-rotation, rotation))
+            prev_shape = image.shape[0]
             if resize is not None:
                 # Resize the image and boxes
                 for index, box in enumerate(cutouts):
@@ -140,10 +218,6 @@ def create_coco_annotations(image_names,
             width, height, depth = np.shape(image)
             # Rescale to between 0 and 1
             scale_size = image.shape[0] / prev_shape
-            if True:
-                plot_three_channel_debug(image, cutouts, 1, cutouts[0][5],
-                                         save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
-                                                                image_name.name + ".jpg"))
             # First R channel
             image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
                                                     normalize=True, scaling=None)
@@ -153,10 +227,10 @@ def create_coco_annotations(image_names,
                                                     normalize=True, scaling=None)
             image = (255.0 * image).astype(np.uint8)
             im = Image.fromarray(image, 'RGB')
-            if True:
+            if False:
                 plot_three_channel_debug(image, cutouts, scale_size, cutouts[0][5],
                                          save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
-                                                                image_name.name + ".png"))
+                                                                image_name.stem + f".{m}.png"))
             im.save(image_dest_filename)
             # np.save(image_dest_filename, image)  # Save to the final destination
             record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
@@ -176,7 +250,7 @@ def create_coco_annotations(image_names,
                     category_id = 0
 
                 obj = {
-                    "bbox": [float(bbox[1]), float(bbox[0]), float(bbox[3]), float(bbox[2])],
+                    "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
                     "bbox_mode": BoxMode.XYXY_ABS,
                     # "segmentation": [poly],
                     "category_id": category_id,
@@ -186,15 +260,16 @@ def create_coco_annotations(image_names,
 
             record["annotations"] = objs
             dataset_dicts.append(record)
-        # Write all image dictionaries to file as one json
-        json_path = os.path.join(json_dir, json_name)
-        with open(json_path, "wb") as outfile:
-            pickle.dump(dataset_dicts, outfile)
-        if verbose:
-            print(f'COCO annotation file created in \'{json_dir}\'.\n')
+    # Write all image dictionaries to file as one json
+    json_path = os.path.join(json_dir, json_name)
+    with open(json_path, "wb") as outfile:
+        pickle.dump(dataset_dicts, outfile)
+    if verbose:
+        print(f'COCO annotation file created in \'{json_dir}\'.\n')
 
 
-def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0.6, 0.8), resize=None, verbose=False):
+def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0.6, 0.8), resize=None, rotation=None,
+                        verbose=False):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
     directories, and create the COCO annotation file to be loaded into Detectron2, or other similar models
@@ -219,7 +294,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             json_name=f"json_train.pkl",
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
-                            all_directory=all_directory,
+                            rotation=rotation,
                             verbose=verbose)
     create_coco_annotations(data_split["val"],
                             json_dir=annotations_directory,
@@ -227,7 +302,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             json_name=f"json_val.pkl",
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
-                            all_directory=all_directory,
+                            rotation=rotation,
                             verbose=verbose)
     create_coco_annotations(data_split["test"],
                             json_dir=annotations_directory,
@@ -235,7 +310,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             json_name=f"json_test.pkl",
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
-                            all_directory=all_directory,
+                            rotation=rotation,
                             verbose=verbose)
 
 
