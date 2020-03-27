@@ -17,11 +17,13 @@ import os
 from detectron2.engine import LOFARTrainer
 from detectron2.evaluation import COCOEvaluator
 
-# os.environ["LOFARNN_ARCH"] = "XPS"
+os.environ["LOFARNN_ARCH"] = "XPS"
 environment = os.environ["LOFARNN_ARCH"]
+from detectron2.engine import LOFARTrainer, DefaultTrainer, default_argument_parser, default_setup, launch
+from detectron2.evaluation import COCOEvaluator, LOFAREvaluator
 
 
-class Trainer(LOFARTrainer):
+class Trainer(DefaultTrainer):
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):
         if output_folder is None:
@@ -36,7 +38,7 @@ def get_lofar_dicts(annotation_filepath):
     return dataset_dicts
 
 
-DATASET_NAME = "variable_fixed"
+DATASET_NAME = "variable_fixed2"
 if environment == "ALICE":
     base_path = f"/home/s2153246/data/processed/{DATASET_NAME}/COCO/annotations/"
 else:
@@ -67,7 +69,7 @@ cfg = get_cfg()
 # cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
 # cfg.merge_from_file(model_zoo.get_config_file("/data/mostertrij/tridentnet/detectron2/configs/COCO-Detection/my_script_faster_rcnn_X_101_32x8d_FPN_3x.yaml"))
 if environment == "ALICE":
-    cfg.merge_from_file("/home/s2153246/LOFAR-ML/lofarnn/models/source_faster_rcnn_X_101_32x8d_FPN_3x.yaml")
+    cfg.merge_from_file("/home/s2153246/lofarnn/lofarnn/models/source_faster_rcnn_X_101_32x8d_FPN_3x.yaml")
 else:
     cfg.merge_from_file("source_faster_rcnn_X_101_32x8d_FPN_3x.yaml")
 cfg.DATASETS.TRAIN = (f"{DATASET_NAME}_train",)
@@ -75,9 +77,9 @@ cfg.DATASETS.VAL = (f"{DATASET_NAME}_val",)
 cfg.DATASETS.TEST = (f"{DATASET_NAME}_test",)
 cfg.DATALOADER.NUM_WORKERS = 8
 os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-cfg.SOLVER.IMS_PER_BATCH = 8
+cfg.SOLVER.IMS_PER_BATCH = 16
 cfg.SOLVER.BASE_LR = 0.0001  # pick a good LR
-cfg.SOLVER.MAX_ITER = 90000  # iterations seems good enough for this toy dataset; you may need to train longer for a practical dataset
+#cfg.SOLVER.MAX_ITER = 0000  # iterations seems good enough for this toy dataset; you may need to train longer for a practical dataset
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 1024  # faster, and good enough for this toy dataset (default: 512)
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 2  # only has one class (Optical Source, Other Optical Source)
 
