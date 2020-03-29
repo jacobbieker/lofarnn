@@ -2,7 +2,7 @@ _BASE_: "../../detectron2/configs/Base-RCNN-FPN.yaml"
 OUTPUT_DIR: "/home/jacob/Development/LOFAR-ML/reports/"
 DATASETS:
   OUTPUT_DIR: "/home/jacob/Development/LOFAR-ML/reports/"
-  IMAGE_DIR: "/home/jacob/Development/LOFAR-ML/data/processed/fixed/"
+  IMAGE_DIR: "/home/jacob/Development/LOFAR-ML/data/processed/variable_fixed2/"
   COMP_CAT_PATH: '/home/jacob/Development/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits'
 INPUT:
   #SCALE_FACTOR: 4.545454545454546 #1.5151515151515151 #1.0 #4.545454545454546
@@ -13,7 +13,6 @@ INPUT:
   MAX_SIZE_TEST: 200
 MODEL:
   MASK_ON: False
-  WEIGHTS: "detectron2://ImageNetPretrained/FAIR/X-101-32x8d.pkl"
   # Determine mean of our GBR channels
   PIXEL_MEAN: [0.402, 0.158, 0.120]
   PIXEL_STD: [6.377, 2.393, 1.534]

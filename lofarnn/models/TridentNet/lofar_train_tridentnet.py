@@ -14,7 +14,7 @@ from detectron2.engine import LOFARTrainer, DefaultTrainer, default_argument_par
 from detectron2.evaluation import COCOEvaluator
 from detectron2.structures import BoxMode
 
-from .tridentnet import add_tridentnet_config
+from tridentnet import add_tridentnet_config
 
 
 class Trainer(DefaultTrainer):
@@ -31,7 +31,7 @@ def setup(args):
     """
     cfg = get_cfg()
     add_tridentnet_config(cfg)
-    cfg.merge_from_file("/home/s2153246/lofarnn/lofarnn/models/alice_source_tridentnet_fast_R_101_C4_3x.yaml")
+    cfg.merge_from_file("/home/jacob/Development/lofarnn/lofarnn/models/source_tridentnet_fast_R_101_C4_3x.yaml")
     DATASET_NAME= "fixed"
     cfg.DATASETS.TRAIN = (f"{DATASET_NAME}_train",)
     cfg.DATASETS.VAL = (f"{DATASET_NAME}_val",)
@@ -61,7 +61,7 @@ def register_lofar_datasets(cfg):
     """
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     DATASET_NAME= "fixed"
-    base_path = f"/home/s2153246/data/processed/fixed/COCO/annotations/"
+    base_path = f"/home/jacob/Development/data/variable/COCO/annotations/"
 
     from detectron2.data import DatasetCatalog, MetadataCatalog
     for d in ["train", "val", "test"]:
