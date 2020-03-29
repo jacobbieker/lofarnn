@@ -9,8 +9,10 @@ from astropy.table import Table
 from astropy.wcs import WCS
 from astropy.wcs.utils import skycoord_to_pixel
 from itertools import repeat
+from scipy.ndimage.filters import gaussian_filter
 
 from lofarnn.utils.coco import create_coco_style_directory_structure
+from lofarnn.visualization.cutouts import plot_three_channel_debug
 from lofarnn.utils.fits import extract_subimage
 
 
@@ -96,19 +98,17 @@ def determine_visible_catalogue_sources(ra, dec, wcs, size, catalogue, l_objects
         print(other_source)
         print(skycoord_to_pixel(source_coord, wcs, 0))
         print(skycoord_to_pixel(other_source, wcs, 0))
-        #print(search_radius)
-        #print(len(objects))
 
     return objects
 
-
-def make_catalogue_layer(column_name, wcs, shape, catalogue, other_source, verbose=False):
+def make_catalogue_layer(column_name, wcs, shape, catalogue, gaussian=None, verbose=False):
     """
     Create a layer based off the data in
     :param column_name: Name in catalogue of data to include
     :param shape: Shape of the image data
     :param wcs: WCS of the Radio data, so catalog data can be translated correctly
     :param catalogue: Catalogue to query
+    :param gaussian: Whether to smooth the point values with a gaussian
     :return: A Numpy array that holds the information in the correct location
     """
 
@@ -121,36 +121,48 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, other_source, verbo
     coords = skycoord_to_pixel(sky_coords, wcs, 0)
     for index, x in enumerate(coords[0]):
         try:
-            if ~np.isnan(catalogue[index][column_name]):  # Make sure not putting in NaNs
+            if ~np.isnan(catalogue[index][column_name]) and catalogue[index][column_name] > 0.0:  # Make sure not putting in NaNs
+                #if gaussian is None:
                 layer[int(np.floor(coords[0][index]))][int(np.floor(coords[1][index]))] = catalogue[index][column_name]
         except Exception as e:
             if verbose:
                 print(f"Failed: {e}")
+    if gaussian is not None:
+        layer = gaussian_filter(layer, sigma=gaussian)
     return layer
 
 
-def make_bounding_box(ra, dec, wcs, class_name="Optical source"):
+def make_bounding_box(ra, dec, wcs, class_name="Optical source", gaussian=None):
     """
     Creates a bounding box and returns it in (xmin, ymin, xmax, ymax, class_name) format
     :param class_name: Class name for the bounding box
     :param ra: RA of the object to make bounding box
     :param dec: Dec of object
     :param wcs: WCS to convert to pixel coordinates
+    :param gaussian: Whether gaussian is being used, in which case the box is not int'd but left as a float, and the
+    width of the gaussian is used for the width of the bounding box, if it is being used, instead of 'None', it should
+    be the width of the Gaussian
     :return: Bounding box coordinates for COCO style annotation
     """
     source_skycoord = SkyCoord(ra, dec, unit='deg')
     box_center = skycoord_to_pixel(source_skycoord, wcs, 0)
-    # Now create box, which will be accomplished by taking int to get xmin, ymin, and int + 1 for xmax, ymax
-    xmin = int(np.floor(box_center[0])) - 1
-    ymin = int(np.floor(box_center[1])) - 1
-    ymax = ymin + 2
-    xmax = xmin + 2
+    if gaussian is None:
+        # Now create box, which will be accomplished by taking int to get xmin, ymin, and int + 1 for xmax, ymax
+        xmin = int(np.floor(box_center[0])) - 1
+        ymin = int(np.floor(box_center[1])) - 1
+        ymax = ymin + 2
+        xmax = xmin + 2
+    else:
+        xmin = int(np.floor(box_center[0])) - gaussian
+        ymin = int(np.floor(box_center[1])) - gaussian
+        xmax = np.ceil(int(np.floor(box_center[0])) + gaussian)
+        ymax = np.ceil(int(np.floor(box_center[1])) + gaussian)
 
     return xmin, ymin, xmax, ymax, class_name, box_center
 
-import time
+
 def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,
-                   save_cutout_directory, verbose=False):
+                   save_cutout_directory, gaussian=None, verbose=False):
     """
     Create cutouts of all sources in a field
     :param mosaic: Name of the field to use
@@ -163,7 +175,6 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
     """
 
     if type(pan_wise_catalog) == str:
-        time.sleep(np.random.randint(0,10))
         print("Trying To Open")
         pan_wise_catalog = fits.open(pan_wise_catalog, memmap=True)
         pan_wise_catalog = pan_wise_catalog[1].data
@@ -218,7 +229,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
                                                                         mosaic_cutouts, source)
             other_source = SkyCoord(source['ID_ra'], source['ID_dec'], unit="deg")
             for layer in layers:
-                tmp = make_catalogue_layer(layer, wcs, img_array[0].shape, cutout_catalog, other_source)
+                tmp = make_catalogue_layer(layer, wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian)
                 print("Pixel Source")
                 print(skycoord_to_pixel(other_source, wcs, 0))
                 print("End Pixel Source")
@@ -230,16 +241,20 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             img_array = np.moveaxis(img_array, 0, 2)
             # Include another array giving the bounding box for the source
             bounding_boxes = []
-            source_bounding_box = list(make_bounding_box(source['ID_ra'], source['ID_dec'], wcs))
+            source_bounding_box = list(make_bounding_box(source['ID_ra'], source['ID_dec'], wcs, gaussian=gaussian))
             bounding_boxes.append(source_bounding_box)
+            plot_three_channel_debug(img_array, bounding_boxes, 1, bounding_boxes[0][5])
             # Now go through and for any other sources in the field of view, add those
             for other_source in other_visible_sources:
                 other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
-                                               wcs, class_name="Other Optical Source")
-                if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][1]):  # Make sure not same one
-                    if other_bbox[0] >= 0 and other_bbox[1] >= 0 and other_bbox[2] < img_array.shape[0] and other_bbox[3] < \
+                                               wcs, class_name="Other Optical Source", gaussian=gaussian)
+                if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][
+                    1]):  # Make sure not same one
+                    if other_bbox[0] >= 0 and other_bbox[1] >= 0 and other_bbox[2] < img_array.shape[0] and other_bbox[
+                        3] < \
                             img_array.shape[1]:
-                        bounding_boxes.append(list(other_bbox))  # Only add the bounding box if it is within the image shape
+                        bounding_boxes.append(
+                            list(other_bbox))  # Only add the bounding box if it is within the image shape
             # Now save out the combined file
 
             bounding_boxes = np.array(bounding_boxes)
@@ -402,7 +417,7 @@ def create_fixed_source_dataset(cutout_directory, pan_wise_location,
 
 
 def create_variable_source_dataset(cutout_directory, pan_wise_location,
-                                   value_added_catalog_location, dr_two_location, use_multiprocessing=False,
+                                   value_added_catalog_location, dr_two_location, gaussian=None, use_multiprocessing=False,
                                    num_threads=os.cpu_count()):
     """
     Create variable sized cutouts (hardcoded to 1.5 times the LGZ_Size) for each of the cutouts
@@ -411,12 +426,13 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     :param pan_wise_location: The location of the PanSTARRS-ALLWISE catalog
     :param value_added_catalog_location: Location of the LoTSS Value Added Catalog
     :param dr_two_location: The location of the LoTSS DR2 Mosaic Locations
+    :param gaussian: Whether to spread out data layers with Gaussian of specified width
     :param use_multiprocessing: Whether to use multiprocessing
     :param num_threads: Number of threads to use, if multiprocessing is true
     :return:
     """
 
-    l_objects = get_lotss_objects(value_added_catalog_location, True)
+    l_objects = get_lotss_objects(value_added_catalog_location, False)
     l_objects = l_objects[~np.isnan(l_objects['LGZ_Size'])]
     l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]
     mosaic_names = set(l_objects["Mosaic_ID"])
@@ -432,13 +448,15 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     if use_multiprocessing:
         pool = multiprocessing.Pool(num_threads)
         pool.starmap(create_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_location),
-                                         repeat(dr_two_location), repeat(all_directory),
+                                         repeat(dr_two_location), repeat(all_directory), repeat(gaussian),
                                          repeat(True)))
     else:
         pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
         pan_wise_catalogue = pan_wise_catalogue[1].data
+        print("Loaded")
         for mosaic in mosaic_names:
             create_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue,
                            mosaic_location=dr_two_location,
                            save_cutout_directory=all_directory,
+                           gaussian=gaussian,
                            verbose=True)

@@ -10,7 +10,7 @@ import cv2
 from PIL import Image
 from detectron2.structures import BoxMode
 
-from lofarnn.data.cutouts import convert_to_valid_color, rotate_image_and_bboxes, augment_image_and_bboxes
+from lofarnn.data.cutouts import convert_to_valid_color, augment_image_and_bboxes
 from lofarnn.visualization.cutouts import plot_three_channel_debug
 
 from multiprocessing import Pool, Process, Manager, Queue

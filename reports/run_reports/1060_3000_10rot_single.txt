@@ -1,0 +1,23 @@
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.163
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.418
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.089
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.167
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.164
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.113
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.027
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.212
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.390
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.389
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.440
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.164
+[03/29 15:33:56 d2.evaluation.coco_evaluation]: Evaluation results for bbox:
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 16.349 | 41.752 | 8.904  | 16.718 | 16.352 | 11.335 |
+[03/29 15:33:56 d2.engine.defaults]: Evaluation results for variable_fixed_single_alice_test in csv format:
+[03/29 15:33:56 d2.evaluation.testing]: copypaste: Task: bbox
+[03/29 15:33:56 d2.evaluation.testing]: copypaste: AP,AP50,AP75,APs,APm,APl
+[03/29 15:33:56 d2.evaluation.testing]: copypaste: 16.3491,41.7523,8.9044,16.7179,16.3522,11.3351
+[03/29 15:33:56 d2.utils.events]:  eta: 0:00:00  iter: 29999  total_loss: 0.113  loss_cls: 0.017  loss_box_reg: 0.014  loss_rpn_cls: 0.043  loss_rpn_loc: 0.040  time: 0.6132  data_time: 0.0049  lr: 0.000100  max_mem: 2229M
+[03/29 15:33:56 d2.engine.hooks]: Overall training speed: 29997 iterations in 5:06:33 (0.6132 s / it)
+[03/29 15:33:56 d2.engine.hooks]: Total training time: 5:24:07 (0:17:34 on hooks)

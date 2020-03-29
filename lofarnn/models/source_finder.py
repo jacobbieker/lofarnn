@@ -14,13 +14,12 @@ import os
 
 # import some common detectron2 utilities
 
-from detectron2.engine import LOFARTrainer
 from detectron2.evaluation import COCOEvaluator
 
 os.environ["LOFARNN_ARCH"] = "XPS"
 environment = os.environ["LOFARNN_ARCH"]
-from detectron2.engine import LOFARTrainer, DefaultTrainer, default_argument_parser, default_setup, launch
-from detectron2.evaluation import COCOEvaluator, LOFAREvaluator
+from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup, launch
+from detectron2.evaluation import COCOEvaluator
 
 
 class Trainer(DefaultTrainer):
@@ -38,18 +37,18 @@ def get_lofar_dicts(annotation_filepath):
     return dataset_dicts
 
 
-DATASET_NAME = "variable_fixed2"
+DATASET_NAME = "variable_fixed_single_alice"
 if environment == "ALICE":
     base_path = f"/home/s2153246/data/processed/{DATASET_NAME}/COCO/annotations/"
 else:
-    base_path = f"/home/jacob/Development/LOFAR-ML/data/processed/{DATASET_NAME}/COCO/annotations/"
+    base_path = f"//run/media/jacob/SSD_Backup/{DATASET_NAME}/COCO/annotations/"
 
 from detectron2.data import DatasetCatalog, MetadataCatalog
 
 for d in ["train", "val", "test"]:
     DatasetCatalog.register(f"{DATASET_NAME}_" + d,
                             lambda d=d: get_lofar_dicts(os.path.join(base_path, f"json_{d}.pkl")))
-    MetadataCatalog.get(f"{DATASET_NAME}_" + d).set(thing_classes=["Optical source", "Other Optical source"])
+    MetadataCatalog.get(f"{DATASET_NAME}_" + d).set(thing_classes=["Optical source"])
 lofar_metadata = MetadataCatalog.get(f"{DATASET_NAME}_train")
 
 import pickle
@@ -75,13 +74,13 @@ else:
 cfg.DATASETS.TRAIN = (f"{DATASET_NAME}_train",)
 cfg.DATASETS.VAL = (f"{DATASET_NAME}_val",)
 cfg.DATASETS.TEST = (f"{DATASET_NAME}_test",)
-cfg.DATALOADER.NUM_WORKERS = 8
+cfg.DATALOADER.NUM_WORKERS = 4
 os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-cfg.SOLVER.IMS_PER_BATCH = 16
+cfg.SOLVER.IMS_PER_BATCH = 4
 cfg.SOLVER.BASE_LR = 0.0001  # pick a good LR
-#cfg.SOLVER.MAX_ITER = 0000  # iterations seems good enough for this toy dataset; you may need to train longer for a practical dataset
+cfg.SOLVER.MAX_ITER = 30000  # iterations seems good enough for this toy dataset; you may need to train longer for a practical dataset
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 1024  # faster, and good enough for this toy dataset (default: 512)
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 2  # only has one class (Optical Source, Other Optical Source)
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (Optical Source, Other Optical Source)
 
 trainer = Trainer(cfg)
 trainer.resume_or_load(resume=False)
