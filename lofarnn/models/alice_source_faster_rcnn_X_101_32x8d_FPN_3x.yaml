@@ -1,12 +1,8 @@
 _BASE_: "/home/s2153246/LOFAR-ML/detectron2/configs/Base-RCNN-FPN.yaml"
 OUTPUT_DIR: "/home/s2153246/data/SourceOutput/"
-DATASETS:
-  OUTPUT_DIR: "/home/s2153246/data/SourceOutput/"
-  IMAGE_DIR: "/home/s2153246/data/processed/variable_fixed/"
-  COMP_CAT_PATH: '/home/s2153246/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits'
 INPUT:
   #SCALE_FACTOR: 4.545454545454546 #1.5151515151515151 #1.0 #4.545454545454546
-  SCALE_FACTOR: 1.0 #1.0 #4.545454545454546
+  # SCALE_FACTOR: 1.0 #1.0 #4.545454545454546
   MIN_SIZE_TRAIN: (200,)
   MIN_SIZE_TEST: 200
   MAX_SIZE_TRAIN: 200
