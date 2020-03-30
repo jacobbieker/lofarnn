@@ -30,7 +30,7 @@ def setup(args):
     """
     cfg = get_cfg()
     add_tridentnet_config(cfg)
-    cfg.merge_from_file("/home/jacob/Development/LOFAR-ML/lofarnn/models/source_tridentnet_fast_R_101_C4_3x.yaml")
+    cfg.merge_from_file("/home/jacob/Development/lofarnn/lofarnn/models/source_tridentnet_fast_R_101_C4_3x.yaml")
     DATASET_NAME= "fixed"
     cfg.DATASETS.TRAIN = (f"{DATASET_NAME}_train",)
     cfg.DATASETS.VAL = (f"{DATASET_NAME}_val",)
@@ -60,7 +60,7 @@ def register_lofar_datasets(cfg):
     """
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     DATASET_NAME= "fixed"
-    base_path = f"/home/jacob/Development/LOFAR-ML/data/processed/fixed/COCO/annotations/"
+    base_path = f"/home/jacob/Development/lofarnn/data/processed/fixed/COCO/annotations/"
 
     from detectron2.data import DatasetCatalog, MetadataCatalog
     for d in ["train", "val", "test"]:

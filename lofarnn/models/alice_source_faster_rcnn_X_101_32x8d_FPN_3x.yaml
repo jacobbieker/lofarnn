@@ -1,4 +1,4 @@
-_BASE_: "/home/s2153246/LOFAR-ML/detectron2/configs/Base-RCNN-FPN.yaml"
+_BASE_: "/home/s2153246/lofarnn/detectron2/configs/Base-RCNN-FPN.yaml"
 OUTPUT_DIR: "/home/s2153246/data/SourceOutput/"
 INPUT:
   #SCALE_FACTOR: 4.545454545454546 #1.5151515151515151 #1.0 #4.545454545454546
