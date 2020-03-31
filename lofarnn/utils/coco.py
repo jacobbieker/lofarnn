@@ -288,6 +288,11 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
     # Gather data from all_directory
     data_split = split_data(all_directory, split=split_fraction)
 
+    #image_paths = Path(root_directory).rglob("*.png")
+    #get_pixel_mean_and_std(image_paths)
+    #exit()
+
+
     create_coco_annotations(data_split["train"],
                             json_dir=annotations_directory,
                             image_destination_dir=train_directory,
@@ -362,30 +367,20 @@ def get_pixel_mean_and_std(image_paths):
     r = []
     g = []
     b = []
-    r_max = 0
-    r_min = 1000
-    g_max = 0
-    g_min = 1000
-    b_max = 0
-    b_min = 1000
     for image in image_paths:
-        data = np.load(image, allow_pickle=True)[0]
-        if np.min(data[:, :, 0]) < r_min:
-            r_min = np.min(data[:, :, 0])
-        if np.min(data[:, :, 1]) < g_min:
-            g_min = np.min(data[:, :, 1])
-        if np.min(data[:, :, 2]) < b_min:
-            b_min = np.min(data[:, :, 2])
-        if np.max(data[:, :, 0]) > r_max:
-            r_max = np.max(data[:, :, 0])
-        if np.max(data[:, :, 1]) > g_max:
-            g_max = np.max(data[:, :, 0])
-        if np.max(data[:, :, 1]) > b_max:
-            b_max = np.max(data[:, :, 0])
+        data = Image.open(image).convert('RGB')
+        data = np.asarray(data)
         r_val = np.reshape(data[:, :, 0], -1)
         g_val = np.reshape(data[:, :, 1], -1)
         b_val = np.reshape(data[:, :, 2], -1)
+        #for i, val in enumerate(r_val):
+        r.append(r_val)
+        g.append(g_val)
+        b.append(b_val)
+    r = np.asarray(r)
+    g = np.asarray(g)
+    b = np.asarray(b)
 
-    # print(f"R Mean: {r_mean}, {r_std} \n G Mean: {g_mean}, {g_std} \n B Mean: {b_mean}, {b_std}")
+    print(f"R Mean: {np.mean(r)}, {np.std(r)} \n G Mean: {np.mean(g)}, {np.std(g)} \n B Mean: {np.mean(b)}, {np.std(b)}")
 
-    return (r_max, r_min), (g_max, g_min), (b_max, b_min)
+    return

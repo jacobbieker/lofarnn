@@ -243,7 +243,8 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             bounding_boxes = []
             source_bounding_box = list(make_bounding_box(source['ID_ra'], source['ID_dec'], wcs, gaussian=gaussian))
             bounding_boxes.append(source_bounding_box)
-            plot_three_channel_debug(img_array, bounding_boxes, 1, bounding_boxes[0][5])
+            if verbose:
+                plot_three_channel_debug(img_array, bounding_boxes, 1, bounding_boxes[0][5])
             # Now go through and for any other sources in the field of view, add those
             for other_source in other_visible_sources:
                 other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
@@ -449,7 +450,7 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
         pool = multiprocessing.Pool(num_threads)
         pool.starmap(create_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_location),
                                          repeat(dr_two_location), repeat(all_directory), repeat(gaussian),
-                                         repeat(True)))
+                                         repeat(False)))
     else:
         pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
         pan_wise_catalogue = pan_wise_catalogue[1].data
@@ -459,4 +460,4 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
                            mosaic_location=dr_two_location,
                            save_cutout_directory=all_directory,
                            gaussian=gaussian,
-                           verbose=True)
+                           verbose=False)

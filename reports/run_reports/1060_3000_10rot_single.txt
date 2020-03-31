@@ -21,3 +21,48 @@ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.163
 [03/29 15:33:56 d2.utils.events]:  eta: 0:00:00  iter: 29999  total_loss: 0.113  loss_cls: 0.017  loss_box_reg: 0.014  loss_rpn_cls: 0.043  loss_rpn_loc: 0.040  time: 0.6132  data_time: 0.0049  lr: 0.000100  max_mem: 2229M
 [03/29 15:33:56 d2.engine.hooks]: Overall training speed: 29997 iterations in 5:06:33 (0.6132 s / it)
 [03/29 15:33:56 d2.engine.hooks]: Total training time: 5:24:07 (0:17:34 on hooks)
+
+1060_50000_10rot_multi
+
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.150
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.315
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.121
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.154
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.158
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.133
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.005
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.050
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.240
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.244
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.377
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.185
+[03/30 03:26:45 d2.evaluation.coco_evaluation]: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 14.994 | 31.491 | 12.083 | 15.386 | 15.772 | 13.307 |
+[03/30 03:26:45 d2.evaluation.coco_evaluation]: Per-category bbox AP: 
+| category       | AP     | category             | AP    |
+|:---------------|:-------|:---------------------|:------|
+| Optical source | 29.989 | Other Optical Source | 0.000 |
+
+With Aspect Ratio of 1:
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.142
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.303
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.116
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.144
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.214
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.148
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.005
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.050
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.235
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.236
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.463
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.193
+[03/30 17:33:23 d2.evaluation.coco_evaluation]: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 14.184 | 30.276 | 11.554 | 14.443 | 21.409 | 14.827 |
+[03/30 17:33:23 d2.evaluation.coco_evaluation]: Per-category bbox AP: 
+| category       | AP     | category             | AP    |
+|:---------------|:-------|:---------------------|:------|
+| Optical source | 28.368 | Other Optical Source | 0.000 |

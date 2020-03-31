@@ -153,7 +153,8 @@ def plot_three_channel_debug(image_stack, cutouts, scale_size, source_loc, save_
     axs[1,1].xaxis.set_major_formatter(plt.NullFormatter())
     axs[1,1].yaxis.set_major_formatter(plt.NullFormatter())
     axs[1,1].set_title("W1 Band")
-    plt.savefig(save_path)
-    plt.close(fig)
-    plt.clf()
+    plt.show()
+    #plt.savefig(save_path)
+    #plt.close(fig)
+    #plt.clf()
 

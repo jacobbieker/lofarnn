@@ -30,4 +30,4 @@ else:
 #                               gaussian=1,
 #                               use_multiprocessing=multi_process)
 # (0,15,30,45,60,75,90,105,120,135,150,165,180)
-create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=True, rotation=tuple(np.linspace(0,180,10)), resize=200)
+create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=False, rotation=tuple(np.linspace(0,180,50)), resize=200)

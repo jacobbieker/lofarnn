@@ -41,7 +41,7 @@ DATASET_NAME = "variable_fixed_single_alice"
 if environment == "ALICE":
     base_path = f"/home/s2153246/data/processed/{DATASET_NAME}/COCO/annotations/"
 else:
-    base_path = f"//run/media/jacob/SSD_Backup/{DATASET_NAME}/COCO/annotations/"
+    base_path = f"/run/media/jacob/SSD_Backup/{DATASET_NAME}/COCO/annotations/"
 
 from detectron2.data import DatasetCatalog, MetadataCatalog
 
@@ -78,8 +78,8 @@ cfg.DATALOADER.NUM_WORKERS = 4
 os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
 cfg.SOLVER.IMS_PER_BATCH = 4
 cfg.SOLVER.BASE_LR = 0.0001  # pick a good LR
-cfg.SOLVER.MAX_ITER = 30000  # iterations seems good enough for this toy dataset; you may need to train longer for a practical dataset
-cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 1024  # faster, and good enough for this toy dataset (default: 512)
+cfg.SOLVER.MAX_ITER = 10000  # iterations seems good enough for this toy dataset; you may need to train longer for a practical dataset
+cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512  # faster, and good enough for this toy dataset (default: 512)
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (Optical Source, Other Optical Source)
 
 trainer = Trainer(cfg)

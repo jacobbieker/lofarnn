@@ -1,5 +1,5 @@
 _BASE_: "../../detectron2/configs/Base-RCNN-FPN.yaml"
-OUTPUT_DIR: "/home/jacob/Development/LOFAR-ML/reports/recall_gaussian/"
+OUTPUT_DIR: "/home/jacob/Development/LOFAR-ML/reports/recall_variable_smallSize/"
 #DATASETS:
   #OUTPUT_DIR: "/home/jacob/Development/LOFAR-ML/reports/"
   #IMAGE_DIR: "/home/jacob/Development/LOFAR-ML/data/processed/variable_fixed2/"
@@ -28,6 +28,7 @@ MODEL:
     FREEZE_AT: -1
   ANCHOR_GENERATOR:
     ASPECT_RATIOS: [[1.0,]]
+    SIZES: [[1, 4, 8, 16, 32, 64]]
 SOLVER:
   BASE_LR: 0.0003
   STEPS: (210000, 250000)
