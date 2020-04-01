@@ -73,8 +73,8 @@ cfg = get_cfg()
 print("Load configuration file")
 assert len(argv) > 1, "Insert path of configuration file when executing this script"
 cfg.merge_from_file(argv[1])
-EXPERIMENT_NAME= cfg.EXPERIMENT_NAME
-DATASET_PATH= cfg.DATASET_PATH
+EXPERIMENT_NAME= argv[2]
+DATASET_PATH= argv[3]
 print(f"Experiment: {EXPERIMENT_NAME}")
 print(f"Output path: {cfg.OUTPUT_DIR}")
 print(f"Attempt to load training data from: {DATASET_PATH}")
