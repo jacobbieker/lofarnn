@@ -27,7 +27,7 @@ from detectron2.data import (
 )
 
 from lofarnn.models.dataloaders.SourceMapper import SourceMapper
-
+from sys import argv
 
 class Trainer(DefaultTrainer):
     @classmethod
@@ -66,19 +66,24 @@ def get_lofar_dicts(annotation_filepath):
     return dataset_dicts
 
 
-DATASET_NAME = "variable_fixed_single_alice"
-if environment == "ALICE":
-    base_path = f"/home/s2153246/data/processed/{DATASET_NAME}/COCO/annotations/"
-else:
-    base_path = f"/run/media/jacob/SSD_Backup/{DATASET_NAME}/COCO/annotations/"
-
 from detectron2.data import DatasetCatalog, MetadataCatalog
+from detectron2.config import get_cfg
+
+cfg = get_cfg()
+print("Load configuration file")
+assert len(argv) > 1, "Insert path of configuration file when executing this script"
+cfg.merge_from_file(argv[1])
+EXPERIMENT_NAME= cfg.EXPERIMENT_NAME
+DATASET_PATH= cfg.DATASET_PATH
+print(f"Experiment: {EXPERIMENT_NAME}")
+print(f"Output path: {cfg.OUTPUT_DIR}")
+print(f"Attempt to load training data from: {DATASET_PATH}")
 
 for d in ["train", "val", "test"]:
-    DatasetCatalog.register(f"{DATASET_NAME}_" + d,
-                            lambda d=d: get_lofar_dicts(os.path.join(base_path, f"json_{d}.pkl")))
-    MetadataCatalog.get(f"{DATASET_NAME}_" + d).set(thing_classes=["Optical source"])
-lofar_metadata = MetadataCatalog.get(f"{DATASET_NAME}_train")
+    DatasetCatalog.register(f"{EXPERIMENT_NAME}_" + d,
+                            lambda d=d: get_lofar_dicts(os.path.join(DATASET_PATH, f"json_{d}.pkl")))
+    MetadataCatalog.get(f"{EXPERIMENT_NAME}_" + d).set(thing_classes=["Optical source"])
+lofar_metadata = MetadataCatalog.get("train")
 
 import pickle
 
@@ -91,25 +96,13 @@ import pickle
 # for train eval those things are somewhere within a model 
 # specifically a model that takes data and retuns a dict of losses
 
-from detectron2.config import get_cfg
-
-cfg = get_cfg()
 # cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
 # cfg.merge_from_file(model_zoo.get_config_file("/data/mostertrij/tridentnet/detectron2/configs/COCO-Detection/my_script_faster_rcnn_X_101_32x8d_FPN_3x.yaml"))
-if environment == "ALICE":
-    cfg.merge_from_file("/home/s2153246/lofarnn/lofarnn/models/source_faster_rcnn_X_101_32x8d_FPN_3x.yaml")
-else:
-    cfg.merge_from_file("configs/source_frcnn_101.yaml")
-cfg.DATASETS.TRAIN = (f"{DATASET_NAME}_train",)
-cfg.DATASETS.VAL = (f"{DATASET_NAME}_val",)
-cfg.DATASETS.TEST = (f"{DATASET_NAME}_test",)
-cfg.DATALOADER.NUM_WORKERS = 4
+
+cfg.DATASETS.TRAIN = (f"{EXPERIMENT_NAME}_train",)
+cfg.DATASETS.VAL = (f"{EXPERIMENT_NAME}_val",)
+cfg.DATASETS.TEST = (f"{EXPERIMENT_NAME}_test",)
 os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-cfg.SOLVER.IMS_PER_BATCH = 4
-cfg.SOLVER.BASE_LR = 0.0001  # pick a good LR
-cfg.SOLVER.MAX_ITER = 10000  # iterations seems good enough for this toy dataset; you may need to train longer for a practical dataset
-cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512  # faster, and good enough for this toy dataset (default: 512)
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (Optical Source, Other Optical Source)
 
 trainer = Trainer(cfg)
 trainer.resume_or_load(resume=False)
