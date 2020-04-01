@@ -26,7 +26,7 @@ from detectron2.data import (
     build_detection_train_loader,
 )
 
-from lofarnn.models.dataloaders.SourceLoader import source_mapper
+from lofarnn.models.dataloaders.mappings import source_mapper
 
 
 class Trainer(DefaultTrainer):

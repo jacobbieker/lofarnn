@@ -32,7 +32,7 @@ from detectron2.utils.logger import setup_logger
 from detectron2.engine import hooks
 from detectron2.engine.train_loop import SimpleTrainer
 
-from lofarnn.models.dataloaders.SourceLoader import source_mapper
+from lofarnn.models.dataloaders.mappings import source_mapper
 
 
 class SourceTrainer(SimpleTrainer):

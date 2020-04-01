@@ -1,4 +1,3 @@
-from detectron2.data import build_detection_train_loader
 from detectron2.data import transforms as T
 from detectron2.data import detection_utils as utils
 import torch
@@ -21,6 +20,3 @@ def source_mapper(dataset_dict):
     instances = utils.annotations_to_instances(annos, image.shape[:2])
     dataset_dict["instances"] = utils.filter_empty_instances(instances)
     return dataset_dict
-
-data_loader = build_detection_train_loader(cfg, mapper=source_mapper)
-# use this dataloader instead of the default
