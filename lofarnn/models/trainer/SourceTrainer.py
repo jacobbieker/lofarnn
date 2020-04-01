@@ -32,7 +32,7 @@ from detectron2.utils.logger import setup_logger
 from detectron2.engine import hooks
 from detectron2.engine.train_loop import SimpleTrainer
 
-from lofarnn.models.dataloaders.mappings import source_mapper
+from lofarnn.models.dataloaders.SourceMapper import SourceMapper
 
 
 class SourceTrainer(SimpleTrainer):
@@ -244,7 +244,7 @@ class SourceTrainer(SimpleTrainer):
         It now calls :func:`detectron2.data.build_detection_train_loader`.
         Overwrite it if you'd like a different data loader.
         """
-        return build_detection_train_loader(cfg, mapper=source_mapper)
+        return build_detection_train_loader(cfg, mapper=SourceMapper)
 
     @classmethod
     def build_test_loader(cls, cfg, dataset_name):
@@ -254,7 +254,7 @@ class SourceTrainer(SimpleTrainer):
         It now calls :func:`detectron2.data.build_detection_test_loader`.
         Overwrite it if you'd like a different data loader.
         """
-        return build_detection_test_loader(cfg, dataset_name, mapper=source_mapper)
+        return build_detection_test_loader(cfg, dataset_name, mapper=SourceMapper)
 
     @classmethod
     def build_evaluator(cls, cfg, dataset_name):

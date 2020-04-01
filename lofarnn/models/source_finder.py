@@ -26,7 +26,7 @@ from detectron2.data import (
     build_detection_train_loader,
 )
 
-from lofarnn.models.dataloaders.mappings import source_mapper
+from lofarnn.models.dataloaders.SourceMapper import SourceMapper
 
 
 class Trainer(DefaultTrainer):
@@ -45,7 +45,7 @@ class Trainer(DefaultTrainer):
         It now calls :func:`detectron2.data.build_detection_train_loader`.
         Overwrite it if you'd like a different data loader.
         """
-        return build_detection_train_loader(cfg, mapper=source_mapper)
+        return build_detection_train_loader(cfg, mapper=SourceMapper)
 
     @classmethod
     def build_test_loader(cls, cfg, dataset_name):
@@ -56,7 +56,7 @@ class Trainer(DefaultTrainer):
         It now calls :func:`detectron2.data.build_detection_test_loader`.
         Overwrite it if you'd like a different data loader.
         """
-        return build_detection_test_loader(cfg, dataset_name, mapper=source_mapper)
+        return build_detection_test_loader(cfg, dataset_name, mapper=SourceMapper)
 
 
 # # Load and inspect our data
@@ -99,7 +99,7 @@ cfg = get_cfg()
 if environment == "ALICE":
     cfg.merge_from_file("/home/s2153246/lofarnn/lofarnn/models/source_faster_rcnn_X_101_32x8d_FPN_3x.yaml")
 else:
-    cfg.merge_from_file("source_faster_rcnn_X_101_32x8d_FPN_3x.yaml")
+    cfg.merge_from_file("configs/source_frcnn_101.yaml")
 cfg.DATASETS.TRAIN = (f"{DATASET_NAME}_train",)
 cfg.DATASETS.VAL = (f"{DATASET_NAME}_val",)
 cfg.DATASETS.TEST = (f"{DATASET_NAME}_test",)
