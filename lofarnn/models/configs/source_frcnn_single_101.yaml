@@ -1,0 +1,2 @@
+_BASE_: "source_base.yaml"
+OUTPUT_DIR: "/home/jacob/Development/lofarnn/reports/source_frcnn_single_101/"

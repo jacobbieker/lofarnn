@@ -66,3 +66,22 @@ With Aspect Ratio of 1:
 | category       | AP     | category             | AP    |
 |:---------------|:-------|:---------------------|:------|
 | Optical source | 28.368 | Other Optical Source | 0.000 |
+
+With Aspect Ratio of 1 and some other stuff:
+
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.184
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.455
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.109
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.187
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.182
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.194
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.029
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.231
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.429
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.428
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.486
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.223
+[03/31 16:27:38 d2.evaluation.coco_evaluation]: Evaluation results for bbox:
+|   AR   |  AR50  |  AR75  |  ARs   |  ARm   |  ARl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 18.410 | 45.531 | 10.858 | 18.682 | 18.226 | 19.448 |

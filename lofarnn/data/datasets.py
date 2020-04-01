@@ -162,7 +162,7 @@ def make_bounding_box(ra, dec, wcs, class_name="Optical source", gaussian=None):
 
 
 def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,
-                   save_cutout_directory, gaussian=None, verbose=False):
+                   save_cutout_directory, gaussian=None, all_channels=False, verbose=False):
     """
     Create cutouts of all sources in a field
     :param mosaic: Name of the field to use
@@ -170,6 +170,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
     :param pan_wise_catalog: The PanSTARRS-ALLWISE catalogue used for Williams, 2018, the LoTSS III paper
     :param mosaic_location: The location of the LoTSS DR2 mosaics
     :param save_cutout_directory: Where to save the cutout npy files
+    :param all_channels: Whether to include all possible channels (grizy,W1,2,3,4 bands) in npy file or just (radio,i,W1)
     :param verbose: Whether to print extra information or not
     :return:
     """
@@ -220,19 +221,18 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
                 print(f"Image Shape: {img_array[0].data.shape}")
             # Should now be in Radio/RMS, i, W1 format, else we skip it
             # Need from catalog ra, dec, iFApMag, w1Mag, also have a z_best, which might or might not be available for all
-            layers = ["iFApMag", "w1Mag"]
+            if all_channels:
+                layers = ["iFApMag", "w1Mag", "gFApMag", "rFApMag", "zFApMag", "yFApMag", "w2Mag", "w3Mag", "w4Mag"]
+            else:
+                layers = ["iFApMag", "w1Mag"]
             # Get the catalog sources once, to speed things up
             cutout_catalog = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
                                                                  pan_wise_catalog, source)
             # Now determine if there are other sources in the area
             other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
                                                                         mosaic_cutouts, source)
-            other_source = SkyCoord(source['ID_ra'], source['ID_dec'], unit="deg")
             for layer in layers:
                 tmp = make_catalogue_layer(layer, wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian)
-                print("Pixel Source")
-                print(skycoord_to_pixel(other_source, wcs, 0))
-                print("End Pixel Source")
                 img_array.append(tmp)
 
             img_array = np.array(img_array)
@@ -418,7 +418,7 @@ def create_fixed_source_dataset(cutout_directory, pan_wise_location,
 
 
 def create_variable_source_dataset(cutout_directory, pan_wise_location,
-                                   value_added_catalog_location, dr_two_location, gaussian=None, use_multiprocessing=False,
+                                   value_added_catalog_location, dr_two_location, gaussian=None, all_channels=False, verbose=False, use_multiprocessing=False,
                                    num_threads=os.cpu_count()):
     """
     Create variable sized cutouts (hardcoded to 1.5 times the LGZ_Size) for each of the cutouts
@@ -449,8 +449,8 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     if use_multiprocessing:
         pool = multiprocessing.Pool(num_threads)
         pool.starmap(create_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_location),
-                                         repeat(dr_two_location), repeat(all_directory), repeat(gaussian),
-                                         repeat(False)))
+                                         repeat(dr_two_location), repeat(all_directory), repeat(gaussian), repeat(all_channels),
+                                         repeat(verbose)))
     else:
         pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
         pan_wise_catalogue = pan_wise_catalogue[1].data
@@ -460,4 +460,5 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
                            mosaic_location=dr_two_location,
                            save_cutout_directory=all_directory,
                            gaussian=gaussian,
-                           verbose=False)
+                           all_channels=all_channels,
+                           verbose=verbose)
