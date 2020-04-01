@@ -20,6 +20,13 @@ os.environ["LOFARNN_ARCH"] = "XPS"
 environment = os.environ["LOFARNN_ARCH"]
 from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup, launch
 from detectron2.evaluation import COCOEvaluator
+from detectron2.data import (
+    MetadataCatalog,
+    build_detection_test_loader,
+    build_detection_train_loader,
+)
+
+from lofarnn.models.dataloaders.SourceLoader import source_mapper
 
 
 class Trainer(DefaultTrainer):
@@ -28,6 +35,28 @@ class Trainer(DefaultTrainer):
         if output_folder is None:
             output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
         return COCOEvaluator(dataset_name, cfg, True, output_folder)
+
+    @classmethod
+    def build_train_loader(cls, cfg):
+        """
+        Returns:
+            iterable
+
+        It now calls :func:`detectron2.data.build_detection_train_loader`.
+        Overwrite it if you'd like a different data loader.
+        """
+        return build_detection_train_loader(cfg, mapper=source_mapper)
+
+    @classmethod
+    def build_test_loader(cls, cfg, dataset_name):
+        """
+        Returns:
+            iterable
+
+        It now calls :func:`detectron2.data.build_detection_test_loader`.
+        Overwrite it if you'd like a different data loader.
+        """
+        return build_detection_test_loader(cfg, dataset_name, mapper=source_mapper)
 
 
 # # Load and inspect our data
