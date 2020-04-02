@@ -174,15 +174,17 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
     :param verbose: Whether to print extra information or not
     :return:
     """
-
+    if "P41Hetde" in mosaic:
+        lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
+        lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
+    else:
+        return
     if type(pan_wise_catalog) == str:
         print("Trying To Open")
         pan_wise_catalog = fits.open(pan_wise_catalog, memmap=True)
         pan_wise_catalog = pan_wise_catalog[1].data
         print("Opened CAtalog")
     # Load the data once, then do multiple cutouts
-    lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
-    lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
     try:
         fits.open(lofar_data_location, memmap=True)
         fits.open(lofar_rms_location, memmap=True)

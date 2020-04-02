@@ -73,13 +73,16 @@ def create_coco_style_directory_structure(root_directory, suffix='', verbose=Fal
 
 def make_single_coco_annotation_set(image_names, L, m,
                                     image_destination_dir=None,
-                                    multiple_bboxes=True, resize=None, rotation=None, verbose=False):
+                                    multiple_bboxes=True, resize=None, rotation=None, convert=True, verbose=False):
     """
     For use with multiprocessing, goes through and does one rotation for the COCO annotations
     """
     for i, image_name in enumerate(image_names):
         # Get image dimensions and insert them in a python dict
-        image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.png")
+        if convert:
+            image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.png")
+        else:
+            image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.npy")
         image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
         if verbose:
             plot_three_channel_debug(image, cutouts, 1, cutouts[0][5],
@@ -95,7 +98,6 @@ def make_single_coco_annotation_set(image_names, L, m,
         if resize is not None:
             # Resize the image and boxes
             for index, box in enumerate(cutouts):
-                print(box)
                 cutouts[index] = scale_box(image, box, resize)
             image = resize_array(image, resize)
         width, height, depth = np.shape(image)
@@ -104,17 +106,18 @@ def make_single_coco_annotation_set(image_names, L, m,
         # First R channel
         image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
                                                 normalize=True, scaling=None)
-        image[:, :, 1] = convert_to_valid_color(image[:, :, 1], clip=True, lower_clip=0., upper_clip=25.,
-                                                normalize=True, scaling=None)
-        image[:, :, 2] = convert_to_valid_color(image[:, :, 2], clip=True, lower_clip=0., upper_clip=25.,
-                                                normalize=True, scaling=None)
-        image = (255.0 * image).astype(np.uint8)
-        im = Image.fromarray(image, 'RGB')
+        for layer in image.shape[2]:
+            image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=0., upper_clip=25.,
+                                                        normalize=True, scaling=None)
+        if convert:
+            image = (255.0 * image).astype(np.uint8)
+            # If converting, only take the first three layers, generally Radio, i band, W1 band
+            image = Image.fromarray(image[:, :, :3], 'RGB')
         if verbose:
             plot_three_channel_debug(image, cutouts, scale_size, cutouts[0][5],
                                      save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
                                                             image_name.stem + f".{m}.png"))
-        im.save(image_dest_filename)
+        image.save(image_dest_filename)
         # np.save(image_dest_filename, image)  # Save to the final destination
         record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
 
@@ -148,7 +151,7 @@ def make_single_coco_annotation_set(image_names, L, m,
 def create_coco_annotations(image_names,
                             image_destination_dir=None,
                             json_dir='', json_name='json_data.pkl',
-                            multiple_bboxes=True, resize=None, rotation=None, verbose=False):
+                            multiple_bboxes=True, resize=None, rotation=None, convert=True, all_channels=False, verbose=False):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
     directory
@@ -161,6 +164,7 @@ def create_coco_annotations(image_names,
     defined area
     :param rotation: Whether to rotate the images or not, if given as a tuple, it is taken as rotate each image by that amount,
     if a single float, then rotates images randomly between -rotation,rotation 50 times
+    :param convert: Whether to convert to PNG files (default), or leave them as NPY files
     :return:
     """
 
@@ -177,7 +181,9 @@ def create_coco_annotations(image_names,
         manager = Manager()
         pool = Pool(processes=os.cpu_count())
         L = manager.list()
-        [pool.apply_async(make_single_coco_annotation_set, args=[image_names, L, m, image_destination_dir, multiple_bboxes, resize, rotation, False]) for m in range(num_copies)]
+        [pool.apply_async(make_single_coco_annotation_set,
+                          args=[image_names, L, m, image_destination_dir, multiple_bboxes, resize, rotation, convert,
+                                verbose]) for m in range(num_copies)]
         pool.close()
         pool.join()
         print(len(L))
@@ -189,16 +195,19 @@ def create_coco_annotations(image_names,
             pickle.dump(dataset_dicts, outfile)
         if verbose:
             print(f'COCO annotation file created in \'{json_dir}\'.\n')
-        return 0 # Returns to doesnt go through it again
-
+        return 0  # Returns to doesnt go through it again
 
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
+    area_bounding_boxes = []
     for m in range(num_copies):
         for i, image_name in enumerate(image_names):
             # Get image dimensions and insert them in a python dict
-            image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.png")
+            if convert:
+                image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.png")
+            else:
+                image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.npy")
             image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
-            if False:
+            if verbose:
                 plot_three_channel_debug(image, cutouts, 1, cutouts[0][5],
                                          save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
                                                                 image_name.stem + f".{m}.jpg"))
@@ -212,28 +221,37 @@ def create_coco_annotations(image_names,
             if resize is not None:
                 # Resize the image and boxes
                 for index, box in enumerate(cutouts):
-                    print(box)
                     cutouts[index] = scale_box(image, box, resize)
                 image = resize_array(image, resize)
             width, height, depth = np.shape(image)
+            if all_channels and depth != 10:
+                continue
+
             # Rescale to between 0 and 1
             scale_size = image.shape[0] / prev_shape
             # First R channel
             image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
                                                     normalize=True, scaling=None)
-            image[:, :, 1] = convert_to_valid_color(image[:, :, 1], clip=True, lower_clip=0., upper_clip=25.,
-                                                    normalize=True, scaling=None)
-            image[:, :, 2] = convert_to_valid_color(image[:, :, 2], clip=True, lower_clip=0., upper_clip=25.,
-                                                    normalize=True, scaling=None)
-            image = (255.0 * image).astype(np.uint8)
-            im = Image.fromarray(image, 'RGB')
-            if False:
+            for layer in range(image.shape[2]):
+                image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=0.,
+                                                            upper_clip=25.,
+                                                            normalize=True, scaling=None)
+            if convert:
+                image = (255.0 * image).astype(np.uint8)
+                # If converting, only take the first three layers, generally Radio, i band, W1 band
+                image = Image.fromarray(image[:, :, :3], 'RGB')
+                image.save(image_dest_filename)
+            else:
+                np.save(image_dest_filename, image)  # Save to the final destination
+            if verbose:
                 plot_three_channel_debug(image, cutouts, scale_size, cutouts[0][5],
                                          save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
                                                                 image_name.stem + f".{m}.png"))
-            im.save(image_dest_filename)
-            # np.save(image_dest_filename, image)  # Save to the final destination
-            record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
+            if all_channels:
+                rec_depth = 10
+            else:
+                rec_depth = 3
+            record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width, "depth": rec_depth}
 
             # Insert bounding boxes and their corresponding classes
             # print('scale_factor:',cutout.scale_factor)
@@ -257,10 +275,19 @@ def create_coco_annotations(image_names,
                     "iscrowd": 0
                 }
                 objs.append(obj)
+                area_bounding_boxes.append(np.sqrt((bbox[0] - bbox[2])**2))
 
             record["annotations"] = objs
             dataset_dicts.append(record)
     # Write all image dictionaries to file as one json
+    plt.hist(area_bounding_boxes, bins=20, density=True)
+    plt.ylabel("Number of occurances")
+    plt.xlabel("Area of bounding box")
+    plt.title("Bounding Box Area Distrubtion")
+    plt.show()
+    print(f"Mean Area: {np.mean(area_bounding_boxes)}")
+    print(f"Max Area: {np.max(area_bounding_boxes)}")
+    print(f"Min Area: {np.min(area_bounding_boxes)}")
     json_path = os.path.join(json_dir, json_name)
     with open(json_path, "wb") as outfile:
         pickle.dump(dataset_dicts, outfile)
@@ -269,6 +296,7 @@ def create_coco_annotations(image_names,
 
 
 def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0.6, 0.8), resize=None, rotation=None,
+                        convert=True, all_channels=False,
                         verbose=False):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
@@ -278,6 +306,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
     :param root_directory: root directory for the COCO dataset
     :param multiple_bboxes: Whether to include multiple bounding boxes, or only the main source
     :param resize: Image size to resize to, or None if not resizing
+    :param convert: Whether to convert npy files to png, or to keep them in the original format, useful for SourceMapper
     :param verbose: Whether to print more data to stdout or not
     :return:
     """
@@ -288,10 +317,12 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
     # Gather data from all_directory
     data_split = split_data(all_directory, split=split_fraction)
 
-    #image_paths = Path(root_directory).rglob("*.png")
-    #get_pixel_mean_and_std(image_paths)
-    #exit()
-
+    image_paths = Path(root_directory).rglob("*.png")
+    num_layers = 3
+    if all_channels:
+        num_layers = 10
+    get_pixel_mean_and_std(image_paths, num_layers=num_layers)
+    exit()
 
     create_coco_annotations(data_split["train"],
                             json_dir=annotations_directory,
@@ -300,6 +331,8 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
                             rotation=rotation,
+                            convert=convert,
+                            all_channels=all_channels,
                             verbose=verbose)
     create_coco_annotations(data_split["val"],
                             json_dir=annotations_directory,
@@ -308,6 +341,8 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
                             rotation=rotation,
+                            convert=convert,
+                            all_channels=all_channels,
                             verbose=verbose)
     create_coco_annotations(data_split["test"],
                             json_dir=annotations_directory,
@@ -316,6 +351,8 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
                             rotation=rotation,
+                            convert=convert,
+                            all_channels=all_channels,
                             verbose=verbose)
 
 
@@ -344,7 +381,6 @@ def split_data(image_directory, split=(0.6, 0.8)):
 
 def resize_array(arr, new_size):
     """Resizes numpy array to a specified width and height using specified interpolation"""
-    scale_factor = new_size / arr.shape[0]
     return cv2.resize(arr, dsize=(new_size, new_size), interpolation=cv2.INTER_LINEAR)
 
 
@@ -358,29 +394,37 @@ def scale_box(arr, bounding_box, new_size):
     return bounding_box
 
 
-def get_pixel_mean_and_std(image_paths):
+def single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
+    val = np.reshape(image[:,:,layer], -1)
+    for pixel in val:
+        diff = pixel - layer_means[layer]
+        layer_means[layer] += diff / layer_ks[layer]
+        layer_stds[layer] += diff * (pixel - layer_means[layer])
+        layer_ks[layer] += 1
+
+def get_pixel_mean_and_std(image_paths, num_layers=3):
     """
     Get the channelwise mean and std dev of all the images
     :param image_paths: Paths to the images
     :return:
     """
-    r = []
-    g = []
-    b = []
-    for image in image_paths:
-        data = Image.open(image).convert('RGB')
-        data = np.asarray(data)
-        r_val = np.reshape(data[:, :, 0], -1)
-        g_val = np.reshape(data[:, :, 1], -1)
-        b_val = np.reshape(data[:, :, 2], -1)
-        #for i, val in enumerate(r_val):
-        r.append(r_val)
-        g.append(g_val)
-        b.append(b_val)
-    r = np.asarray(r)
-    g = np.asarray(g)
-    b = np.asarray(b)
-
-    print(f"R Mean: {np.mean(r)}, {np.std(r)} \n G Mean: {np.mean(g)}, {np.std(g)} \n B Mean: {np.mean(b)}, {np.std(b)}")
-
-    return
+    manager = Manager()
+    layer_means = manager.list([np.zeros(5) for _ in range(num_layers)])
+    layer_stds = manager.list([np.zeros(5) for _ in range(num_layers)])
+    layer_ks = manager.list([1 for _ in range(num_layers)])
+    for i, image in enumerate(image_paths):
+        try:
+            data = Image.open(image).convert('RGB')
+        except:
+            try:
+                data = np.load(image, allow_pickle=True)
+            except:
+                continue
+        pool = Pool(processes=os.cpu_count())
+        image = np.array(data)
+        [pool.apply_async(single_layer_mean_and_std, args=[image, layer, layer_means, layer_stds, layer_ks]) for layer in range(num_layers)]
+        pool.close()
+        pool.join()
+        print(f"Done: {i}")
+    for layer in range(num_layers):
+        print(f"Layer {layer} Mean: {layer_means[layer]} Std: {np.sqrt(layer_stds[layer] / (layer_ks[layer] - 2))}")

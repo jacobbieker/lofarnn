@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from fvcore.common.file_io import PathManager
 from PIL import Image
+from detectron2.data.dataset_mapper import DatasetMapper
 
 """
 This file contains the mapping that's applied to "dataset dicts" for LOFAR Source finding.
@@ -91,15 +92,15 @@ class SourceMapper:
                 )
                 image = crop_tfm.apply_image(image)
             image, transforms = T.apply_transform_gens(self.tfm_gens, image)
-            if self.crop_gen:
-                transforms = crop_tfm + transforms
+            #if self.crop_gen:
+            #    transforms = crop_tfm + transforms
 
         image_shape = image.shape[:2]  # h, w
 
         # Pytorch's dataloader is efficient on torch.Tensor due to shared-memory,
         # but not efficient on large generic data structures due to the use of pickle & mp.Queue.
         # Therefore it's important to use torch.Tensor.
-        dataset_dict["image"] = torch.as_tensor(np.ascontiguousarray(image.transpose(2, 0, 1)))
+        dataset_dict["image"] = torch.as_tensor(np.ascontiguousarray(image.transpose((2, 0, 1)).astype("float32")))
 
         # USER: Remove if you don't use pre-computed proposals.
         if self.load_proposals:

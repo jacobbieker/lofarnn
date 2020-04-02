@@ -45,7 +45,7 @@ class Trainer(DefaultTrainer):
         It now calls :func:`detectron2.data.build_detection_train_loader`.
         Overwrite it if you'd like a different data loader.
         """
-        return build_detection_train_loader(cfg, mapper=SourceMapper)
+        return build_detection_train_loader(cfg)
 
     @classmethod
     def build_test_loader(cls, cfg, dataset_name):
@@ -56,7 +56,7 @@ class Trainer(DefaultTrainer):
         It now calls :func:`detectron2.data.build_detection_test_loader`.
         Overwrite it if you'd like a different data loader.
         """
-        return build_detection_test_loader(cfg, dataset_name, mapper=SourceMapper)
+        return build_detection_test_loader(cfg, dataset_name)
 
 
 # # Load and inspect our data
@@ -95,9 +95,6 @@ import pickle
 # this works for the after the fact test eval
 # for train eval those things are somewhere within a model 
 # specifically a model that takes data and retuns a dict of losses
-
-# cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-# cfg.merge_from_file(model_zoo.get_config_file("/data/mostertrij/tridentnet/detectron2/configs/COCO-Detection/my_script_faster_rcnn_X_101_32x8d_FPN_3x.yaml"))
 
 cfg.DATASETS.TRAIN = (f"{EXPERIMENT_NAME}_train",)
 cfg.DATASETS.VAL = (f"{EXPERIMENT_NAME}_val",)
