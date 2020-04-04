@@ -101,6 +101,7 @@ def determine_visible_catalogue_sources(ra, dec, wcs, size, catalogue, l_objects
 
     return objects
 
+
 def make_catalogue_layer(column_name, wcs, shape, catalogue, gaussian=None, verbose=False):
     """
     Create a layer based off the data in
@@ -121,8 +122,9 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, gaussian=None, verb
     coords = skycoord_to_pixel(sky_coords, wcs, 0)
     for index, x in enumerate(coords[0]):
         try:
-            if ~np.isnan(catalogue[index][column_name]) and catalogue[index][column_name] > 0.0:  # Make sure not putting in NaNs
-                #if gaussian is None:
+            if ~np.isnan(catalogue[index][column_name]) and catalogue[index][
+                column_name] > 0.0:  # Make sure not putting in NaNs
+                # if gaussian is None:
                 layer[int(np.floor(coords[0][index]))][int(np.floor(coords[1][index]))] = catalogue[index][column_name]
         except Exception as e:
             if verbose:
@@ -131,6 +133,31 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, gaussian=None, verb
         layer = gaussian_filter(layer, sigma=gaussian)
     return layer
 
+def make_proposal_boxes(column_name, wcs, catalogue, gaussian=None):
+    """
+   Create Faster RCNN proposal boxes for all sources in the image
+   :param column_name: Name in catalogue of data to include
+   :param shape: Shape of the image data
+   :param wcs: WCS of the Radio data, so catalog data can be translated correctly
+   :param catalogue: Catalogue to query
+   :param gaussian: Whether to smooth the point values with a gaussian
+   :return: A Numpy array that holds the information in the correct location
+   """
+
+    ra_array = np.array(catalogue['ra'], dtype=float)
+    dec_array = np.array(catalogue['dec'], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit='deg')
+
+    # Now have the objects, need to convert those RA and Decs to pixel coordinates
+    proposals = []
+    coords = skycoord_to_pixel(sky_coords, wcs, 0)
+    for index, x in enumerate(coords[0]):
+        try:
+            if ~np.isnan(catalogue[index][column_name]) and catalogue[index][column_name] > 0.0:  # Make sure not putting in NaNs
+                proposals.append(make_bounding_box(ra_array[index], dec_array[index], wcs=wcs, class_name="Proposal Box", gaussian=gaussian))
+        except Exception as e:
+            print(f"Failed: {e}")
+    return proposals
 
 def make_bounding_box(ra, dec, wcs, class_name="Optical source", gaussian=None):
     """
@@ -174,11 +201,8 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
     :param verbose: Whether to print extra information or not
     :return:
     """
-    if "P41Hetde" in mosaic:
-        lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
-        lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
-    else:
-        return
+    lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
+    lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
     if type(pan_wise_catalog) == str:
         print("Trying To Open")
         pan_wise_catalog = fits.open(pan_wise_catalog, memmap=True)
@@ -253,9 +277,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
                                                wcs, class_name="Other Optical Source", gaussian=gaussian)
                 if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][
                     1]):  # Make sure not same one
-                    if other_bbox[0] >= 0 and other_bbox[1] >= 0 and other_bbox[2] < img_array.shape[0] and other_bbox[
-                        3] < \
-                            img_array.shape[1]:
+                    if other_bbox[0] >= 0 and other_bbox[1] >= 0 and other_bbox[2] < img_array.shape[0] and other_bbox[3] < img_array.shape[1]:
                         bounding_boxes.append(
                             list(other_bbox))  # Only add the bounding box if it is within the image shape
             # Now save out the combined file
@@ -420,7 +442,8 @@ def create_fixed_source_dataset(cutout_directory, pan_wise_location,
 
 
 def create_variable_source_dataset(cutout_directory, pan_wise_location,
-                                   value_added_catalog_location, dr_two_location, gaussian=None, all_channels=False, verbose=False, use_multiprocessing=False,
+                                   value_added_catalog_location, dr_two_location, gaussian=None, all_channels=False,
+                                   verbose=False, use_multiprocessing=False,
                                    num_threads=os.cpu_count()):
     """
     Create variable sized cutouts (hardcoded to 1.5 times the LGZ_Size) for each of the cutouts
@@ -451,7 +474,8 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     if use_multiprocessing:
         pool = multiprocessing.Pool(num_threads)
         pool.starmap(create_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_location),
-                                         repeat(dr_two_location), repeat(all_directory), repeat(gaussian), repeat(all_channels),
+                                         repeat(dr_two_location), repeat(all_directory), repeat(gaussian),
+                                         repeat(all_channels),
                                          repeat(verbose)))
     else:
         pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)

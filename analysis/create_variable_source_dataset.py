@@ -18,15 +18,15 @@ else:
     pan_wise_location = "/run/media/jacob/SSD_Backup/hetdex_ps1_allwise_photoz_v0.6.fits"
     dr_two = "/run/media/jacob/34b36a2c-5b42-41cd-a1fa-7a09e5414860/mosaics/mosaics/"
     vac = '/run/media/jacob/SSD_Backup/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
-    cutout_directory = "/run/media/jacob/SSD_Backup/variable_all/"
+    cutout_directory = "/run/media/jacob/SSD_Backup/variable_fixed_alice/"
     multi_process = False
-create_variable_source_dataset(cutout_directory=cutout_directory,
-                               pan_wise_location=pan_wise_location,
-                               value_added_catalog_location=vac,
-                               dr_two_location=dr_two,
-                               use_multiprocessing=multi_process,
-                               all_channels=True,
-                               verbose=False,
-                               gaussian=False)
+#create_variable_source_dataset(cutout_directory=cutout_directory,
+#                               pan_wise_location=pan_wise_location,
+#                               value_added_catalog_location=vac,
+#                               dr_two_location=dr_two,
+#                               use_multiprocessing=multi_process,
+#                               all_channels=True,
+#                               verbose=False,
+#                               gaussian=False)
 # (0,15,30,45,60,75,90,105,120,135,150,165,180)
 create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=False, rotation=None, convert=True, all_channels=False, resize=200)

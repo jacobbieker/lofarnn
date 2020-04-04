@@ -151,7 +151,8 @@ def make_single_coco_annotation_set(image_names, L, m,
 def create_coco_annotations(image_names,
                             image_destination_dir=None,
                             json_dir='', json_name='json_data.pkl',
-                            multiple_bboxes=True, resize=None, rotation=None, convert=True, all_channels=False, verbose=False):
+                            multiple_bboxes=True, resize=None, rotation=None, convert=True, all_channels=False,
+                            verbose=False):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
     directory
@@ -251,7 +252,8 @@ def create_coco_annotations(image_names,
                 rec_depth = 10
             else:
                 rec_depth = 3
-            record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width, "depth": rec_depth}
+            record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width,
+                      "depth": rec_depth}
 
             # Insert bounding boxes and their corresponding classes
             # print('scale_factor:',cutout.scale_factor)
@@ -275,7 +277,7 @@ def create_coco_annotations(image_names,
                     "iscrowd": 0
                 }
                 objs.append(obj)
-                area_bounding_boxes.append(np.sqrt((bbox[0] - bbox[2])**2))
+                area_bounding_boxes.append(np.sqrt((bbox[0] - bbox[2]) ** 2))
 
             record["annotations"] = objs
             dataset_dicts.append(record)
@@ -321,7 +323,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
     num_layers = 3
     if all_channels:
         num_layers = 10
-    get_pixel_mean_and_std(image_paths, num_layers=num_layers)
+    get_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
     exit()
 
     create_coco_annotations(data_split["train"],
@@ -395,12 +397,13 @@ def scale_box(arr, bounding_box, new_size):
 
 
 def single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
-    val = np.reshape(image[:,:,layer], -1)
+    val = np.reshape(image[:, :, layer], -1)
     for pixel in val:
         diff = pixel - layer_means[layer]
         layer_means[layer] += diff / layer_ks[layer]
         layer_stds[layer] += diff * (pixel - layer_means[layer])
         layer_ks[layer] += 1
+
 
 def get_pixel_mean_and_std(image_paths, num_layers=3):
     """
@@ -409,8 +412,8 @@ def get_pixel_mean_and_std(image_paths, num_layers=3):
     :return:
     """
     manager = Manager()
-    layer_means = manager.list([np.zeros(5) for _ in range(num_layers)])
-    layer_stds = manager.list([np.zeros(5) for _ in range(num_layers)])
+    layer_means = manager.list([np.zeros(1) for _ in range(num_layers)])
+    layer_stds = manager.list([np.zeros(1) for _ in range(num_layers)])
     layer_ks = manager.list([1 for _ in range(num_layers)])
     for i, image in enumerate(image_paths):
         try:
@@ -422,9 +425,53 @@ def get_pixel_mean_and_std(image_paths, num_layers=3):
                 continue
         pool = Pool(processes=os.cpu_count())
         image = np.array(data)
-        [pool.apply_async(single_layer_mean_and_std, args=[image, layer, layer_means, layer_stds, layer_ks]) for layer in range(num_layers)]
+        [pool.apply_async(single_layer_mean_and_std, args=[image, layer, layer_means, layer_stds, layer_ks]) for layer
+         in range(num_layers)]
         pool.close()
         pool.join()
         print(f"Done: {i}")
+        print(f"Current Mean and STD Dev: ")
+        for layer in range(num_layers):
+            print(f"Layer {layer} Mean: {layer_means[layer]} Std: {np.sqrt(layer_stds[layer] / (layer_ks[layer] - 2))}")
+    for layer in range(num_layers):
+        print(f"Layer {layer} Mean: {layer_means[layer]} Std: {np.sqrt(layer_stds[layer] / (layer_ks[layer] - 2))}")
+
+
+def get_single_image_std_mean(image, num_layers, layer_means, layer_stds, layer_ks):
+    try:
+        data = Image.open(image).convert('RGB')
+    except:
+        try:
+            data = np.load(image, allow_pickle=True)
+        except:
+            print("Failed")
+    image = np.array(data)
+    for layer in range(num_layers):
+        val = np.reshape(image[:, :, layer], -1)
+        for pixel in val:
+            diff = pixel - layer_means[layer]
+            layer_means[layer] += diff / layer_ks[layer]
+            layer_stds[layer] += diff * (pixel - layer_means[layer])
+            layer_ks[layer] += 1
+    print(f"Current Mean and STD Dev: ")
+    for layer in range(num_layers):
+        print(f"Layer {layer} Mean: {layer_means[layer]} Std: {np.sqrt(layer_stds[layer] / (layer_ks[layer] - 2))}")
+
+
+def get_pixel_mean_and_std_multi(image_paths, num_layers=3):
+    """
+    Get the channelwise mean and std dev of all the images
+    :param image_paths: Paths to the images
+    :return:
+    """
+    manager = Manager()
+    layer_means = manager.list([np.zeros(1) for _ in range(num_layers)])
+    layer_stds = manager.list([np.zeros(1) for _ in range(num_layers)])
+    layer_ks = manager.list([1 for _ in range(num_layers)])
+    pool = Pool(processes=os.cpu_count())
+    [pool.apply_async(get_single_image_std_mean, args=[image, num_layers, layer_means, layer_stds, layer_ks]) for image
+     in image_paths]
+    pool.close()
+    pool.join()
     for layer in range(num_layers):
         print(f"Layer {layer} Mean: {layer_means[layer]} Std: {np.sqrt(layer_stds[layer] / (layer_ks[layer] - 2))}")
