@@ -1,2 +1,2 @@
-_BASE_: "source_base.yaml"
-OUTPUT_DIR: "/home/jacob/Development/lofarnn/reports/source_frcnn_single_gaussian_101/"
+_BASE_: "source_base_gaussian.yaml"
+OUTPUT_DIR: "/home/jacob/Development/lofarnn/reports/source_frcnn_single_gaussian_101_gaussian2/"
