@@ -261,6 +261,11 @@ def create_coco_annotations(image_names,
             if not multiple_bboxes:
                 cutouts = [cutouts[0]]  # Only take the first one, the main optical source
             for bbox in cutouts:
+                print(bbox)
+                #bbox[0] -= 1
+                #bbox[1] -= 1
+                #bbox[2] += 2
+                #bbox[3] += 2
                 assert float(bbox[2]) > float(bbox[0])
                 assert float(bbox[3]) > float(bbox[1])
 
@@ -323,8 +328,8 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
     num_layers = 3
     if all_channels:
         num_layers = 10
-    get_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
-    exit()
+    #get_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
+    #exit()
 
     create_coco_annotations(data_split["train"],
                             json_dir=annotations_directory,

@@ -20,13 +20,13 @@ else:
     vac = '/run/media/jacob/SSD_Backup/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
     cutout_directory = "/run/media/jacob/SSD_Backup/LOFAR-ML/data/processed/variable_all/"
     multi_process = True
-create_variable_source_dataset(cutout_directory=cutout_directory,
-                               pan_wise_location=pan_wise_location,
-                               value_added_catalog_location=vac,
-                               dr_two_location=dr_two,
-                               use_multiprocessing=multi_process,
-                               all_channels=True,
-                               verbose=False,
-                               gaussian=False)
+#create_variable_source_dataset(cutout_directory=cutout_directory,
+#                               pan_wise_location=pan_wise_location,
+#                               value_added_catalog_location=vac,
+#                               dr_two_location=dr_two,
+#                               use_multiprocessing=multi_process,
+#                               all_channels=True,
+#                               verbose=False,
+#                               gaussian=False)
 # (0,15,30,45,60,75,90,105,120,135,150,165,180)
 create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=False, rotation=None, convert=True, all_channels=False, resize=200)

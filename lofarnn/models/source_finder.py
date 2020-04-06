@@ -112,7 +112,7 @@ trainer.train()
 print('Done training')
 
 cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.1   # set the testing threshold for this model
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.25   # set the testing threshold for this model
 predictor = DefaultPredictor(cfg)
 import numpy as np
 import random
