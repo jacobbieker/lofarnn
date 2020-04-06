@@ -26,9 +26,10 @@ create_variable_source_dataset(cutout_directory=cutout_directory,
                                value_added_catalog_location=vac,
                                dr_two_location=dr_two,
                                use_multiprocessing=multi_process,
+                               num_threads=6,
                                all_channels=True,
                                verbose=False,
-                               fixed_size=300,
+                               fixed_size=300/3600.,
                                filter_lgz=False,
                                gaussian=False)
 # (0,15,30,45,60,75,90,105,120,135,150,165,180)
