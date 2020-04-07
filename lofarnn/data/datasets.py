@@ -198,6 +198,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
     :param mosaic_location: The location of the LoTSS DR2 mosaics
     :param save_cutout_directory: Where to save the cutout npy files
     :param all_channels: Whether to include all possible channels (grizy,W1,2,3,4 bands) in npy file or just (radio,i,W1)
+    :param fixed_size: Whether to use fixed size cutouts, in arcseconds, or the LGZ size (default: LGZ)
     :param verbose: Whether to print extra information or not
     :return:
     """
@@ -209,7 +210,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
         print("Trying To Open")
         pan_wise_catalog = fits.open(pan_wise_catalog, memmap=True)
         pan_wise_catalog = pan_wise_catalog[1].data
-        print("Opened CAtalog")
+        print("Opened Catalog")
     # Load the data once, then do multiple cutouts
     try:
         fits.open(lofar_data_location, memmap=True)
@@ -229,8 +230,6 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             # Get the size of the cutout needed
             if source_size is None or source_size is False:
                 source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
-            else:
-                source_size = source_size / 3600.
             try:
                 lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=False)
             except:

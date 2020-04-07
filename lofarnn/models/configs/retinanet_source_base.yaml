@@ -1,0 +1,20 @@
+_BASE_: "base/Base-RetinaNet.yaml"
+OUTPUT_DIR: "/home/jacob/Development/lofarnn/reports/source_retinanet/"
+INPUT:
+  MIN_SIZE_TRAIN: (200,)
+  MIN_SIZE_TEST: 200
+  MAX_SIZE_TRAIN: 200
+  MAX_SIZE_TEST: 200
+DATALOADER:
+  NUM_WORKERS: 2
+MODEL:
+  # Determine mean of our GBR channels
+  PIXEL_MEAN: [15.905, 2.394, 1.611]
+  PIXEL_STD: [30.759, 13.674, 11.303]
+  ANCHOR_GENERATOR:
+    SIZES: !!python/object/apply:eval ["[[x, x * 2**(1.0/3), x * 2**(2.0/3) ] for x in [1, 4, 9, 12, 16, 25, 32, 36, 49, 64, 100, 128, 140]]"]
+SOLVER:
+  IMS_PER_BATCH: 4
+  BASE_LR: 0.01  # Note that RetinaNet uses a different default learning rate
+  STEPS: (60000, 80000)
+  MAX_ITER: 90000
