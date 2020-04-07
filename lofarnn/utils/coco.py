@@ -73,7 +73,7 @@ def create_coco_style_directory_structure(root_directory, suffix='', verbose=Fal
 
 def make_single_coco_annotation_set(image_names, L, m,
                                     image_destination_dir=None,
-                                    multiple_bboxes=True, resize=None, rotation=None, convert=True, verbose=False):
+                                    multiple_bboxes=True, resize=None, rotation=None, convert=True, all_channels=False, verbose=False):
     """
     For use with multiprocessing, goes through and does one rotation for the COCO annotations
     """
@@ -101,25 +101,35 @@ def make_single_coco_annotation_set(image_names, L, m,
                 cutouts[index] = scale_box(image, box, resize)
             image = resize_array(image, resize)
         width, height, depth = np.shape(image)
+        if all_channels and depth != 10:
+            continue
+
         # Rescale to between 0 and 1
         scale_size = image.shape[0] / prev_shape
         # First R channel
         image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
                                                 normalize=True, scaling=None)
-        for layer in image.shape[2]:
-            image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=0., upper_clip=25.,
+        for layer in range(image.shape[2]):
+            image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=0.,
+                                                        upper_clip=25.,
                                                         normalize=True, scaling=None)
         if convert:
             image = (255.0 * image).astype(np.uint8)
             # If converting, only take the first three layers, generally Radio, i band, W1 band
             image = Image.fromarray(image[:, :, :3], 'RGB')
+            image.save(image_dest_filename)
+        else:
+            np.save(image_dest_filename, image)  # Save to the final destination
         if verbose:
             plot_three_channel_debug(image, cutouts, scale_size, cutouts[0][5],
                                      save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
                                                             image_name.stem + f".{m}.png"))
-        image.save(image_dest_filename)
-        # np.save(image_dest_filename, image)  # Save to the final destination
-        record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width}
+        if all_channels:
+            rec_depth = 10
+        else:
+            rec_depth = 3
+        record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width,
+                  "depth": rec_depth}
 
         # Insert bounding boxes and their corresponding classes
         # print('scale_factor:',cutout.scale_factor)
@@ -143,9 +153,8 @@ def make_single_coco_annotation_set(image_names, L, m,
                 "iscrowd": 0
             }
             objs.append(obj)
-
-        record["annotations"] = objs
-        L.append(record)
+            record["annotations"] = objs
+            L.append(record)
 
 
 def create_coco_annotations(image_names,
@@ -183,7 +192,7 @@ def create_coco_annotations(image_names,
         pool = Pool(processes=os.cpu_count())
         L = manager.list()
         [pool.apply_async(make_single_coco_annotation_set,
-                          args=[image_names, L, m, image_destination_dir, multiple_bboxes, resize, rotation, convert,
+                          args=[image_names, L, m, image_destination_dir, multiple_bboxes, resize, rotation, convert, all_channels,
                                 verbose]) for m in range(num_copies)]
         pool.close()
         pool.join()
@@ -201,91 +210,9 @@ def create_coco_annotations(image_names,
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
     area_bounding_boxes = []
     for m in range(num_copies):
-        for i, image_name in enumerate(image_names):
-            # Get image dimensions and insert them in a python dict
-            if convert:
-                image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.png")
-            else:
-                image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.npy")
-            image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
-            if verbose:
-                plot_three_channel_debug(image, cutouts, 1, cutouts[0][5],
-                                         save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
-                                                                image_name.stem + f".{m}.jpg"))
-            if rotation is not None:
-                if type(rotation) == tuple:
-                    image, cutouts = augment_image_and_bboxes(image, cutouts=cutouts, angle=rotation[m])
-                else:
-                    image, cutouts = augment_image_and_bboxes(image, cutouts=cutouts,
-                                                              angle=np.random.uniform(-rotation, rotation))
-            prev_shape = image.shape[0]
-            if resize is not None:
-                # Resize the image and boxes
-                for index, box in enumerate(cutouts):
-                    cutouts[index] = scale_box(image, box, resize)
-                image = resize_array(image, resize)
-            width, height, depth = np.shape(image)
-            if all_channels and depth != 10:
-                continue
-
-            # Rescale to between 0 and 1
-            scale_size = image.shape[0] / prev_shape
-            # First R channel
-            image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
-                                                    normalize=True, scaling=None)
-            for layer in range(image.shape[2]):
-                image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=0.,
-                                                            upper_clip=25.,
-                                                            normalize=True, scaling=None)
-            if convert:
-                image = (255.0 * image).astype(np.uint8)
-                # If converting, only take the first three layers, generally Radio, i band, W1 band
-                image = Image.fromarray(image[:, :, :3], 'RGB')
-                image.save(image_dest_filename)
-            else:
-                np.save(image_dest_filename, image)  # Save to the final destination
-            if verbose:
-                plot_three_channel_debug(image, cutouts, scale_size, cutouts[0][5],
-                                         save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
-                                                                image_name.stem + f".{m}.png"))
-            if all_channels:
-                rec_depth = 10
-            else:
-                rec_depth = 3
-            record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width,
-                      "depth": rec_depth}
-
-            # Insert bounding boxes and their corresponding classes
-            # print('scale_factor:',cutout.scale_factor)
-            objs = []
-            if not multiple_bboxes:
-                cutouts = [cutouts[0]]  # Only take the first one, the main optical source
-            for bbox in cutouts:
-                print(bbox)
-                #bbox[0] -= 1
-                #bbox[1] -= 1
-                #bbox[2] += 2
-                #bbox[3] += 2
-                assert float(bbox[2]) > float(bbox[0])
-                assert float(bbox[3]) > float(bbox[1])
-
-                if bbox[4] == "Other Optical Source":
-                    category_id = 1
-                else:
-                    category_id = 0
-
-                obj = {
-                    "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
-                    "bbox_mode": BoxMode.XYXY_ABS,
-                    # "segmentation": [poly],
-                    "category_id": category_id,
-                    "iscrowd": 0
-                }
-                objs.append(obj)
-                area_bounding_boxes.append(np.sqrt((bbox[0] - bbox[2]) ** 2))
-
-            record["annotations"] = objs
-            dataset_dicts.append(record)
+        make_single_coco_annotation_set(image_names, dataset_dicts, m, image_destination_dir, multiple_bboxes, resize, rotation, convert, all_channels,
+                                        verbose)
+        #area_bounding_boxes.append(np.sqrt((bbox[0] - bbox[2]) ** 2))
     # Write all image dictionaries to file as one json
     plt.hist(area_bounding_boxes, bins=20, density=True)
     plt.ylabel("Number of occurances")

@@ -18,15 +18,14 @@ else:
     pan_wise_location = "/run/media/jacob/SSD_Backup/hetdex_ps1_allwise_photoz_v0.6.fits"
     dr_two = "/run/media/jacob/SSD_Backup/mosaics/"
     vac = '/run/media/jacob/SSD_Backup/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
-    cutout_directory = "/run/media/jacob/SSD_Backup/LOFAR-ML/data/processed/fixed_all/"
-    multi_process = False
+    cutout_directory = "/home/jacob/fixed_all/"
+    multi_process = True
 
 create_variable_source_dataset(cutout_directory=cutout_directory,
                                pan_wise_location=pan_wise_location,
                                value_added_catalog_location=vac,
                                dr_two_location=dr_two,
                                use_multiprocessing=multi_process,
-                               num_threads=6,
                                all_channels=True,
                                verbose=False,
                                fixed_size=300/3600.,
