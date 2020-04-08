@@ -141,7 +141,7 @@ def make_single_coco_annotation_set(image_names, L, m,
             assert float(bbox[3]) > float(bbox[1])
 
             if bbox[4] == "Other Optical Source":
-                category_id = 1
+                category_id = 0
             else:
                 category_id = 0
 
@@ -208,20 +208,10 @@ def create_coco_annotations(image_names,
         return 0  # Returns to doesnt go through it again
 
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
-    area_bounding_boxes = []
     for m in range(num_copies):
         make_single_coco_annotation_set(image_names, dataset_dicts, m, image_destination_dir, multiple_bboxes, resize, rotation, convert, all_channels,
                                         verbose)
-        #area_bounding_boxes.append(np.sqrt((bbox[0] - bbox[2]) ** 2))
     # Write all image dictionaries to file as one json
-    plt.hist(area_bounding_boxes, bins=20, density=True)
-    plt.ylabel("Number of occurances")
-    plt.xlabel("Area of bounding box")
-    plt.title("Bounding Box Area Distrubtion")
-    plt.show()
-    print(f"Mean Area: {np.mean(area_bounding_boxes)}")
-    print(f"Max Area: {np.max(area_bounding_boxes)}")
-    print(f"Min Area: {np.min(area_bounding_boxes)}")
     json_path = os.path.join(json_dir, json_name)
     with open(json_path, "wb") as outfile:
         pickle.dump(dataset_dicts, outfile)
