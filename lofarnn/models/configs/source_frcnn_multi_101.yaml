@@ -1,2 +1,14 @@
 _BASE_: "source_base.yaml"
-OUTPUT_DIR: "/home/jacob/Development/lofarnn/reports/source_frcnn_multi_101/"
+OUTPUT_DIR: "/home/jacob/Development/lofarnn/reports/source_frcnn_multi_101_no_weight/"
+MODEL:
+  MASK_ON: False
+  #WEIGHTS: "detectron2://ImageNetPretrained/FAIR/X-101-32x8d.pkl"
+  # Determine mean of our GBR channels
+# Layer 0 Mean: [2.85192622] Std: [7.12555077]
+# Layer 1 Mean: [1.84919161] Std: [16.11726744]
+# Layer 2 Mean: [1.30586553] Std: [14.23961438]
+  PIXEL_MEAN: [2.851, 1.849, 1.306]
+  PIXEL_STD: [7.125, 16.117, 14.239]
+  ANCHOR_GENERATOR:
+    ASPECT_RATIOS: [[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0]]
+    SIZES: [[1, 2, 3, 4, 5, 6, 7, 8, 16, 32, 64]]
