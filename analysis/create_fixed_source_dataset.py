@@ -18,7 +18,7 @@ else:
     pan_wise_location = "/run/media/jacob/SSD_Backup/hetdex_ps1_allwise_photoz_v0.6.fits"
     dr_two = "/run/media/jacob/SSD_Backup/mosaics/"
     vac = '/run/media/jacob/SSD_Backup/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
-    cutout_directory = "/home/jacob/gaussian_all/"
+    cutout_directory = "/home/jacob/fixed_all/"
     multi_process = True
 
 create_variable_source_dataset(cutout_directory=cutout_directory,
@@ -30,6 +30,6 @@ create_variable_source_dataset(cutout_directory=cutout_directory,
                                verbose=False,
                                fixed_size=300/3600.,
                                filter_lgz=False,
-                               gaussian=True)
+                               gaussian=False)
 # (0,15,30,45,60,75,90,105,120,135,150,165,180)
 create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=True, rotation=None, convert=True, all_channels=False, resize=200)

@@ -3,8 +3,6 @@ import pickle
 import random
 from pathlib import Path
 
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 from PIL import Image
@@ -73,7 +71,9 @@ def create_coco_style_directory_structure(root_directory, suffix='', verbose=Fal
 
 def make_single_coco_annotation_set(image_names, L, m,
                                     image_destination_dir=None,
-                                    multiple_bboxes=True, resize=None, rotation=None, convert=True, all_channels=False, verbose=False):
+                                    multiple_bboxes=True, resize=None,
+                                    rotation=None, convert=True,
+                                    all_channels=False, verbose=False):
     """
     For use with multiprocessing, goes through and does one rotation for the COCO annotations
     """
@@ -86,7 +86,7 @@ def make_single_coco_annotation_set(image_names, L, m,
         image, cutouts = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
         if verbose:
             plot_three_channel_debug(image, cutouts, 1, cutouts[0][5],
-                                     save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
+                                     save_path=os.path.join("./",
                                                             image_name.stem + f".{m}.jpg"))
         if rotation is not None:
             if type(rotation) == tuple:
@@ -106,7 +106,7 @@ def make_single_coco_annotation_set(image_names, L, m,
 
         # Rescale to between 0 and 1
         scale_size = image.shape[0] / prev_shape
-        # First R channel
+        # First R (Radio) channel
         image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
                                                 normalize=True, scaling=None)
         for layer in range(image.shape[2]):
@@ -122,7 +122,7 @@ def make_single_coco_annotation_set(image_names, L, m,
             np.save(image_dest_filename, image)  # Save to the final destination
         if verbose:
             plot_three_channel_debug(image, cutouts, scale_size, cutouts[0][5],
-                                     save_path=os.path.join("/home/jacob/Development/LOFAR-ML/data/",
+                                     save_path=os.path.join("./",
                                                             image_name.stem + f".{m}.png"))
         if all_channels:
             rec_depth = 10
@@ -132,7 +132,6 @@ def make_single_coco_annotation_set(image_names, L, m,
                   "depth": rec_depth}
 
         # Insert bounding boxes and their corresponding classes
-        # print('scale_factor:',cutout.scale_factor)
         objs = []
         if not multiple_bboxes:
             cutouts = [cutouts[0]]  # Only take the first one, the main optical source
