@@ -45,7 +45,7 @@ class Trainer(DefaultTrainer):
         It now calls :func:`detectron2.data.build_detection_train_loader`.
         Overwrite it if you'd like a different data loader.
         """
-        return build_detection_train_loader(cfg)
+        return build_detection_train_loader(cfg, mapper=SourceMapper(cfg))
 
     @classmethod
     def build_test_loader(cls, cfg, dataset_name):
@@ -56,7 +56,7 @@ class Trainer(DefaultTrainer):
         It now calls :func:`detectron2.data.build_detection_test_loader`.
         Overwrite it if you'd like a different data loader.
         """
-        return build_detection_test_loader(cfg, dataset_name)
+        return build_detection_test_loader(cfg, dataset_name, mapper=SourceMapper(cfg, False))
 
 
 # # Load and inspect our data
@@ -89,13 +89,6 @@ import pickle
 
 # # Train mode
 
-# To implement the LOFAR relevant metrics I changed
-# DefaultTrainer into LOFARTrainer
-# where the latter calls LOFAREvaluator within build_hooks instead of the default evaluator
-# this works for the after the fact test eval
-# for train eval those things are somewhere within a model 
-# specifically a model that takes data and retuns a dict of losses
-
 cfg.DATASETS.TRAIN = (f"{EXPERIMENT_NAME}_train",)
 cfg.DATASETS.VAL = (f"{EXPERIMENT_NAME}_val",)
 cfg.DATASETS.TEST = (f"{EXPERIMENT_NAME}_test",)
@@ -106,8 +99,6 @@ trainer = Trainer(cfg)
 trainer.resume_or_load(resume=False)
 
 trainer.train()
-
-# ### trainer.storage.history('loss_cls').latest()
 
 print('Done training')
 

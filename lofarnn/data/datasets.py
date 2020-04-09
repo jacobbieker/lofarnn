@@ -124,7 +124,6 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, gaussian=None, verb
         try:
             if ~np.isnan(catalogue[index][column_name]) and catalogue[index][
                 column_name] > 0.0:  # Make sure not putting in NaNs
-                # if gaussian is None:
                 layer[int(np.floor(coords[0][index]))][int(np.floor(coords[1][index]))] = catalogue[index][column_name]
         except Exception as e:
             if verbose:
@@ -133,9 +132,11 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, gaussian=None, verb
         layer = gaussian_filter(layer, sigma=gaussian)
     return layer
 
-def make_proposal_boxes(column_name, wcs, catalogue, gaussian=None):
+def make_proposal_boxes(wcs, shape, catalogue, gaussian=None):
     """
    Create Faster RCNN proposal boxes for all sources in the image
+
+   The sky_coords seems to be swapped x and y on the boxes, so should be swapped here too
    :param column_name: Name in catalogue of data to include
    :param shape: Shape of the image data
    :param wcs: WCS of the Radio data, so catalog data can be translated correctly
@@ -153,7 +154,7 @@ def make_proposal_boxes(column_name, wcs, catalogue, gaussian=None):
     coords = skycoord_to_pixel(sky_coords, wcs, 0)
     for index, x in enumerate(coords[0]):
         try:
-            if ~np.isnan(catalogue[index][column_name]) and catalogue[index][column_name] > 0.0:  # Make sure not putting in NaNs
+            if 0 <= coords[index][1] < shape[0] and 0 <= coords[index][0] < shape[1]:
                 proposals.append(make_bounding_box(ra_array[index], dec_array[index], wcs=wcs, class_name="Proposal Box", gaussian=gaussian))
         except Exception as e:
             print(f"Failed: {e}")
@@ -261,6 +262,9 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             # Now determine if there are other sources in the area
             other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
                                                                         mosaic_cutouts, source)
+
+            # Now make proposal boxes
+            proposal_boxes = np.asarray(make_proposal_boxes(wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian))
             for layer in layers:
                 tmp = make_catalogue_layer(layer, wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian)
                 img_array.append(tmp)
@@ -273,10 +277,10 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             bounding_boxes = []
             source_bbox = make_bounding_box(source['ID_ra'], source['ID_dec'], wcs, gaussian=gaussian)
             try:
-                assert source_bbox[0] >= 0
                 assert source_bbox[1] >= 0
-                assert source_bbox[2] < img_array.shape[0]
-                assert source_bbox[3] < img_array.shape[1]
+                assert source_bbox[0] >= 0
+                assert source_bbox[3] < img_array.shape[0]
+                assert source_bbox[2] < img_array.shape[1]
             except:
                 print("Source not in bounds")
                 continue
@@ -290,7 +294,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
                                                wcs, class_name="Other Optical Source", gaussian=gaussian)
                 if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][
                     1]):  # Make sure not same one
-                    if other_bbox[0] >= 0 and other_bbox[1] >= 0 and other_bbox[2] < img_array.shape[0] and other_bbox[3] < img_array.shape[1]:
+                    if other_bbox[1] >= 0 and other_bbox[0] >= 0 and other_bbox[3] < img_array.shape[0] and other_bbox[2] < img_array.shape[1]:
                         bounding_boxes.append(
                             list(other_bbox))  # Only add the bounding box if it is within the image shape
             # Now save out the combined file
@@ -298,7 +302,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             bounding_boxes = np.array(bounding_boxes)
             if verbose:
                 print(bounding_boxes)
-            combined_array = [img_array, bounding_boxes]
+            combined_array = [img_array, bounding_boxes, proposal_boxes]
             try:
                 np.save(os.path.join(save_cutout_directory, source['Source_Name']), combined_array)
             except Exception as e:

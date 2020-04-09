@@ -146,19 +146,13 @@ class SourceEvaluator(DatasetEvaluator):
             with PathManager.open(file_path, "wb") as f:
                 torch.save(self._predictions, f)
 
-        includes_associated_fail_fraction, includes_unassociated_fail_fraction = \
-            _evaluate_predictions_on_lofar_score(self._dataset_name, self._predictions,
-                                                 self._imsize, self._output_dir, save_appendix=self._dataset_name, scale_factor=self._scale_factor,
-                                                 overwrite=self._overwrite, summary_only=True,
-                                                 comp_cat_path=self._component_cat_path,
-                                                 fits_dir=self._fits_path, gt_data=self._gt_data,
-                                                 image_dir=self._image_dir, metadata=self._metadata)
+        source_fail = \
+            _evaluate_predictions_on_source_score(self._dataset_name, self._predictions, self._output_dir,
+                                                 summary_only=True,
+                                                 metadata=self._metadata)
 
         self._results = OrderedDict()
-        self._results["bbox"] = {"assoc_single_fail_fraction": includes_associated_fail_fraction[0],
-                                 "assoc_multi_fail_fraction": includes_associated_fail_fraction[1],
-                                 "unassoc_single_fail_fraction": includes_unassociated_fail_fraction[0],
-                                 "unassoc_multi_fail_fraction": includes_unassociated_fail_fraction[1]}
+        self._results["bbox"] = {"assoc_single_fail_fraction": source_fail}
         # Copy so the caller can do whatever with results
         return copy.deepcopy(self._results)
 
@@ -167,15 +161,7 @@ class SourceEvaluator(DatasetEvaluator):
         Evaluate self._predictions on the given tasks.
         Fill self._results with the metrics of the tasks.
 
-        That is: for all proposed boxes that cover the middle pixel of the input image check which
-        sources from the component catalogue are inside.
-        The predicted box can fail in three different ways:
-        1. No predicted box covers the middle pixel
-        2. The predicted box misses a number of components
-        3. The predicted box encompasses too many components
-        4. The prediction score for the predicted box is lower than other boxes that cover the middle
-            pixel
-        5. The prediction score is lower than x
+        The predicted box can fail in if it does not cover the source location
 
         """
         self._logger.info("Preparing results for COCO format ...")
@@ -188,10 +174,6 @@ class SourceEvaluator(DatasetEvaluator):
                 f.write(json.dumps(self._flattened_predictions))
                 f.flush()
 
-        #if not self._do_evaluation:
-        #    self._logger.info("Annotations are not available for evaluation.")
-        #    return
-
         self._logger.info("Evaluating predictions with LoTSS relevant metric...")
 
 
@@ -199,9 +181,8 @@ class SourceEvaluator(DatasetEvaluator):
         # keypoint prediction
         for task in sorted(tasks):
             print("Evaluating task:", task)
-            raise NotImplementedError("we should not end up here")
             coco_eval = (
-                _evaluate_predictions_on_lofar_score(lofar_gt,
+                _evaluate_predictions_on_source_score(lofar_gt,
                                                      self._flattened_predictions, task
                                                      )
                 if len(self._flattened_predictions) > 0
@@ -218,7 +199,6 @@ class SourceEvaluator(DatasetEvaluator):
         Evaluate the box proposals in self._predictions.
         Fill self._results with the metrics for "box_proposals" task.
         """
-        raise NotImplementedError("This method is not looked at yet by Rafael.")
         if self._output_dir:
             # Saving generated box proposals to file.
             # Predicted box_proposals are in XYXY_ABS mode.
@@ -270,7 +250,7 @@ class SourceEvaluator(DatasetEvaluator):
         """
 
         metrics = {
-            "bbox": ["AP", "AP50", "AP75", "APs", "APm", "APl"],
+            "bbox": ["AR", "AR50", "AR75", "ARs", "ARm", "ARl"],
             "segm": ["AP", "AP50", "AP75", "APs", "APm", "APl"],
             "keypoints": ["AP", "AP50", "AP75", "APm", "APl"],
         }[iou_type]
@@ -319,54 +299,6 @@ class SourceEvaluator(DatasetEvaluator):
         return results
 
 
-def number_of_components_in_dataset(output_dir, dataset_name, component_cat_path, predictions, fits_dir,
-                                    overwrite=True, save_appendix='', only_zero_rotation=True):
-    """Counts the number and percentage of single component sources in all_image_dir.
-    Returns the filenames of the multi-component sources."""
-    if not only_zero_rotation:
-        raise NotImplementedError
-    source_names_fits_names_save_path = f'{output_dir}/save_source_names_fits_paths_{save_appendix}.pkl'
-    if overwrite or not os.path.exists(source_names_fits_names_save_path):
-        # Load component catalogue
-        comp_cat = pd.read_hdf(component_cat_path.replace('.fits','.h5'),'df')
-        comp_name_to_source_name_dict = {n:i for i,n in zip(comp_cat.Source_Name.values,
-                                                            comp_cat.Component_Name.values)}
-
-        # Count the number of components per source name in the catalogue
-        counts = pd.value_counts(comp_cat['Source_Name'])
-
-        # Remove the end of the filename to retrieve the central source names
-        png_file_names = [p["file_name"] for p in predictions]
-        source_names = [f.split('/')[-1].split('_')[0] for f in png_file_names]
-        fits_paths = [os.path.join(fits_dir, sn + '_radio_DR2.fits') for sn in source_names]
-
-        # Check for duplicates (those should not exist)
-        print("check for dups", len(predictions),len(fits_paths),len(source_names))
-        assert len(source_names) == len(set(source_names)), 'duplicates should not exist'
-
-        # Retrieve number of components per central source
-        comps = [counts[comp_name_to_source_name_dict[source_name]] for source_name in source_names]
-
-        # Get number of single comp
-        single_comp = comps.count(1)
-        print(f'There are {single_comp} single component sources and {len(source_names)-single_comp} multi.')
-        print(f'Thus {single_comp/len(source_names)*100:.0f}% of the dataset is single component.')
-        # Names of multi_comp sources
-        multi_comp_source_names = [source_name for source_name in source_names
-                                   if counts[comp_name_to_source_name_dict[source_name]] > 1]
-        save_obj(source_names_fits_names_save_path, [source_names, fits_paths] )
-    else:
-        source_names, fits_paths = load_obj(source_names_fits_names_save_path)
-    return np.array(source_names), fits_paths
-
-def save_obj(file_path, obj):
-    with open(file_path, 'wb') as output:  # Overwrites any existing file.
-        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
-
-def load_obj(file_path):
-    with open(file_path, 'rb') as input:
-        return pickle.load(input)
-
 def get_bounding_boxes(output):
     """Return bounding boxes inside inference output as numpy array
     """
@@ -414,148 +346,10 @@ def intersect_over_union(bbox1, bbox2):
     return intersection_area / union_area
 
 
-def collect_misboxed(predictions,image_dir, output_dir, fail_dir_name, fail_indices, source_names,metadata,
-                     gt_data,gt_locs):
-    """Collect ground truth bounding boxes that fail to encapsulate the ground truth pybdsf
-    components so that they can be inspected to improve the box-draw-process"""
-    # Make dir to collect the failed images in
-    fail_dir = os.path.join(output_dir, fail_dir_name)
-    os.makedirs(fail_dir,exist_ok=True)
-    # Remove old directory but first check that it contains only pngs
-    for f in os.listdir(fail_dir):
-        assert f.endswith('.png'), 'Directory should only contain images.'
-    for f in os.listdir(fail_dir):
-        os.remove(os.path.join(fail_dir,f))
-
-    # Copy debug images to this dir
-    print('misboxed output dir',fail_dir, 'fail_indices:', fail_indices)
-    full_image_dir = os.path.join(image_dir,"LGZ_v5_more_rotations/LGZ_COCOstyle/all")
-    print('image dir is:', full_image_dir)
-    print('sourcenames len is:', len(source_names), source_names[0])
-
-    #    print('fail_indices:', source_names)
-    #    print('fail_indices:', fail_indices)
-    # if code fails here the debug source name or path is probably incorrect
-    #image_source_paths = [os.path.join(full_image_dir, "*"+ source_name + "_rotated0deg.png")
-    #        for source_name in source_names[fail_indices]]
-    #print(image_source_paths[0])
-    image_source_paths = [os.path.join(full_image_dir,source_name + "_radio_DR2_rotated0deg.png")
-                          for source_name in source_names[fail_indices]]
-    image_dest_paths = [os.path.join(fail_dir, image_source_path.split('/')[-1])
-                        for image_source_path in image_source_paths]
-    #[copyfile(src, dest) for src, dest in zip(image_source_paths, image_dest_paths)]
-    image_only=False
-    scale=2
-    scale_factor=1.5151515151515151
-    imsize=200
-    final_imsize=imsize*scale
-    if image_only:
-
-        for src, dest in zip(image_source_paths, image_dest_paths):
-            with open(src, 'rb') as fin:
-                with open(dest, 'wb') as fout:
-                    copyfileobj(fin, fout, 128*1024)
-    else:
-
-        (locs, focus_locs, close_comp_locs) = gt_locs
-        (locs, focus_locs, close_comp_locs) = (np.array(locs)[fail_indices], np.array(focus_locs)[fail_indices],
-                                               np.array(close_comp_locs)[fail_indices])
-        print('locs,flocs, closecomplocs')
-        print(locs[0])
-        print(focus_locs[0])
-        print(close_comp_locs[0])
-        plt.close()
-
-        for pred,gt, l, focus_l, close_l, src, dest in zip(np.array(predictions)[fail_indices],gt_data[fail_indices],
-                                                           locs, focus_locs, close_comp_locs, image_source_paths, image_dest_paths):
-
-            #print(pred)
-            #print(dest)
-            # Open mispredicted image
-            im = imread(src)
-            v = Visualizer(im[:, :, ::-1],
-                           metadata=metadata,
-                           scale=scale,
-                           instance_mode=ColorMode.IMAGE #_BW   # remove the colors of unsegmented pixels
-                           )
-            # Create another visualizer object as Deepcopy does not exist
-            v2 = Visualizer(im[:, :, ::-1],
-                            metadata=metadata,
-                            scale=scale,
-                            instance_mode=ColorMode.IMAGE #_BW   # remove the colors of unsegmented pixels
-                            )
-
-            v_gt = v.draw_dataset_dict(gt).get_image()[:, :, ::-1]
-            v_pred = v2.draw_instance_predictions(pred["instances"].to("cpu")).get_image()[:, :, ::-1]
-            # Plot figure
-            #v_gt = v.overlay_instances(labels=['lol' for i in range(len(d['annotations']))],
-            #                                           boxes=[x['bbox'] for x in d['annotations']],
-            #                                           masks=None, keypoints=None).get_image()[:, :,::-1]
-
-
-
-            # Plot figure
-            f, (ax1, ax2) = plt.subplots(1,2, figsize=(15,10))
-            # Radio intensity + ground truth bboxes
-            ax1.imshow(v_gt)
-            ax1.set_title('Ground truth labels')
-            # Radio intensity + predicted bboxes
-            ax2.imshow(v_pred)
-            ax2.set_title('Predicted labels')
-            # Component locations
-            s = scale*scale_factor
-            # Filter out unassociated close components outside of cutout
-            close_l = np.array([[x,y] for x,y in zip(close_l[0],close_l[1]) if (0 <= x < 200) and (0 <= y < 200)]).T
-            #print(close_l)
-
-            if not l.size == 0:
-                ax1.plot(l[0]*s,final_imsize-l[1]*s,'ro')
-                ax2.plot(l[0]*s,final_imsize-l[1]*s,'ro')
-            ax1.plot(focus_l[0]*s,final_imsize-focus_l[1]*s,'rs')
-            ax2.plot(focus_l[0]*s,final_imsize-focus_l[1]*s,'rs')
-            if not close_l.size == 0:
-                ax1.plot(close_l[0]*s,final_imsize-close_l[1]*s,color='orange', marker='o', linestyle='None')
-                ax2.plot(close_l[0]*s,final_imsize-close_l[1]*s,color='orange', marker='o', linestyle='None')
-            #plt.show()
-            plt.savefig(dest, bbox_inches='tight')
-            plt.close()
-
-def _get_gt_bboxes(lofar_gt, focus_locs, close_comp_locs, save_appendix=None, overwrite=False):
-    """Get ground truth bounding boxes"""
-    central_bboxes_save_path = f'cache/save_central_bboxes_{save_appendix}.pkl'
-
-    if overwrite or not os.path.exists(central_bboxes_save_path):
-        # Get bounding boxes per image as numpy arrays
-        bboxes_per_image = [[d['bbox'] for d in image_dict['annotations']] for image_dict in lofar_gt]
-
-
-        # Filter out bounding box per image that covers the central pixel of the focussed box
-        central_bboxes = [[tuple(bbox) for bbox in bboxes
-                           if is_within(x*scale_factor,imsize-y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3])]
-                          for bboxes, (x, y) in zip(bboxes_per_image, focus_locs)]
-
-        # Filter out duplicates
-        central_bboxes = [list(set(bboxes)) for bboxes in central_bboxes]
-        # Assumption: Take only the smallest box left from this list
-        smallest_area_indices = [np.argmin([area(bbox) for bbox in bboxes]) if not bboxes == [] else None
-                                 for bboxes in central_bboxes]
-
-        central_bboxes = [bboxes[ind] for bboxes, ind in zip(central_bboxes,smallest_area_indices)]
-
-        save_obj(central_bboxes_save_path, central_bboxes)
-        print('Done saving central_bboxes.')
-
-    else:
-        central_bboxes = load_obj(central_bboxes_save_path)
-    return central_bboxes
-
-
-def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize, output_dir,
+def _evaluate_predictions_on_source_score(dataset_name, predictions,
                                          save_appendix='',
                                          overwrite=True, summary_only=False,
-                                         comp_cat_path=None, gt_data=None,
-                                         only_zero_rotation=True,
-                                         image_dir=None, metadata=None):
+                                         ):
     """
     Evaluate the results using our LOFAR Source Finding appropriate score.
 
@@ -577,11 +371,6 @@ def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize, outp
 
     # Get pixel locations of ground truth components
     #print('len valsourcenames,fitpaths',len(source_names),  len(val_fits_paths))
-    gt_locs = (locs,focus_locs, close_comp_locs)
-    if debug:
-        print("ncomps", "locs, centrallocs, closecomplocs")
-    print('len closecomplocs',len(close_comp_locs),  len(n_comps), len(locs), len(focus_locs))
-
 
     ###################### prediction
     # Get bounding boxes per image as numpy arrays
@@ -592,19 +381,11 @@ def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize, outp
         print("pred_bboxes_scores")
         print(pred_bboxes_scores[0])
 
-    if debug:
-        print("pred_bboxes_scores after filtering out the focussed pixel")
-        print(pred_central_bboxes_scores[0])
+    # Get the highest predicted bbox to check if it overlaps the source component
 
-    # 1. No predicted box covers the middle pixel
-    # can now be checked
-    #     fail_fraction_1 = (len(central_bboxes)-len(pred_central_bboxes_scores))/len(central_bboxes)
-    #     print(f'{(len(central_bboxes)-len(pred_central_bboxes_scores))} predictions '
-    #           f'(or {fail_fraction_1:.1%}) fail to cover the central component of the source.')
-
-    # Take only the highest scoring bbox from this list
+    # Take only the highest scoring bbox from the list
     pred_central_bboxes_scores = [sorted(bboxes_scores, key=itemgetter(1), reverse=True)[0]
-                                  if len(bboxes_scores) > 0 else [[-1,-1,-1,-1],0] for bboxes_scores in pred_central_bboxes_scores]
+                                  if len(bboxes_scores) > 0 else [[-1,-1,-1,-1],0] for bboxes_scores in pred_bboxes_scores]
 
     if debug:
         print("pred_bboxes_scores after filtering out the focussed pixel")
@@ -618,16 +399,6 @@ def _evaluate_predictions_on_lofar_score(dataset_name, predictions, imsize, outp
                                    for bbox, bbox_score in zip(central_bboxes, pred_central_bboxes_scores)]
         print(f'Mean IoU of predicted box for central source is {np.mean(iou_pred_central_bboxes):.2f}'
               f' with a std. dev. of {np.std(iou_pred_central_bboxes):.2f}')
-
-    # Check if other source comps fall inside predicted central box
-    #print([loc for loc in locs])
-    #print([[x,y for x,y in np.dstack(loc)[0]] for loc in locs])
-    # TODO yaxis flip hack
-    comp_scores = [np.sum([is_within(x*scale_factor,imsize-y*scale_factor, bbox[0],bbox[1],bbox[2],bbox[3])
-                           for x,y in list(zip(loc[0],loc[1]))])
-                   for loc, (bbox, score) in zip(locs, pred_central_bboxes_scores)]
-    #nana = [(scale_factor*x, scale_factor*y) for x, y in np.dstack(locs[inspect_id])[0]]
-    #print("locs scaled", nana)
 
     return includes_associated_fail_fraction, includes_unassociated_fail_fraction
 
@@ -808,65 +579,3 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
         "gt_overlaps": gt_overlaps,
         "num_pos": num_pos,
     }
-
-
-def get_bounding_boxes(output):
-    """Return bounding boxes inside inference output as numpy array
-    """
-    assert "instances" in output
-    instances = output["instances"].to(torch.device("cpu"))
-
-    return instances.get_fields()['pred_boxes'].tensor.numpy()
-
-
-def load_fits(fits_filepath, dimensions_normal=True):
-    """Load a fits file and return its header and content"""
-    # Load first fits file
-    hdulist = fits.open(fits_filepath)
-    # Header
-    hdr = hdulist[0].header
-    if dimensions_normal:
-        hdu = hdulist[0].data
-    else:
-        hdu = hdulist[0].data[0,0]
-    hdulist.close()
-    return hdu, hdr
-
-
-'''
-def _evaluate_predictions_on_lofar_score(lofar_gt, coco_results, task):
-    """
-    Evaluate the results using our LOFAR appropriate score.
-
-        Evaluate self._predictions on the given tasks.
-        Fill self._results with the metrics of the tasks.
-
-        That is: for all proposed boxes that cover the middle pixel of the input image check which
-        sources from the component catalogue are inside. 
-        The predicted box can fail in three different ways:
-        1. No predicted box covers the middle pixel
-        2. The predicted box misses a number of components
-        3. The predicted box encompasses too many components
-        4. The prediction score for the predicted box is lower than other boxes that cover the middle
-            pixel
-        5. The prediction score is lower than x
-    
-    """
-    assert len(coco_results) > 0
-    assert task == ('bbox'), 'segmentation and keypoints are not used by LOFAR score'
-    print('Hier is coco_results:')
-    print(type(coco_results))
-    print(coco_results)
-    
-
-    # Get bounding boxes as numpy arrays
-    bboxes = [get_bounding_boxes(output) for output in outputs]
-
-    # 
-    
-    #coco_eval.evaluate()
-    #coco_eval.accumulate()
-    #coco_eval.summarize()
-
-    return coco_eval
-  '''

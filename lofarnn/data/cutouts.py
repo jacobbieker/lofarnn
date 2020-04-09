@@ -54,15 +54,25 @@ def make_bounding_box(source_location):
 
     return xmin, ymin, xmax, ymax, source_location[4], source_location[5]
 
-def augment_image_and_bboxes(image, cutouts, angle):
+def augment_image_and_bboxes(image, cutouts, proposal_boxes, angle):
     bounding_boxes = []
+    prop_boxes = []
     for cutout in cutouts:
         bounding_boxes.append((cutout[1], cutout[0], cutout[3], cutout[2]))
+    for pbox in proposal_boxes:
+        prop_boxes.append((pbox[1], pbox[0], pbox[3], pbox[2]))
     #bounding_boxes = np.asarray(bounding_boxes)
     image_aug, bbox_aug = iaa.Affine(rotate=angle)(image=image, bounding_boxes=bounding_boxes)
+    image_aug, prop_aug = iaa.Affine(rotate=angle)(image=image, bounding_boxes=prop_boxes)
     for index, bbox in enumerate(bbox_aug):
         cutouts[index][0] = bbox[0]
         cutouts[index][1] = bbox[1]
         cutouts[index][2] = bbox[2]
         cutouts[index][3] = bbox[3]
-    return image_aug, cutouts
+    # Convert proposal boxes as well
+    for index, bbox in enumerate(prop_aug):
+        proposal_boxes[index][0] = bbox[0]
+        proposal_boxes[index][1] = bbox[1]
+        proposal_boxes[index][2] = bbox[2]
+        proposal_boxes[index][3] = bbox[3]
+    return image_aug, cutouts, proposal_boxes
