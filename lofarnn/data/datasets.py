@@ -154,10 +154,9 @@ def make_proposal_boxes(wcs, shape, catalogue, gaussian=None):
     coords = skycoord_to_pixel(sky_coords, wcs, 0)
     for index, x in enumerate(coords[0]):
         try:
-            if 0 <= coords[index][1] < shape[0] and 0 <= coords[index][0] < shape[1]:
-                proposals.append(make_bounding_box(ra_array[index], dec_array[index], wcs=wcs, class_name="Proposal Box", gaussian=gaussian))
+            proposals.append(make_bounding_box(ra_array[index], dec_array[index], wcs=wcs, class_name="Proposal Box", gaussian=gaussian))
         except Exception as e:
-            print(f"Failed: {e}")
+            print(f"Failed Proposal: {e}")
     return proposals
 
 def make_bounding_box(ra, dec, wcs, class_name="Optical source", gaussian=None):
@@ -176,10 +175,10 @@ def make_bounding_box(ra, dec, wcs, class_name="Optical source", gaussian=None):
     box_center = skycoord_to_pixel(source_skycoord, wcs, 0)
     if gaussian is None:
         # Now create box, which will be accomplished by taking int to get xmin, ymin, and int + 1 for xmax, ymax
-        xmin = int(np.floor(box_center[0])) - 1
-        ymin = int(np.floor(box_center[1])) - 1
-        ymax = ymin + 2
-        xmax = xmin + 2
+        xmin = int(np.floor(box_center[0]))
+        ymin = int(np.floor(box_center[1]))
+        ymax = ymin + 1
+        xmax = xmin + 1
     else:
         xmin = int(np.floor(box_center[0])) - gaussian
         ymin = int(np.floor(box_center[1])) - gaussian
@@ -232,13 +231,13 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             if source_size is None or source_size is False:
                 source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
             try:
-                lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=False)
+                lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=True)
             except:
                 if verbose:
                     print(f"Failed to make data cutout for source: {source['Source_Name']}")
                 continue
             try:
-                lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=False)
+                lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=True)
             except:
                 if verbose:
                     print(f"Failed to make rms cutout for source: {source['Source_Name']}")
@@ -279,8 +278,8 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             try:
                 assert source_bbox[1] >= 0
                 assert source_bbox[0] >= 0
-                assert source_bbox[3] < img_array.shape[0]
-                assert source_bbox[2] < img_array.shape[1]
+                assert source_bbox[2] < img_array.shape[0]
+                assert source_bbox[3] < img_array.shape[1]
             except:
                 print("Source not in bounds")
                 continue

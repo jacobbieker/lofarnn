@@ -15,10 +15,10 @@ if environment == "ALICE":
     pan_wise_location = "/home/s2153246/data/catalogues/pan_allwise.fits"
     multi_process = True
 else:
-    pan_wise_location = "/run/media/jacob/SSD_Backup/hetdex_ps1_allwise_photoz_v0.6.fits"
-    dr_two = "/run/media/jacob/SSD_Backup/mosaics/"
-    vac = '/run/media/jacob/SSD_Backup/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
-    cutout_directory = "/home/jacob/fixed_all/"
+    pan_wise_location = "/mnt/LargeSSD/hetdex_ps1_allwise_photoz_v0.6.fits"
+    dr_two = "/mnt/LargeSSD/mosaics/"
+    vac = '/mnt/LargeSSD/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
+    cutout_directory = "/mnt/LargeSSD/fixed_all_channels/"
     multi_process = True
 
 create_variable_source_dataset(cutout_directory=cutout_directory,
