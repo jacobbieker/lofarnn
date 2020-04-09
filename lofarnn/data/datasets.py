@@ -256,10 +256,11 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             else:
                 layers = ["iFApMag", "w1Mag"]
             # Get the catalog sources once, to speed things up
-            cutout_catalog = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
+            # cuts size in two to only get sources that fall within the cutout, instead of ones that go twice as large
+            cutout_catalog = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size/2,
                                                                  pan_wise_catalog, source)
             # Now determine if there are other sources in the area
-            other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size,
+            other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size/2,
                                                                         mosaic_cutouts, source)
 
             # Now make proposal boxes
@@ -278,8 +279,8 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             try:
                 assert source_bbox[1] >= 0
                 assert source_bbox[0] >= 0
-                assert source_bbox[2] < img_array.shape[0]
-                assert source_bbox[3] < img_array.shape[1]
+                assert source_bbox[3] < img_array.shape[0]
+                assert source_bbox[2] < img_array.shape[1]
             except:
                 print("Source not in bounds")
                 continue
