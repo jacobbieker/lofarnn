@@ -1,2 +1,0 @@
-_BASE_: "source_base_allchannel.yaml"
-OUTPUT_DIR: "/home/jacob/Development/lofarnn/reports/source_frcnn_multi_gaussian_all_channels_101/"

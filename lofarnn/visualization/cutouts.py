@@ -66,7 +66,7 @@ def plot_three_channel_debug(image_stack, cutouts, scale_size, source_loc, save_
     cax_00 = axs[0,0].imshow(image_stack)
     rect = patches.Rectangle((float(cutouts[0][0]), float(cutouts[0][1])),
                              float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=2, edgecolor='r', facecolor='none')
+                             linewidth=1, edgecolor='r', facecolor='none')
     axs[0,0].add_patch(rect)
     rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])),
                              float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),

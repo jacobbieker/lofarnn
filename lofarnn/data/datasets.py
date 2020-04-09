@@ -175,8 +175,8 @@ def make_bounding_box(ra, dec, wcs, class_name="Optical source", gaussian=None):
     box_center = skycoord_to_pixel(source_skycoord, wcs, 0)
     if gaussian is None:
         # Now create box, which will be accomplished by taking int to get xmin, ymin, and int + 1 for xmax, ymax
-        xmin = int(np.floor(box_center[0]))
-        ymin = int(np.floor(box_center[1]))
+        xmin = int(np.floor(box_center[0])) - 0.5
+        ymin = int(np.floor(box_center[1])) - 0.5
         ymax = ymin + 1
         xmax = xmin + 1
     else:
@@ -231,13 +231,13 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             if source_size is None or source_size is False:
                 source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
             try:
-                lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=True)
+                lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=verbose)
             except:
                 if verbose:
                     print(f"Failed to make data cutout for source: {source['Source_Name']}")
                 continue
             try:
-                lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=True)
+                lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=verbose)
             except:
                 if verbose:
                     print(f"Failed to make rms cutout for source: {source['Source_Name']}")
