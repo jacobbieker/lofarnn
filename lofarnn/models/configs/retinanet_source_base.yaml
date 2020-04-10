@@ -11,6 +11,8 @@ MODEL:
   # Determine mean of our GBR channels
   PIXEL_MEAN: [15.905, 2.394, 1.611]
   PIXEL_STD: [30.759, 13.674, 11.303]
+  RETINANET:
+    NUM_CLASSES: 1
   ANCHOR_GENERATOR:
     SIZES: !!python/object/apply:eval ["[[x, x * 2**(1.0/3), x * 2**(2.0/3) ] for x in [1, 4, 9, 12, 16, 25, 32, 36, 49, 64, 100, 128, 140]]"]
 SOLVER:
