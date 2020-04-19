@@ -73,7 +73,7 @@ cfg = get_cfg()
 print("Load configuration file")
 assert len(argv) > 1, "Insert path of configuration file when executing this script"
 cfg.merge_from_file(argv[1])
-EXPERIMENT_NAME= argv[2]
+EXPERIMENT_NAME= argv[2] + f'_size{cfg.INPUT.MIN_SIZE_TRAIN[0]}_prop{cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE}_depth{cfg.MODEL.RESNETS.DEPTH}_batchSize{cfg.SOLVER.IMS_PER_BATCH}_anchorSize{cfg.MODEL.ANCHOR_GENERATOR.SIZES}'
 DATASET_PATH= argv[3]
 cfg.OUTPUT_DIR = os.path.join("/home", "jacob", "Development", "lofarnn", "reports", EXPERIMENT_NAME)
 print(f"Experiment: {EXPERIMENT_NAME}")
