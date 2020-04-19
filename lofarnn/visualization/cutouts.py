@@ -62,23 +62,14 @@ def plot_three_channel_debug(image_stack, cutouts, scale_size, source_loc, save_
     """
     # Plot
     fig, axs = plt.subplots(2,2)
+    image_stack = np.asarray(image_stack)
+    print(image_stack.shape)
+    image_stack = image_stack[:,:,:3] # Take first three
 
     cax_00 = axs[0,0].imshow(image_stack)
     rect = patches.Rectangle((float(cutouts[0][0]), float(cutouts[0][1])),
                              float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
                              linewidth=1, edgecolor='r', facecolor='none')
-    axs[0,0].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='blue', facecolor='none')
-    axs[0,0].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][2]), float(cutouts[0][3])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='green', facecolor='none')
-    axs[0,0].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][3]), float(cutouts[0][2])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='black', facecolor='none')
     axs[0,0].add_patch(rect)
     axs[0,0].scatter(source_loc[1], source_loc[0], s=scale_size, edgecolor='black', facecolor=(1,1,1,0.15))
     axs[0,0].xaxis.set_major_formatter(plt.NullFormatter())  # kill xlabels
@@ -89,19 +80,7 @@ def plot_three_channel_debug(image_stack, cutouts, scale_size, source_loc, save_
     fig.colorbar(cax_01, ax=axs[0,1])
     rect = patches.Rectangle((float(cutouts[0][0]), float(cutouts[0][1])),
                              float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=2, edgecolor='r', facecolor='none')
-    axs[0,1].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='blue', facecolor='none')
-    axs[0,1].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][2]), float(cutouts[0][3])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='green', facecolor='none')
-    axs[0,1].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][3]), float(cutouts[0][2])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='black', facecolor='none')
+                             linewidth=1, edgecolor='r', facecolor='none')
     axs[0,1].add_patch(rect)
     axs[0,1].scatter(source_loc[1], source_loc[0], s=scale_size, edgecolor='black', facecolor=(1,1,1,0.15))
     axs[0,1].xaxis.set_major_formatter(plt.NullFormatter())
@@ -112,19 +91,7 @@ def plot_three_channel_debug(image_stack, cutouts, scale_size, source_loc, save_
     fig.colorbar(cax_10, ax=axs[1,0])
     rect = patches.Rectangle((float(cutouts[0][0]), float(cutouts[0][1])),
                              float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=2, edgecolor='r', facecolor='none')
-    axs[1,0].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='blue', facecolor='none')
-    axs[1,0].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][2]), float(cutouts[0][3])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='green', facecolor='none')
-    axs[1,0].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][3]), float(cutouts[0][2])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='black', facecolor='none')
+                             linewidth=1, edgecolor='r', facecolor='none')
     axs[1,0].add_patch(rect)
     axs[1,0].scatter(source_loc[1], source_loc[0], s=scale_size, edgecolor='black', facecolor=(1,1,1,0.15))
     axs[1,0].xaxis.set_major_formatter(plt.NullFormatter())
@@ -135,19 +102,7 @@ def plot_three_channel_debug(image_stack, cutouts, scale_size, source_loc, save_
     fig.colorbar(cax_11, ax=axs[1,1])
     rect = patches.Rectangle((float(cutouts[0][0]), float(cutouts[0][1])),
                              float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=2, edgecolor='r', facecolor='none')
-    axs[1,1].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][1]), float(cutouts[0][0])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='blue', facecolor='none')
-    axs[1,1].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][2]), float(cutouts[0][3])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='green', facecolor='none')
-    axs[1,1].add_patch(rect)
-    rect = patches.Rectangle((float(cutouts[0][3]), float(cutouts[0][2])),
-                             float(cutouts[0][2]) - float(cutouts[0][0]), float(cutouts[0][3]) - float(cutouts[0][1]),
-                             linewidth=1, edgecolor='black', facecolor='none')
+                             linewidth=1, edgecolor='r', facecolor='none')
     axs[1,1].add_patch(rect)
     axs[1,1].scatter(source_loc[1], source_loc[0], s=scale_size, edgecolor='black', facecolor=(1,1,1,0.15))
     axs[1,1].xaxis.set_major_formatter(plt.NullFormatter())

@@ -75,7 +75,7 @@ assert len(argv) > 1, "Insert path of configuration file when executing this scr
 cfg.merge_from_file(argv[1])
 EXPERIMENT_NAME= argv[2]
 DATASET_PATH= argv[3]
-cfg.OUTPUT_DIR = os.path.join("home", "jacob", "Development", "lofarnn", "reports", EXPERIMENT_NAME)
+cfg.OUTPUT_DIR = os.path.join("/home", "jacob", "Development", "lofarnn", "reports", EXPERIMENT_NAME)
 print(f"Experiment: {EXPERIMENT_NAME}")
 print(f"Output path: {cfg.OUTPUT_DIR}")
 print(f"Attempt to load training data from: {DATASET_PATH}")

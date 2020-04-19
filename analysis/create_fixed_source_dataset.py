@@ -21,6 +21,9 @@ else:
     cutout_directory = "/mnt/LargeSSD/fixed_all_channels/"
     multi_process = True
 
+create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=True,
+                    rotation=None, convert=True, all_channels=False, verbose=True, resize=200)
+'''
 create_variable_source_dataset(cutout_directory=cutout_directory,
                                pan_wise_location=pan_wise_location,
                                value_added_catalog_location=vac,
@@ -32,4 +35,6 @@ create_variable_source_dataset(cutout_directory=cutout_directory,
                                filter_lgz=False,
                                gaussian=False)
 # (0,15,30,45,60,75,90,105,120,135,150,165,180)
-create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=True, rotation=None, convert=True, all_channels=False, resize=200)
+create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=True, 
+                    rotation=None, convert=True, all_channels=False, verbose=True, resize=200)
+'''

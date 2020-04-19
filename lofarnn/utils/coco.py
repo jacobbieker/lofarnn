@@ -82,29 +82,31 @@ def make_single_coco_annotation_set(image_names, L, m,
         if convert:
             image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.png")
         else:
-            image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.npy")
+            if rotation is not None and rotation > 0:
+                image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.npy")
+            else:
+                image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".npy")
         image, cutouts, proposal_boxes = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
-        if verbose:
-            plot_three_channel_debug(image, cutouts, 1, cutouts[0][5],
-                                     save_path=os.path.join("./",
-                                                            image_name.stem + f".{m}.jpg"))
+        prev_shape = image.shape[0]
         if rotation is not None:
             if type(rotation) == tuple:
-                image, cutouts, proposal_boxes = augment_image_and_bboxes(image, cutouts=cutouts, proposal_boxes=proposal_boxes, angle=rotation[m])
+                image, cutouts, proposal_boxes = augment_image_and_bboxes(image,
+                                                                          cutouts=cutouts,
+                                                                          proposal_boxes=proposal_boxes,
+                                                                          angle=rotation[m],
+                                                                          new_size=resize)
             else:
-                image, cutouts, proposal_boxes = augment_image_and_bboxes(image, cutouts=cutouts, proposal_boxes= proposal_boxes,
-                                                          angle=np.random.uniform(-rotation, rotation))
+                image, cutouts, proposal_boxes = augment_image_and_bboxes(image,
+                                                                          cutouts=cutouts,
+                                                                          proposal_boxes=proposal_boxes,
+                                                                          angle=np.random.uniform(-rotation, rotation),
+                                                                          new_size=resize)
         else:
             # Need this to convert the bbox coordinates into the correct format
-            image, cutouts, proposal_boxes = augment_image_and_bboxes(image, cutouts=cutouts, proposal_boxes=proposal_boxes, angle=0)
-        prev_shape = image.shape[0]
-        if resize is not None:
-            # Resize the image and boxes
-            for index, box in enumerate(cutouts):
-                cutouts[index] = scale_box(image, box, resize)
-            for index, box in enumerate(proposal_boxes):
-                proposal_boxes[index] = scale_box(image, box, resize)
-            image = resize_array(image, resize)
+            image, cutouts, proposal_boxes = augment_image_and_bboxes(image, cutouts=cutouts,
+                                                                      proposal_boxes=proposal_boxes,
+                                                                      angle=0,
+                                                                      new_size=resize)
         width, height, depth = np.shape(image)
         if all_channels and depth != 10:
             continue
@@ -125,10 +127,6 @@ def make_single_coco_annotation_set(image_names, L, m,
             image.save(image_dest_filename)
         else:
             np.save(image_dest_filename, image)  # Save to the final destination
-        if verbose:
-            plot_three_channel_debug(image, cutouts, scale_size, cutouts[0][5],
-                                     save_path=os.path.join("./",
-                                                            image_name.stem + f".{m}.png"))
         if all_channels:
             rec_depth = 10
         else:
@@ -141,8 +139,8 @@ def make_single_coco_annotation_set(image_names, L, m,
         if not multiple_bboxes:
             cutouts = [cutouts[0]]  # Only take the first one, the main optical source
         for bbox in cutouts:
-            assert float(bbox[2]) > float(bbox[0])
-            assert float(bbox[3]) > float(bbox[1])
+            assert float(bbox[2]) >= float(bbox[0])
+            assert float(bbox[3]) >= float(bbox[1])
 
             if bbox[4] == "Other Optical Source":
                 category_id = 0
@@ -159,7 +157,7 @@ def make_single_coco_annotation_set(image_names, L, m,
             objs.append(obj)
             if precomputed_proposals:
                 obj["proposal_boxes"] = proposal_boxes
-                obj["proposal_objectness_logits"] = np.ones(len(proposal_boxes)) # TODO Not sure this is right
+                obj["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
                 obj["proposal_bbox_mode"] = BoxMode.XYXY_ABS
         record["annotations"] = objs
         L.append(record)
@@ -201,7 +199,8 @@ def create_coco_annotations(image_names,
         pool = Pool(processes=os.cpu_count())
         L = manager.list()
         [pool.apply_async(make_single_coco_annotation_set,
-                          args=[image_names, L, m, image_destination_dir, multiple_bboxes, resize, rotation, convert, all_channels, precomputed_proposals,
+                          args=[image_names, L, m, image_destination_dir, multiple_bboxes, resize, rotation, convert,
+                                all_channels, precomputed_proposals,
                                 verbose]) for m in range(num_copies)]
         pool.close()
         pool.join()
@@ -218,7 +217,8 @@ def create_coco_annotations(image_names,
 
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
     for m in range(num_copies):
-        make_single_coco_annotation_set(image_names, dataset_dicts, m, image_destination_dir, multiple_bboxes, resize, rotation, convert, all_channels, precomputed_proposals,
+        make_single_coco_annotation_set(image_names, dataset_dicts, m, image_destination_dir, multiple_bboxes, resize,
+                                        rotation, convert, all_channels, precomputed_proposals,
                                         verbose)
     # Write all image dictionaries to file as one json
     json_path = os.path.join(json_dir, json_name)
@@ -254,8 +254,8 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
     num_layers = 3
     if all_channels:
         num_layers = 10
-    #get_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
-    #exit()
+    # get_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
+    # exit()
 
     create_coco_annotations(data_split["train"],
                             json_dir=annotations_directory,

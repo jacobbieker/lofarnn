@@ -3,6 +3,9 @@ from skimage.transform import rotate
 from astropy.visualization import MinMaxInterval, SqrtStretch, ManualInterval, ImageNormalize
 import cv2
 import imgaug.augmenters as iaa
+import imgaug as ia
+from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+
 
 
 def convert_to_valid_color(image_color, clip=False, lower_clip=0.0, upper_clip=1.0, normalize=False, scaling=None,
@@ -54,25 +57,53 @@ def make_bounding_box(source_location):
 
     return xmin, ymin, xmax, ymax, source_location[4], source_location[5]
 
-def augment_image_and_bboxes(image, cutouts, proposal_boxes, angle):
+
+import matplotlib.pyplot as plt
+
+def augment_image_and_bboxes(image, cutouts, proposal_boxes, angle, new_size, verbose=False):
     bounding_boxes = []
     prop_boxes = []
     for cutout in cutouts:
-        bounding_boxes.append((cutout[1], cutout[0], cutout[3], cutout[2]))
+        bounding_boxes.append(BoundingBox(cutout[1]+0.5, cutout[0]+0.5, cutout[3]+0.5, cutout[2]+0.5))
     for pbox in proposal_boxes:
-        prop_boxes.append((pbox[1], pbox[0], pbox[3], pbox[2]))
-    #bounding_boxes = np.asarray(bounding_boxes)
-    image_aug, bbox_aug = iaa.Affine(rotate=angle)(image=image, bounding_boxes=bounding_boxes)
-    image_aug, prop_aug = iaa.Affine(rotate=angle)(image=image, bounding_boxes=prop_boxes)
-    for index, bbox in enumerate(bbox_aug):
-        cutouts[index][0] = bbox[0]
-        cutouts[index][1] = bbox[1]
-        cutouts[index][2] = bbox[2]
-        cutouts[index][3] = bbox[3]
+        prop_boxes.append(BoundingBox(pbox[1]+0.5, pbox[0]+0.5, pbox[3]+0.5, pbox[2]+0.5))
+    bbs = BoundingBoxesOnImage(bounding_boxes, shape=image.shape)
+    pbbs = BoundingBoxesOnImage(prop_boxes, shape=image.shape)
+    # Rescale image and bounding boxes
+    if type(new_size) == int or type(new_size):
+        image_rescaled = ia.imresize_single_image(image, (new_size, new_size))
+    else:
+        image_rescaled = ia.imresize_single_image(image, (image.shape[0], image.shape[1]))
+    bbs_rescaled = bbs.on(image_rescaled)
+    pbbs_rescaled = pbbs.on(image_rescaled)
+    _, bbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=bbs_rescaled)
+    image_rescaled, pbbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=pbbs_rescaled)
+
+    # Draw image before/after rescaling and with rescaled bounding boxes
+    if verbose:
+        print(bbs)
+        print(bbs_rescaled)
+        print("Coordinates in i band non zero before")
+        print(np.transpose(np.nonzero(image[:,:,1])))
+        print("Coordinates in i band non zero After")
+        print(np.transpose(np.nonzero(image_rescaled[:,:,1])))
+        image_bbs = bbs.draw_on_image(image, size=1, alpha=1)
+        image_rescaled_bbs = bbs_rescaled.draw_on_image(image_rescaled, size=1, alpha=1)
+        plt.imshow(image_bbs)
+        plt.title("Before")
+        plt.show()
+        plt.imshow(image_rescaled_bbs)
+        plt.title("After")
+        plt.show()
+    for index, bbox in enumerate(bbs_rescaled):
+        cutouts[index][0] = bbox.x1
+        cutouts[index][1] = bbox.y1
+        cutouts[index][2] = bbox.x2
+        cutouts[index][3] = bbox.y2
     # Convert proposal boxes as well
-    for index, bbox in enumerate(prop_aug):
-        proposal_boxes[index][0] = bbox[0]
-        proposal_boxes[index][1] = bbox[1]
-        proposal_boxes[index][2] = bbox[2]
-        proposal_boxes[index][3] = bbox[3]
-    return image_aug, cutouts, proposal_boxes
+    for index, bbox in enumerate(pbbs_rescaled):
+        proposal_boxes[index][0] = bbox.x1
+        proposal_boxes[index][1] = bbox.y1
+        proposal_boxes[index][2] = bbox.x2
+        proposal_boxes[index][3] = bbox.y2
+    return image_rescaled, cutouts, proposal_boxes

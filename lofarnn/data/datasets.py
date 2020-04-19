@@ -188,6 +188,32 @@ def make_bounding_box(ra, dec, wcs, class_name="Optical source", gaussian=None):
     return xmin, ymin, xmax, ymax, class_name, box_center
 
 
+def make_segmentation_map(ra, dec, wcs, shape, class_name="Optical source", gaussian=None, verbose=False):
+    """
+    Creates segmentation map for the source
+    :param ra:
+    :param dec:
+    :param wcs:
+    :param shape:
+    :param class_name:
+    :param gaussian:
+    :param verbose:
+    :return:
+    """
+    source_skycoord = SkyCoord(ra, dec, unit='deg')
+    coords = skycoord_to_pixel(source_skycoord, wcs, 0)
+    layer = np.zeros(shape=shape)
+    for index, x in enumerate(coords[0]):
+        try:
+             layer[int(np.floor(coords[0][index]))][int(np.floor(coords[1][index]))] = 1
+        except Exception as e:
+            if verbose:
+                print(f"Failed: {e}")
+    if gaussian is not None:
+        layer = gaussian_filter(layer, sigma=gaussian)
+        layer = layer > 0
+    return layer
+
 def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,
                    save_cutout_directory, gaussian=None, all_channels=False, source_size=None, verbose=False):
     """
