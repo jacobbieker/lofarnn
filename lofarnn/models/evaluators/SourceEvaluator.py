@@ -8,7 +8,6 @@ import logging
 import numpy as np
 import os
 import pickle
-from cv2 import imread
 from collections import OrderedDict
 import pycocotools.mask as mask_util
 import torch
@@ -16,52 +15,23 @@ from fvcore.common.file_io import PathManager
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from tabulate import tabulate
-from glob import glob
-from shutil import copyfile, copyfileobj
-import matplotlib.pyplot as plt
-
-import sys
-from astropy.wcs import WCS
-from astropy.coordinates import SkyCoord
-from astropy.wcs.utils import skycoord_to_pixel, pixel_to_skycoord
-from astropy.io import fits
-import pandas as pd
-from collections import Counter
-from operator import itemgetter
-
 
 import detectron2.utils.comm as comm
 from detectron2.data import MetadataCatalog
 from detectron2.data.datasets.coco import convert_to_coco_json
 from detectron2.structures import Boxes, BoxMode, pairwise_iou
 from detectron2.utils.logger import create_small_table
-from detectron2.utils.visualizer import Visualizer
-from detectron2.utils.visualizer import ColorMode
 
 from detectron2.evaluation.evaluator import DatasetEvaluator
 
 
 class SourceEvaluator(DatasetEvaluator):
     """
-    Evaluate object proposal, instance detection,
-    outputs using LOFAR relevant metrics.
-    The relevant metric measures whether the proposed boxes cover the actual source location, and how far
-    those box centers are from the ground truth bounding box, which was originally determined by LOFAR Galaxy Zoo
-    That is: for all proposed boxes that cover the middle pixel of the input image check which
-    sources from the component catalogue are inside.
-    The predicted box can fail in three different ways:
-    1. No predicted box covers the middle pixel
-    2. The predicted box misses a number of components
-    3. The predicted box encompasses too many components
-    4. The prediction score for the predicted box is lower than other boxes that cover the middle
-        pixel
-    5. The prediction score is lower than x
-
-
+    Evaluate object proposal, instance detection/segmentation, keypoint detection
+    outputs using COCO's metrics and APIs. But only do the bboxes with the one with the single highest confidence
     """
 
-    def __init__(self, dataset_name, cfg,distributed, imsize,
-                 overwrite=False, gt_data=None ):
+    def __init__(self, dataset_name, cfg, distributed, output_dir=None):
         """
         Args:
             dataset_name (str): name of the dataset to be evaluated.
@@ -70,42 +40,60 @@ class SourceEvaluator(DatasetEvaluator):
                     "json_file": the path to the COCO format annotation
 
                 Or it must be in detectron2's standard dataset format
+                so it can be converted to COCO format automatically.
             cfg (CfgNode): config instance
-            distributed (True): if True, will collect results from all ranks for evaluation.
+            distributed (True): if True, will collect results from all ranks and run evaluation
+                in the main process.
                 Otherwise, will evaluate the results in the current process.
-            output_dir (str): optional, an output directory to dump results.
+            output_dir (str): optional, an output directory to dump all
+                results predicted on the dataset. The dump contains two files:
+
+                1. "instance_predictions.pth" a file in torch serialization
+                   format that contains all the raw original predictions.
+                2. "coco_instances_results.json" a json file in COCO's result
+                   format.
         """
-        # tasks are just ("bbox") in our case as we do not do segmentation or
-        # keypoint prediction
-        self._tasks = ("bbox",)
+        self._tasks = self._tasks_from_config(cfg)
         self._distributed = distributed
-        self._output_dir = cfg.OUTPUT_DIR
-        self._dataset_name = dataset_name
-        self._gt_data = np.array(gt_data)
-        self._overwrite = overwrite
-        self._imsize = imsize
+        self._output_dir = output_dir
 
         self._cpu_device = torch.device("cpu")
         self._logger = logging.getLogger(__name__)
 
         self._metadata = MetadataCatalog.get(dataset_name)
         if not hasattr(self._metadata, "json_file"):
-            self._logger.warning(f"json_file was not found in MetaDataCatalog for '{dataset_name}'")
+            self._logger.warning(
+                f"json_file was not found in MetaDataCatalog for '{dataset_name}'."
+                " Trying to convert it to COCO format ..."
+            )
 
-            cache_path = convert_to_coco_json(dataset_name, self._output_dir)
+            cache_path = os.path.join(output_dir, f"{dataset_name}_coco_format.json")
             self._metadata.json_file = cache_path
+            convert_to_coco_json(dataset_name, cache_path)
 
-        #json_file = PathManager.get_local_path(self._metadata.json_file)
-        #with contextlib.redirect_stdout(io.StringIO()):
-        #    self._coco_api = COCO(json_file)
+        json_file = PathManager.get_local_path(self._metadata.json_file)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self._coco_api = COCO(json_file)
 
+        self._kpt_oks_sigmas = cfg.TEST.KEYPOINT_OKS_SIGMAS
         # Test set json files do not contain annotations (evaluation must be
         # performed using the COCO evaluation server).
-        #self._do_evaluation = "annotations" in self._coco_api.dataset
+        self._do_evaluation = "annotations" in self._coco_api.dataset
 
     def reset(self):
         self._predictions = []
-        self._flattened_predictions = []
+
+    def _tasks_from_config(self, cfg):
+        """
+        Returns:
+            tuple[str]: tasks that can be evaluated under the given configuration.
+        """
+        tasks = ("bbox",)
+        if cfg.MODEL.MASK_ON:
+            tasks = tasks + ("segm",)
+        if cfg.MODEL.KEYPOINT_ON:
+            tasks = tasks + ("keypoints",)
+        return tasks
 
     def process(self, inputs, outputs):
         """
@@ -117,86 +105,96 @@ class SourceEvaluator(DatasetEvaluator):
                 "instances" that contains :class:`Instances`.
         """
         for input, output in zip(inputs, outputs):
-            prediction = {"image_id": input["image_id"], "file_name":input["file_name"]}
+            prediction = {"image_id": input["image_id"]}
 
             # TODO this is ugly
             if "instances" in output:
                 instances = output["instances"].to(self._cpu_device)
-                prediction["instances"] = instances
+                prediction["instances"] = instances_to_coco_json(instances, input["image_id"])
+            if "proposals" in output:
+                prediction["proposals"] = output["proposals"].to(self._cpu_device)
             self._predictions.append(prediction)
-            #self._inputs.append(input)
 
     def evaluate(self):
-        # for parallel execution
         if self._distributed:
             comm.synchronize()
-            self._predictions = comm.gather(self._predictions, dst=0)
-            #self._predictions = list(itertools.chain(*self._predictions))
+            predictions = comm.gather(self._predictions, dst=0)
+            predictions = list(itertools.chain(*predictions))
 
             if not comm.is_main_process():
                 return {}
+        else:
+            predictions = self._predictions
 
-        if len(self._predictions) == 0:
-            self._logger.warning("[SourceEvaluator] Did not receive valid predictions.")
+        if len(predictions) == 0:
+            self._logger.warning("[COCOEvaluator] Did not receive valid predictions.")
             return {}
 
         if self._output_dir:
             PathManager.mkdirs(self._output_dir)
             file_path = os.path.join(self._output_dir, "instances_predictions.pth")
             with PathManager.open(file_path, "wb") as f:
-                torch.save(self._predictions, f)
-
-        source_fail = \
-            _evaluate_predictions_on_source_score(self._dataset_name, self._predictions, self._output_dir,
-                                                 summary_only=True,
-                                                 metadata=self._metadata)
+                torch.save(predictions, f)
 
         self._results = OrderedDict()
-        self._results["bbox"] = {"assoc_single_fail_fraction": source_fail}
+        if "proposals" in predictions[0]:
+            self._eval_box_proposals(predictions)
+        if "instances" in predictions[0]:
+            self._eval_predictions(set(self._tasks), predictions)
         # Copy so the caller can do whatever with results
         return copy.deepcopy(self._results)
 
-    def _eval_predictions(self, tasks):
+    def _eval_predictions(self, tasks, predictions):
         """
-        Evaluate self._predictions on the given tasks.
+        Evaluate predictions on the given tasks.
         Fill self._results with the metrics of the tasks.
-
-        The predicted box can fail in if it does not cover the source location
-
         """
         self._logger.info("Preparing results for COCO format ...")
-        self._flattened_predictions = list(itertools.chain(*[x["instances"] for x in self._predictions]))
+        coco_results = list(itertools.chain(*[x["instances"] for x in predictions]))
+
+        # unmap the category ids for COCO
+        if hasattr(self._metadata, "thing_dataset_id_to_contiguous_id"):
+            reverse_id_mapping = {
+                v: k for k, v in self._metadata.thing_dataset_id_to_contiguous_id.items()
+            }
+            for result in coco_results:
+                category_id = result["category_id"]
+                assert (
+                        category_id in reverse_id_mapping
+                ), "A prediction has category_id={}, which is not available in the dataset.".format(
+                    category_id
+                )
+                result["category_id"] = reverse_id_mapping[category_id]
 
         if self._output_dir:
             file_path = os.path.join(self._output_dir, "coco_instances_results.json")
             self._logger.info("Saving results to {}".format(file_path))
             with PathManager.open(file_path, "w") as f:
-                f.write(json.dumps(self._flattened_predictions))
+                f.write(json.dumps(coco_results))
                 f.flush()
 
-        self._logger.info("Evaluating predictions with LoTSS relevant metric...")
+        if not self._do_evaluation:
+            self._logger.info("Annotations are not available for evaluation.")
+            return
 
-
-        # tasks are just ("bbox") in our case as we do not do segmentation or
-        # keypoint prediction
+        self._logger.info("Evaluating predictions ...")
         for task in sorted(tasks):
-            print("Evaluating task:", task)
             coco_eval = (
-                _evaluate_predictions_on_source_score(lofar_gt,
-                                                     self._flattened_predictions, task
-                                                     )
-                if len(self._flattened_predictions) > 0
+                _evaluate_predictions_on_coco(
+                    self._coco_api, coco_results, task, kpt_oks_sigmas=self._kpt_oks_sigmas
+                )
+                if len(coco_results) > 0
                 else None  # cocoapi does not handle empty results very well
             )
-            # Format the data I guess?
-            res = self._derive_flattened_predictions(
+
+            res = self._derive_coco_results(
                 coco_eval, task, class_names=self._metadata.get("thing_classes")
             )
             self._results[task] = res
 
-    def _eval_box_proposals(self):
+    def _eval_box_proposals(self, predictions):
         """
-        Evaluate the box proposals in self._predictions.
+        Evaluate the box proposals in predictions.
         Fill self._results with the metrics for "box_proposals" task.
         """
         if self._output_dir:
@@ -204,7 +202,7 @@ class SourceEvaluator(DatasetEvaluator):
             # Predicted box_proposals are in XYXY_ABS mode.
             bbox_mode = BoxMode.XYXY_ABS.value
             ids, boxes, objectness_logits = [], [], []
-            for prediction in self._predictions:
+            for prediction in predictions:
                 ids.append(prediction["image_id"])
                 boxes.append(prediction["proposals"].proposal_boxes.tensor.numpy())
                 objectness_logits.append(prediction["proposals"].objectness_logits.numpy())
@@ -227,15 +225,13 @@ class SourceEvaluator(DatasetEvaluator):
         areas = {"all": "", "small": "s", "medium": "m", "large": "l"}
         for limit in [100, 1000]:
             for area, suffix in areas.items():
-                stats = _evaluate_box_proposals(
-                    self._predictions, self._coco_api, area=area, limit=limit
-                )
+                stats = _evaluate_box_proposals(predictions, self._coco_api, area=area, limit=limit)
                 key = "AR{}@{:d}".format(suffix, limit)
                 res[key] = float(stats["ar"].item() * 100)
         self._logger.info("Proposal metrics: \n" + create_small_table(res))
         self._results["box_proposals"] = res
 
-    def _derive_flattened_predictions(self, coco_eval, iou_type, class_names=None):
+    def _derive_coco_results(self, coco_eval, iou_type, class_names=None):
         """
         Derive the desired score numbers from summarized COCOeval.
 
@@ -256,20 +252,25 @@ class SourceEvaluator(DatasetEvaluator):
         }[iou_type]
 
         if coco_eval is None:
-            self._logger.warn("No predictions from the model! Set scores to -1")
-            return {metric: -1 for metric in metrics}
+            self._logger.warn("No predictions from the model!")
+            return {metric: float("nan") for metric in metrics}
 
         # the standard metrics
-        results = {metric: float(coco_eval.stats[idx] * 100) for idx, metric in enumerate(metrics)}
+        results = {
+            metric: float(coco_eval.stats[idx] * 100 if coco_eval.stats[idx] >= 0 else "nan")
+            for idx, metric in enumerate(metrics)
+        }
         self._logger.info(
             "Evaluation results for {}: \n".format(iou_type) + create_small_table(results)
         )
+        if not np.isfinite(sum(results.values())):
+            self._logger.info("Note that some metrics cannot be computed.")
 
         if class_names is None or len(class_names) <= 1:
             return results
         # Compute per-category AP
         # from https://github.com/facebookresearch/Detectron/blob/a6a835f5b8208c45d0dce217ce9bbda915f44df7/detectron/datasets/json_dataset_evaluator.py#L222-L252 # noqa
-        precisions = coco_eval.eval["precision"]
+        precisions = coco_eval.eval["recall"]
         # precision has dims (iou, recall, cls, area range, max dets)
         assert len(class_names) == precisions.shape[2]
 
@@ -297,115 +298,6 @@ class SourceEvaluator(DatasetEvaluator):
 
         results.update({"AP-" + name: ap for name, ap in results_per_category})
         return results
-
-
-def get_bounding_boxes(output):
-    """Return bounding boxes inside inference output as numpy array
-    """
-    assert "instances" in output
-    instances = output["instances"].to(torch.device("cpu"))
-
-
-    return instances.get_fields()['pred_boxes'].tensor.numpy()
-
-
-def is_within(x,y,xmin,ymin,xmax,ymax):
-    """Return true if x, y lies within xmin,ymin,xmax,ymax.
-    False otherwise.
-    """
-    if xmin <= x <= xmax and ymin <= y <= ymax:
-        return True
-    else:
-        return False
-
-def area(bbox):
-    """Return area."""
-    xmin,ymin,xmax,ymax = bbox
-    width = xmax-xmin
-    height = ymax-ymin
-    area = width*height
-    if area < 0:
-        return None
-    return area
-
-
-def intersect_over_union(bbox1, bbox2):
-    """Return intersection over union or IoU."""
-    xmin1,ymin1,xmax1,ymax1 = bbox1
-    xmin2,ymin2,xmax2,ymax2 = bbox2
-
-    intersection_area = area([max(xmin1,xmin2),
-                              max(ymin1,ymin2),
-                              min(xmax1,xmax2),
-                              min(ymax1,ymax2)])
-    if intersection_area is None:
-        return 0
-
-    union_area = area(bbox1)+area(bbox1)-intersection_area
-    assert intersection_area <= union_area
-    return intersection_area / union_area
-
-
-def _evaluate_predictions_on_source_score(dataset_name, predictions,
-                                         save_appendix='',
-                                         overwrite=True, summary_only=False,
-                                         ):
-    """
-    Evaluate the results using our LOFAR Source Finding appropriate score.
-
-        Evaluate self._predictions on the given tasks.
-        Fill self._results with the metrics of the tasks.
-
-        That is: for all proposed boxes, see the difference between the center of the box and the ground truth box.
-        The predicted box can fail in three different ways:
-        4. The prediction score for the predicted box is lower than other boxes
-        5. The prediction score is lower than x
-
-    """
-    debug=True
-
-    ###################### ground truth
-
-    if debug:
-        print("source_names", "val_fits_path")
-
-    # Get pixel locations of ground truth components
-    #print('len valsourcenames,fitpaths',len(source_names),  len(val_fits_paths))
-
-    ###################### prediction
-    # Get bounding boxes per image as numpy arrays
-    pred_bboxes_scores = [(image_dict['instances'].get_fields()['pred_boxes'].tensor.numpy(),
-                           image_dict['instances'].get_fields()['scores'].numpy())
-                          for image_dict in predictions]
-    if debug:
-        print("pred_bboxes_scores")
-        print(pred_bboxes_scores[0])
-
-    # Get the highest predicted bbox to check if it overlaps the source component
-
-    # Take only the highest scoring bbox from the list
-    pred_central_bboxes_scores = [sorted(bboxes_scores, key=itemgetter(1), reverse=True)[0]
-                                  if len(bboxes_scores) > 0 else [[-1,-1,-1,-1],0] for bboxes_scores in pred_bboxes_scores]
-
-    if debug:
-        print("pred_bboxes_scores after filtering out the focussed pixel")
-    #return pred_central_bboxes_scores
-    # Return IoU with ground truth
-    if not summary_only:
-        central_bboxes = _get_gt_bboxes(lofar_gt, focus_locs, close_comp_locs,
-                                        save_appendix=save_appendix, overwrite=overwrite)
-
-        iou_pred_central_bboxes = [intersect_over_union(bbox,bbox_score[0])
-                                   for bbox, bbox_score in zip(central_bboxes, pred_central_bboxes_scores)]
-        print(f'Mean IoU of predicted box for central source is {np.mean(iou_pred_central_bboxes):.2f}'
-              f' with a std. dev. of {np.std(iou_pred_central_bboxes):.2f}')
-
-    return includes_associated_fail_fraction, includes_unassociated_fail_fraction
-
-def get_lofar_dicts(annotation_filepath):
-    with open(annotation_filepath, "rb") as f:
-        dataset_dicts = pickle.load(f)
-    return dataset_dicts
 
 
 def instances_to_coco_json(instances, img_id):
@@ -512,6 +404,12 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
         # TODO maybe remove this and make it explicit in the documentation
         inds = predictions.objectness_logits.sort(descending=True)[1]
         predictions = predictions[inds]
+        # Only take one for now, the highest one used
+        # TODO Change if used for multiple sources
+        print(predictions)
+        predictions = predictions[0]
+        print("After cull")
+        print(predictions)
 
         ann_ids = coco_api.getAnnIds(imgIds=prediction_dict["image_id"])
         anno = coco_api.loadAnns(ann_ids)
@@ -560,7 +458,9 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
 
         # append recorded iou coverage level
         gt_overlaps.append(_gt_overlaps)
-    gt_overlaps = torch.cat(gt_overlaps, dim=0)
+    gt_overlaps = (
+        torch.cat(gt_overlaps, dim=0) if len(gt_overlaps) else torch.zeros(0, dtype=torch.float32)
+    )
     gt_overlaps, _ = torch.sort(gt_overlaps)
 
     if thresholds is None:
@@ -579,3 +479,40 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
         "gt_overlaps": gt_overlaps,
         "num_pos": num_pos,
     }
+
+
+def _evaluate_predictions_on_coco(coco_gt, coco_results, iou_type, kpt_oks_sigmas=None):
+    """
+    Evaluate the coco results using COCOEval API.
+    """
+    assert len(coco_results) > 0
+
+    if iou_type == "segm":
+        coco_results = copy.deepcopy(coco_results)
+        # When evaluating mask AP, if the results contain bbox, cocoapi will
+        # use the box area as the area of the instance, instead of the mask area.
+        # This leads to a different definition of small/medium/large.
+        # We remove the bbox field to let mask AP use mask area.
+        for c in coco_results:
+            c.pop("bbox", None)
+
+    coco_dt = coco_gt.loadRes(coco_results)
+    coco_eval = COCOeval(coco_gt, coco_dt, iou_type)
+    # Use the COCO default keypoint OKS sigmas unless overrides are specified
+    if kpt_oks_sigmas:
+        coco_eval.params.kpt_oks_sigmas = np.array(kpt_oks_sigmas)
+
+    if iou_type == "keypoints":
+        num_keypoints = len(coco_results[0]["keypoints"]) // 3
+        assert len(coco_eval.params.kpt_oks_sigmas) == num_keypoints, (
+            "[COCOEvaluator] The length of cfg.TEST.KEYPOINT_OKS_SIGMAS (default: 17) "
+            "must be equal to the number of keypoints. However the prediction has {} "
+            "keypoints! For more information please refer to "
+            "http://cocodataset.org/#keypoints-eval.".format(num_keypoints)
+        )
+
+    coco_eval.evaluate()
+    coco_eval.accumulate()
+    coco_eval.summarize()
+
+    return coco_eval
