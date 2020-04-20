@@ -105,7 +105,7 @@ trainer.train()
 print('Done training')
 
 cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.25   # set the testing threshold for this model
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.1   # set the testing threshold for this model
 predictor = DefaultPredictor(cfg)
 import numpy as np
 import random
@@ -127,12 +127,12 @@ print("Evaluate performance for validation set")
 
 # returns a torch DataLoader, that loads the given detection dataset,
 # with test-time transformation and batching.
-val_loader = build_detection_test_loader(cfg, f"val")
+val_loader = build_detection_test_loader(cfg, f"{EXPERIMENT_NAME}_val")
 
-my_dataset = get_lofar_dicts(os.path.join(DATASET_PATH,f"VIA_json_val.pkl"))
+my_dataset = get_lofar_dicts(os.path.join(DATASET_PATH,f"json_val.pkl"))
 
 imsize = cfg.INPUT.MAX_SIZE_TRAIN
-evaluator = SourceEvaluator(f"val", cfg, False)
+evaluator = SourceEvaluator(f"{EXPERIMENT_NAME}_val", cfg, False)
 
 # Val_loader produces inputs that can enter the model for inference,
 # the results of which can be evaluated by the evaluator
