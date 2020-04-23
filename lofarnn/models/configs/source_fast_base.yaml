@@ -1,0 +1,33 @@
+_BASE_: "base/Base-RCNN-FPN.yaml"
+INPUT:
+  MIN_SIZE_TRAIN: (200,)
+  MIN_SIZE_TEST: 200
+  MAX_SIZE_TRAIN: 200
+  MAX_SIZE_TEST: 200
+  FORMAT: "RGB"
+MODEL:
+  #WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
+  MASK_ON: False
+  LOAD_PROPOSALS: True
+  PIXEL_MEAN: [15.905, 2.394, 1.611]
+  PIXEL_STD: [30.759, 13.674, 11.303]
+  ROI_HEADS:
+    NUM_CLASSES: 1  # only has one class (Optical Source)
+  RESNETS:
+    DEPTH: 50
+  PROPOSAL_GENERATOR:
+    NAME: "PrecomputedProposals"
+  ANCHOR_GENERATOR:
+    ASPECT_RATIOS: [[1.0,]]
+    SIZES: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 26, 32, 48, 64, 80, 96, 112, 128, 256, 512]]
+#DATASETS:
+#  PROPOSAL_FILES_TRAIN: ("detectron2://COCO-Detection/rpn_R_50_FPN_1x/137258492/coco_2017_train_box_proposals_21bc3a.pkl", )
+#  PROPOSAL_FILES_TEST: ("detectron2://COCO-Detection/rpn_R_50_FPN_1x/137258492/coco_2017_val_box_proposals_ee0dad.pkl", )
+DATALOADER:
+  # proposals are part of the dataset_dicts, and take a lot of RAM
+  NUM_WORKERS: 2
+SOLVER:
+  BASE_LR: 0.0001
+  IMS_PER_BATCH: 2
+  STEPS: (210000, 250000)
+  MAX_ITER: 150000

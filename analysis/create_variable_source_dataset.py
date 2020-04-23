@@ -20,7 +20,7 @@ else:
     vac = '/home/jacob/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
     cutout_directory = "/mnt/HDD/variable_test/"
     multi_process = True
-create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=False, rotation=None, convert=True, all_channels=False, resize=200)
+create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=False, rotation=None, convert=True, all_channels=False, precomputed_proposals=True, resize=200)
 exit()
 create_variable_source_dataset(cutout_directory=cutout_directory,
                                pan_wise_location=pan_wise_location,

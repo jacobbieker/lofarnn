@@ -156,10 +156,10 @@ def make_single_coco_annotation_set(image_names, L, m,
                 "iscrowd": 0
             }
             objs.append(obj)
-            if precomputed_proposals:
-                obj["proposal_boxes"] = proposal_boxes
-                obj["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
-                obj["proposal_bbox_mode"] = BoxMode.XYXY_ABS
+        if precomputed_proposals:
+            record["proposal_boxes"] = proposal_boxes
+            record["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
+            record["proposal_bbox_mode"] = BoxMode.XYXY_ABS
         record["annotations"] = objs
         L.append(record)
 
@@ -262,26 +262,6 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
 
     # Gather data from all_directory
     data_split = split_data(all_directory, split=split_fraction)
-
-    image_paths = Path(train_directory).rglob("*.png")
-    #print(len(image_paths))
-    num_layers = 3
-    if all_channels:
-        num_layers = 10
-    get_all_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
-    image_paths = Path(test_directory).rglob("*.png")
-    #print(len(image_paths))
-    num_layers = 3
-    if all_channels:
-        num_layers = 10
-    get_all_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
-    image_paths = Path(val_directory).rglob("*.png")
-    #print(len(image_paths))
-    num_layers = 3
-    if all_channels:
-        num_layers = 10
-    get_all_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
-    exit()
     create_coco_annotations(data_split["train"],
                             json_dir=annotations_directory,
                             image_destination_dir=train_directory,

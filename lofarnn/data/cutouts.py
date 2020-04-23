@@ -101,9 +101,8 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, angle, new_size, ve
         cutouts[index][2] = bbox.x2
         cutouts[index][3] = bbox.y2
     # Convert proposal boxes as well
+    pbs = []
     for index, bbox in enumerate(pbbs_rescaled):
-        proposal_boxes[index][0] = bbox.x1
-        proposal_boxes[index][1] = bbox.y1
-        proposal_boxes[index][2] = bbox.x2
-        proposal_boxes[index][3] = bbox.y2
-    return image_rescaled, cutouts, proposal_boxes
+        pbs.append(np.asarray((bbox.x1, bbox.y1, bbox.x2, bbox.y2)))
+    pbs = np.asarray(pbs)
+    return image_rescaled, cutouts, pbs
