@@ -355,9 +355,14 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     """
 
     l_objects = get_lotss_objects(value_added_catalog_location, False)
+    print(len(l_objects))
     if filter_lgz:
         l_objects = l_objects[~np.isnan(l_objects['LGZ_Size'])]
+        print(len(l_objects))
     l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]
+    print(len(l_objects))
+    l_objects = l_objects[~np.isnan(l_objects["ID_dec"])]
+    print(len(l_objects))
     mosaic_names = set(l_objects["Mosaic_ID"])
 
     # Go through each object, creating the cutout and saving to a directory

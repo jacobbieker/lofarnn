@@ -10,7 +10,7 @@ from detectron2.structures import BoxMode
 
 from lofarnn.data.cutouts import convert_to_valid_color, augment_image_and_bboxes
 from lofarnn.visualization.cutouts import plot_three_channel_debug
-
+from imgaug.augmentables.bbs import BoundingBox
 from multiprocessing import Pool, Process, Manager, Queue
 
 
@@ -73,7 +73,7 @@ def make_single_coco_annotation_set(image_names, L, m,
                                     image_destination_dir=None,
                                     multiple_bboxes=True, resize=None,
                                     rotation=None, convert=True,
-                                    all_channels=False, precomputed_proposals=False, verbose=False):
+                                    all_channels=False, precomputed_proposals=False, stats=[], verbose=False):
     """
     For use with multiprocessing, goes through and does one rotation for the COCO annotations
     """
@@ -146,6 +146,7 @@ def make_single_coco_annotation_set(image_names, L, m,
                 category_id = 0
             else:
                 category_id = 0
+            stats.append(BoundingBox(bbox[0], bbox[1], bbox[2], bbox[3]).area)
 
             obj = {
                 "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
@@ -162,7 +163,7 @@ def make_single_coco_annotation_set(image_names, L, m,
         record["annotations"] = objs
         L.append(record)
 
-
+import matplotlib.pyplot as plt
 def create_coco_annotations(image_names,
                             image_destination_dir=None,
                             json_dir='', json_name='json_data.pkl',
@@ -198,13 +199,18 @@ def create_coco_annotations(image_names,
         manager = Manager()
         pool = Pool(processes=os.cpu_count())
         L = manager.list()
+        bbox_size = manager.list()
         [pool.apply_async(make_single_coco_annotation_set,
                           args=[image_names, L, m, image_destination_dir, multiple_bboxes, resize, rotation, convert,
-                                all_channels, precomputed_proposals,
+                                all_channels, precomputed_proposals, bbox_size,
                                 verbose]) for m in range(num_copies)]
         pool.close()
         pool.join()
         print(len(L))
+        print(np.mean(bbox_size))
+        print(np.std(bbox_size))
+        print(np.max(bbox_size))
+        print(np.min(bbox_size))
         for element in L:
             dataset_dicts.append(element)
         # Write all image dictionaries to file as one json
@@ -216,11 +222,18 @@ def create_coco_annotations(image_names,
         return 0  # Returns to doesnt go through it again
 
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
+    bbox_size = []
     for m in range(num_copies):
         make_single_coco_annotation_set(image_names, dataset_dicts, m, image_destination_dir, multiple_bboxes, resize,
-                                        rotation, convert, all_channels, precomputed_proposals,
+                                        rotation, convert, all_channels, precomputed_proposals, bbox_size,
                                         verbose)
     # Write all image dictionaries to file as one json
+    print(np.mean(bbox_size))
+    print(np.std(bbox_size))
+    print(np.max(bbox_size))
+    print(np.min(bbox_size))
+    plt.hist(bbox_size, bins=50)
+    plt.show()
     json_path = os.path.join(json_dir, json_name)
     with open(json_path, "wb") as outfile:
         pickle.dump(dataset_dicts, outfile)
@@ -250,12 +263,11 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
     # Gather data from all_directory
     data_split = split_data(all_directory, split=split_fraction)
 
-    image_paths = Path(root_directory).rglob("*.png")
+    image_paths = Path(train_directory).rglob("*.npy")
     num_layers = 3
     if all_channels:
         num_layers = 10
-    # get_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
-    # exit()
+    get_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
 
     create_coco_annotations(data_split["train"],
                             json_dir=annotations_directory,
@@ -314,22 +326,6 @@ def split_data(image_directory, split=(0.6, 0.8)):
             "val": val_images,
             "test": test_images}
 
-
-def resize_array(arr, new_size):
-    """Resizes numpy array to a specified width and height using specified interpolation"""
-    return cv2.resize(arr, dsize=(new_size, new_size), interpolation=cv2.INTER_LINEAR)
-
-
-def scale_box(arr, bounding_box, new_size):
-    scale_factor = new_size / arr.shape[0]
-    bounding_box[1] = float(bounding_box[1]) * scale_factor
-    bounding_box[3] = float(bounding_box[3]) * scale_factor
-    bounding_box[0] = float(bounding_box[0]) * scale_factor
-    bounding_box[2] = float(bounding_box[2]) * scale_factor
-    bounding_box[5] = (float(bounding_box[5][0]) * scale_factor, float(bounding_box[5][1]) * scale_factor)
-    return bounding_box
-
-
 def single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
     val = np.reshape(image[:, :, layer], -1)
     for pixel in val:
@@ -338,6 +334,21 @@ def single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
         layer_stds[layer] += diff * (pixel - layer_means[layer])
         layer_ks[layer] += 1
 
+def faster_single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
+    """
+    Faster way of getting channelwise mean and stddev
+    :param image:
+    :param layer:
+    :param layer_means:
+    :param layer_stds:
+    :param layer_ks:
+    :return:
+    """
+    layer_means[layer] += image[:,:,layer].sum()
+    layer_stds[layer] += image[:,:,layer].sum()**2
+    layer_ks[layer] += image.shape[0] * image.shape[1]
+    # mean = sum_x / n
+    # stdev = sqrt( sum_x2/n - mean^2 )
 
 def get_pixel_mean_and_std(image_paths, num_layers=3):
     """
@@ -354,21 +365,21 @@ def get_pixel_mean_and_std(image_paths, num_layers=3):
             data = Image.open(image).convert('RGB')
         except:
             try:
-                data = np.load(image, allow_pickle=True)
+                data = np.nan_to_num(np.load(image, allow_pickle=True))
             except:
                 continue
         pool = Pool(processes=os.cpu_count())
         image = np.array(data)
-        [pool.apply_async(single_layer_mean_and_std, args=[image, layer, layer_means, layer_stds, layer_ks]) for layer
+        [pool.apply_async(faster_single_layer_mean_and_std, args=[image, layer, layer_means, layer_stds, layer_ks]) for layer
          in range(num_layers)]
         pool.close()
         pool.join()
         print(f"Done: {i}")
         print(f"Current Mean and STD Dev: ")
         for layer in range(num_layers):
-            print(f"Layer {layer} Mean: {layer_means[layer]} Std: {np.sqrt(layer_stds[layer] / (layer_ks[layer] - 2))}")
+            print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / (layer_ks[layer]) - layer_means[layer]/layer_ks[layer]))}")
     for layer in range(num_layers):
-        print(f"Layer {layer} Mean: {layer_means[layer]} Std: {np.sqrt(layer_stds[layer] / (layer_ks[layer] - 2))}")
+        print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / (layer_ks[layer]) - layer_means[layer]/layer_ks[layer]))}")
 
 
 def get_single_image_std_mean(image, num_layers, layer_means, layer_stds, layer_ks):
@@ -376,20 +387,15 @@ def get_single_image_std_mean(image, num_layers, layer_means, layer_stds, layer_
         data = Image.open(image).convert('RGB')
     except:
         try:
-            data = np.load(image, allow_pickle=True)
+            data = np.nan_to_num(np.load(image, allow_pickle=True))
         except:
             print("Failed")
     image = np.array(data)
     for layer in range(num_layers):
-        val = np.reshape(image[:, :, layer], -1)
-        for pixel in val:
-            diff = pixel - layer_means[layer]
-            layer_means[layer] += diff / layer_ks[layer]
-            layer_stds[layer] += diff * (pixel - layer_means[layer])
-            layer_ks[layer] += 1
-    print(f"Current Mean and STD Dev: ")
-    for layer in range(num_layers):
-        print(f"Layer {layer} Mean: {layer_means[layer]} Std: {np.sqrt(layer_stds[layer] / (layer_ks[layer] - 2))}")
+        faster_single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks)
+    #print(f"Current Mean and STD Dev: ")
+    #for layer in range(num_layers):
+    #    print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / (layer_ks[layer]) - layer_means[layer]/layer_ks[layer]))}")
 
 
 def get_pixel_mean_and_std_multi(image_paths, num_layers=3):
@@ -408,4 +414,4 @@ def get_pixel_mean_and_std_multi(image_paths, num_layers=3):
     pool.close()
     pool.join()
     for layer in range(num_layers):
-        print(f"Layer {layer} Mean: {layer_means[layer]} Std: {np.sqrt(layer_stds[layer] / (layer_ks[layer] - 2))}")
+        print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / (layer_ks[layer]) - layer_means[layer]/layer_ks[layer]))}")

@@ -46,7 +46,7 @@ class Trainer(DefaultTrainer):
         It now calls :func:`detectron2.data.build_detection_train_loader`.
         Overwrite it if you'd like a different data loader.
         """
-        return build_detection_train_loader(cfg)#, mapper=SourceMapper(cfg))
+        return build_detection_train_loader(cfg, mapper=SourceMapper(cfg))
 
     @classmethod
     def build_test_loader(cls, cfg, dataset_name):
@@ -57,7 +57,7 @@ class Trainer(DefaultTrainer):
         It now calls :func:`detectron2.data.build_detection_test_loader`.
         Overwrite it if you'd like a different data loader.
         """
-        return build_detection_test_loader(cfg, dataset_name)#, mapper=SourceMapper(cfg, False))
+        return build_detection_test_loader(cfg, dataset_name, mapper=SourceMapper(cfg, False))
 
 
 # # Load and inspect our data
@@ -95,7 +95,8 @@ cfg.DATASETS.TRAIN = (f"{EXPERIMENT_NAME}_train",)
 cfg.DATASETS.VAL = (f"{EXPERIMENT_NAME}_val",)
 cfg.DATASETS.TEST = (f"{EXPERIMENT_NAME}_test",)
 os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-
+with open(os.path.join(cfg.OUTPUT_DIR, "config.yaml"), "w") as f:
+    f.write(cfg.dump())
 trainer = Trainer(cfg)
 
 trainer.resume_or_load(resume=False)
@@ -128,8 +129,6 @@ print("Evaluate performance for validation set")
 # returns a torch DataLoader, that loads the given detection dataset,
 # with test-time transformation and batching.
 val_loader = build_detection_test_loader(cfg, f"{EXPERIMENT_NAME}_val")
-
-my_dataset = get_lofar_dicts(os.path.join(DATASET_PATH,f"json_val.pkl"))
 
 imsize = cfg.INPUT.MAX_SIZE_TRAIN
 evaluator = SourceEvaluator(f"{EXPERIMENT_NAME}_val", cfg, False)

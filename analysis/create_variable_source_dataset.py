@@ -15,21 +15,21 @@ if environment == "ALICE":
     pan_wise_location = "/home/s2153246/data/catalogues/pan_allwise.fits"
     multi_process = True
 else:
-    pan_wise_location = "/mnt/LargeSSD/hetdex_ps1_allwise_photoz_v0.6.fits"
+    pan_wise_location = "/home/jacob/hetdex_ps1_allwise_photoz_v0.6.fits"
     dr_two = "/mnt/LargeSSD/mosaics/"
-    vac = '/mnt/LargeSSD/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
-    cutout_directory = "/mnt/HDD/variable_test/"
+    vac = '/home/jacob/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
+    cutout_directory = "/mnt/HDD/variable_test_all/"
     multi_process = True
-create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=False, rotation=None, convert=True, all_channels=False, resize=200)
+create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=False, rotation=None, convert=False, all_channels=True, resize=200)
 exit()
 create_variable_source_dataset(cutout_directory=cutout_directory,
                                pan_wise_location=pan_wise_location,
                                value_added_catalog_location=vac,
                                dr_two_location=dr_two,
                                use_multiprocessing=multi_process,
-                               all_channels=False,
+                               all_channels=True,
                                filter_lgz=True,
                                verbose=False,
                                gaussian=False)
 # (0,15,30,45,60,75,90,105,120,135,150,165,180)
-create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=False, rotation=None, convert=True, all_channels=False, resize=200)
+#create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=False, rotation=None, convert=True, all_channels=False, resize=200)

@@ -73,7 +73,8 @@ class SourceMapper:
         """
         dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
         # USER: Write your own image loading if it's not from a file
-        image = np.load(dataset_dict["file_name"], allow_pickle=True)
+        image = np.nan_to_num(np.load(dataset_dict["file_name"], allow_pickle=True))
+        #image /= 255. # Rescales to between 0 and 1
         #image, transforms = T.apply_transform_gens([T.Resize((200, 200))], image)
         utils.check_image_size(dataset_dict, image)
 
