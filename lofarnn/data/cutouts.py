@@ -78,7 +78,10 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, angle, new_size, ve
     pbbs_rescaled = pbbs.on(image_rescaled)
     _, bbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=bbs_rescaled)
     image_rescaled, pbbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=pbbs_rescaled)
-
+    # Remove bounding boxes that go out of bounds
+    pbbs_rescaled = pbbs_rescaled.remove_out_of_image(partly=True)
+    # But only clip source bounding boxes that are partly out of frame, so that no sources are lost
+    bbs_rescaled = bbs_rescaled.remove_out_of_image(partly=False).clip_out_of_image()
     # Draw image before/after rescaling and with rescaled bounding boxes
     if verbose:
         print(bbs)

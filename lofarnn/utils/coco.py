@@ -88,6 +88,7 @@ def make_single_coco_annotation_set(image_names, L, m,
                 image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".npy")
         image, cutouts, proposal_boxes = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
         prev_shape = image.shape[0]
+        image = np.nan_to_num(image)
         if rotation is not None:
             if type(rotation) == tuple:
                 image, cutouts, proposal_boxes = augment_image_and_bboxes(image,
@@ -121,11 +122,13 @@ def make_single_coco_annotation_set(image_names, L, m,
                                                         upper_clip=25.,
                                                         normalize=True, scaling=None)
         if convert:
+            image = np.nan_to_num(image)
             image = (255.0 * image).astype(np.uint8)
             # If converting, only take the first three layers, generally Radio, i band, W1 band
             image = Image.fromarray(image[:, :, :3], 'RGB')
             image.save(image_dest_filename)
         else:
+            image = np.nan_to_num(image)
             np.save(image_dest_filename, image)  # Save to the final destination
         if all_channels:
             rec_depth = 10
