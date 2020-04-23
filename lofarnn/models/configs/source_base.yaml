@@ -14,8 +14,8 @@ MODEL:
   #Layer 0 Mean: [16.04951283] Std: [30.84018818]
   #Layer 1 Mean: [2.39659263] Std: [13.68579664]
   #Layer 2 Mean: [1.61892633] Std: [11.35677329]
-  PIXEL_MEAN: [15.905, 2.394, 1.611]
-  PIXEL_STD: [30.759, 13.674, 11.303]
+  PIXEL_MEAN: [18.926, 1.116, 0.737]
+  PIXEL_STD: [40.847, 14.811, 12.259]
   ROI_HEADS:
     BATCH_SIZE_PER_IMAGE: 2048   # faster, and good enough for this toy dataset (default: 512)
     NUM_CLASSES: 1  # only has one class (Optical Source)

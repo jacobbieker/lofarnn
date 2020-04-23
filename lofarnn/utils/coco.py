@@ -263,12 +263,25 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
     # Gather data from all_directory
     data_split = split_data(all_directory, split=split_fraction)
 
-    image_paths = Path(train_directory).rglob("*.npy")
+    image_paths = Path(train_directory).rglob("*.png")
+    #print(len(image_paths))
     num_layers = 3
     if all_channels:
         num_layers = 10
-    get_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
-
+    get_all_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
+    image_paths = Path(test_directory).rglob("*.png")
+    #print(len(image_paths))
+    num_layers = 3
+    if all_channels:
+        num_layers = 10
+    get_all_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
+    image_paths = Path(val_directory).rglob("*.png")
+    #print(len(image_paths))
+    num_layers = 3
+    if all_channels:
+        num_layers = 10
+    get_all_pixel_mean_and_std_multi(image_paths, num_layers=num_layers)
+    exit()
     create_coco_annotations(data_split["train"],
                             json_dir=annotations_directory,
                             image_destination_dir=train_directory,
@@ -326,13 +339,16 @@ def split_data(image_directory, split=(0.6, 0.8)):
             "val": val_images,
             "test": test_images}
 
-def single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
-    val = np.reshape(image[:, :, layer], -1)
-    for pixel in val:
-        diff = pixel - layer_means[layer]
-        layer_means[layer] += diff / layer_ks[layer]
-        layer_stds[layer] += diff * (pixel - layer_means[layer])
-        layer_ks[layer] += 1
+def online_single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
+    val = np.reshape(image[:,:,layer], -1)
+    img_mean = np.mean(val)
+    img_std = np.std(val)
+    layer_ks[layer] += 1
+    delta = img_mean - layer_means[layer]
+    mean = layer_means[layer] + delta / layer_ks[layer]
+    delta2 = val - mean
+    layer_stds[layer] = layer_stds[layer] + delta * delta2
+    return
 
 def faster_single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
     """
@@ -345,42 +361,11 @@ def faster_single_layer_mean_and_std(image, layer, layer_means, layer_stds, laye
     :return:
     """
     layer_means[layer] += image[:,:,layer].sum()
-    layer_stds[layer] += image[:,:,layer].sum()**2
-    layer_ks[layer] += image.shape[0] * image.shape[1]
+    layer_stds[layer] += np.square(image[:,:,layer]).sum()
+    layer_ks[layer] += image[:,:,layer].size()
+    print(image[:,:,layer].size())
     # mean = sum_x / n
     # stdev = sqrt( sum_x2/n - mean^2 )
-
-def get_pixel_mean_and_std(image_paths, num_layers=3):
-    """
-    Get the channelwise mean and std dev of all the images
-    :param image_paths: Paths to the images
-    :return:
-    """
-    manager = Manager()
-    layer_means = manager.list([np.zeros(1) for _ in range(num_layers)])
-    layer_stds = manager.list([np.zeros(1) for _ in range(num_layers)])
-    layer_ks = manager.list([1 for _ in range(num_layers)])
-    for i, image in enumerate(image_paths):
-        try:
-            data = Image.open(image).convert('RGB')
-        except:
-            try:
-                data = np.nan_to_num(np.load(image, allow_pickle=True))
-            except:
-                continue
-        pool = Pool(processes=os.cpu_count())
-        image = np.array(data)
-        [pool.apply_async(faster_single_layer_mean_and_std, args=[image, layer, layer_means, layer_stds, layer_ks]) for layer
-         in range(num_layers)]
-        pool.close()
-        pool.join()
-        print(f"Done: {i}")
-        print(f"Current Mean and STD Dev: ")
-        for layer in range(num_layers):
-            print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / (layer_ks[layer]) - layer_means[layer]/layer_ks[layer]))}")
-    for layer in range(num_layers):
-        print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / (layer_ks[layer]) - layer_means[layer]/layer_ks[layer]))}")
-
 
 def get_single_image_std_mean(image, num_layers, layer_means, layer_stds, layer_ks):
     try:
@@ -414,4 +399,43 @@ def get_pixel_mean_and_std_multi(image_paths, num_layers=3):
     pool.close()
     pool.join()
     for layer in range(num_layers):
-        print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / (layer_ks[layer]) - layer_means[layer]/layer_ks[layer]))}")
+        print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / layer_ks[layer]) - (layer_means[layer]/layer_ks[layer]))}")
+
+
+def get_all_single_image_std_mean(image, num_layers, layer_means, layer_stds, layer_ks):
+    try:
+        data = Image.open(image).convert('RGB')
+    except:
+        try:
+            data = np.nan_to_num(np.load(image, allow_pickle=True))
+        except:
+            print("Failed")
+    image = np.array(data)
+    layer_means.append(image[:,:,0])
+    layer_stds.append(image[:,:,1])
+    layer_ks.append(image[:,:,2])
+
+
+def get_all_pixel_mean_and_std_multi(image_paths, num_layers=3):
+    """
+    Get the channelwise mean and std dev of all the images
+    :param image_paths: Paths to the images
+    :return:
+    """
+    manager = Manager()
+    layer_red = manager.list()
+    layer_green = manager.list()
+    layer_blue = manager.list()
+    pool = Pool(processes=os.cpu_count())
+    [pool.apply_async(get_all_single_image_std_mean, args=[image, num_layers, layer_red, layer_green, layer_blue]) for image
+     in image_paths]
+    pool.close()
+    pool.join()
+    layer_red = np.concatenate([np.array(i) for i in layer_red])
+    layer_blue = np.concatenate([np.array(i) for i in layer_blue])
+    layer_green = np.concatenate([np.array(i) for i in layer_green])
+    print(layer_red.shape)
+    print(f"Layer Red Mean: {np.mean(layer_red)} Std: {np.std(layer_red)}")
+    print(f"Layer Green Mean: {np.mean(layer_green)} Std: {np.std(layer_green)}")
+    print(f"Layer Blue Mean: {np.mean(layer_blue)} Std: {np.std(layer_blue)}")
+    print(layer_red.shape)
