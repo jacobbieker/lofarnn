@@ -20,7 +20,7 @@ MODEL:
     NAME: "PrecomputedProposals"
   ANCHOR_GENERATOR:
     ASPECT_RATIOS: [[1.0,]]
-    SIZES: [[2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 26, 32, 48, 64, 80, 96, 112, 128, 256, 512,1024,2048]]
+    SIZES: [[2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 26, 32, 48, 64, 80, 96, 112, 128, 256]]
 #DATASETS:
 #  PROPOSAL_FILES_TRAIN: ("detectron2://COCO-Detection/rpn_R_50_FPN_1x/137258492/coco_2017_train_box_proposals_21bc3a.pkl", )
 #  PROPOSAL_FILES_TEST: ("detectron2://COCO-Detection/rpn_R_50_FPN_1x/137258492/coco_2017_val_box_proposals_ee0dad.pkl", )
@@ -31,4 +31,4 @@ SOLVER:
   BASE_LR: 0.0001
   IMS_PER_BATCH: 2
   STEPS: (210000, 250000)
-  MAX_ITER: 90000
+  MAX_ITER: 30000

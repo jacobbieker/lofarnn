@@ -81,10 +81,12 @@ cfg.OUTPUT_DIR = os.path.join("/mnt/HDD/", "reports", EXPERIMENT_NAME)
 print(f"Experiment: {EXPERIMENT_NAME}")
 print(f"Output path: {cfg.OUTPUT_DIR}")
 print(f"Attempt to load training data from: {DATASET_PATH}")
-
+multi = False
+all_channel = False
+precompute = True
 for d in ["train", "val", "test"]:
     DatasetCatalog.register(f"{EXPERIMENT_NAME}_" + d,
-                            lambda d=d: get_lofar_dicts(os.path.join(DATASET_PATH, f"json_{d}.pkl")))
+                            lambda d=d: get_lofar_dicts(os.path.join(DATASET_PATH, f"json_{d}_prop{precompute}_all{all_channel}_multi{multi}.pkl")))
     MetadataCatalog.get(f"{EXPERIMENT_NAME}_" + d).set(thing_classes=["Optical source"])
 lofar_metadata = MetadataCatalog.get("train")
 '''
