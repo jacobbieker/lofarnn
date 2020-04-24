@@ -77,7 +77,7 @@ assert len(argv) > 1, "Insert path of configuration file when executing this scr
 cfg.merge_from_file(argv[1])
 EXPERIMENT_NAME= argv[2] + f'_size{cfg.INPUT.MIN_SIZE_TRAIN[0]}_prop{cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE}_depth{cfg.MODEL.RESNETS.DEPTH}_batchSize{cfg.SOLVER.IMS_PER_BATCH}_anchorSize{cfg.MODEL.ANCHOR_GENERATOR.SIZES}'
 DATASET_PATH= argv[3]
-cfg.OUTPUT_DIR = os.path.join("/mnt/HDD/", "reports", EXPERIMENT_NAME)
+cfg.OUTPUT_DIR = os.path.join("/mnt/10tb/", "reports", EXPERIMENT_NAME)
 print(f"Experiment: {EXPERIMENT_NAME}")
 print(f"Output path: {cfg.OUTPUT_DIR}")
 print(f"Attempt to load training data from: {DATASET_PATH}")
@@ -140,35 +140,35 @@ trainer.train()
 print('Done training')
 
 #cfg.MODEL.WEIGHTS = os.path.join("frcnn_long_size200_prop4096_depth101_batchSize2_anchorSize[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 26, 32, 48, 64, 80, 96, 112, 128, 256, 512]]", "model_final.pth")
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.1   # set the testing threshold for this model
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5   # set the testing threshold for this model
 predictor = DefaultPredictor(cfg)
 import numpy as np
 import random
 import cv2
 import imgaug
 from detectron2.utils.visualizer import Visualizer
-dataset_dicts = get_lofar_dicts(os.path.join(DATASET_PATH, f"json_test.pkl"))
-for i, d in enumerate(random.sample(dataset_dicts, 10)):
-    im = cv2.imread(d["file_name"])
-    outputs = predictor(im)
-    print(outputs)
-    v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-    cv2.imwrite(f'test_iou_{i}.png',v.get_image()[:, :, ::-1])
+#dataset_dicts = get_lofar_dicts(os.path.join(DATASET_PATH, f"json_test.pkl"))
+#for i, d in enumerate(random.sample(dataset_dicts, 10)):
+#    im = cv2.imread(d["file_name"])
+#    outputs = predictor(im)
+#    print(outputs)
+#    v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+#    cv2.imwrite(f'test_iou_{i}.png',v.get_image()[:, :, ::-1])
 
 print("Evaluate performance for validation set")
 
 # returns a torch DataLoader, that loads the given detection dataset,
 # with test-time transformation and batching.
-val_loader = build_detection_test_loader(cfg, f"{EXPERIMENT_NAME}_val")
+#val_loader = build_detection_test_loader(cfg, f"{EXPERIMENT_NAME}_val")
 
-imsize = cfg.INPUT.MAX_SIZE_TRAIN
-evaluator = SourceEvaluator(f"{EXPERIMENT_NAME}_val", cfg, False)
+#imsize = cfg.INPUT.MAX_SIZE_TRAIN
+#evaluator = SourceEvaluator(f"{EXPERIMENT_NAME}_val", cfg, False)
 
 # Val_loader produces inputs that can enter the model for inference,
 # the results of which can be evaluated by the evaluator
 # The return value is that which is returned by evaluator.evaluate()
-predictions = inference_on_dataset(trainer.model, val_loader, evaluator)
-print(predictions)
+#predictions = inference_on_dataset(trainer.model, val_loader, evaluator)
+#print(predictions)
 
 """
 #Test set evaluation
