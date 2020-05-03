@@ -85,9 +85,9 @@ multi = False
 all_channel = False
 precompute = True
 for d in ["train", "val", "test"]:
-    DatasetCatalog.register(f"{EXPERIMENT_NAME}_" + d,
+    DatasetCatalog.register(f"{argv[2]}_" + d,
                             lambda d=d: get_lofar_dicts(os.path.join(DATASET_PATH, f"json_{d}_prop{precompute}_all{all_channel}_multi{multi}.pkl")))
-    MetadataCatalog.get(f"{EXPERIMENT_NAME}_" + d).set(thing_classes=["Optical source"])
+    MetadataCatalog.get(f"{argv[2]}_" + d).set(thing_classes=["Optical source"])
 lofar_metadata = MetadataCatalog.get("train")
 '''
 #cfg.MODEL.WEIGHTS = os.path.join("/home/jacob/Development/lofarnn/reports/frcnn_long_size200_prop4096_depth101_batchSize2_anchorSize[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 26, 32, 48, 64, 80, 96, 112, 128, 256, 512]]", "model_final.pth")
@@ -125,9 +125,9 @@ exit()
 '''
 # # Train mode
 
-cfg.DATASETS.TRAIN = (f"{EXPERIMENT_NAME}_train",)
-cfg.DATASETS.VAL = (f"{EXPERIMENT_NAME}_val",)
-cfg.DATASETS.TEST = (f"{EXPERIMENT_NAME}_test",)
+cfg.DATASETS.TRAIN = (f"{argv[2]}_train",)
+cfg.DATASETS.VAL = (f"{argv[2]}_val",)
+cfg.DATASETS.TEST = (f"{argv[2]}_test",)
 os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
 with open(os.path.join(cfg.OUTPUT_DIR, "config.yaml"), "w") as f:
     f.write(cfg.dump())
