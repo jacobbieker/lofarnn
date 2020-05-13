@@ -339,7 +339,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
 
 def create_variable_source_dataset(cutout_directory, pan_wise_location,
                                    value_added_catalog_location, dr_two_location, gaussian=None, all_channels=False, fixed_size=None, filter_lgz=True,
-                                   verbose=False, use_multiprocessing=False, strict_filter=False,
+                                   verbose=False, use_multiprocessing=False, strict_filter=False, filter_optical=True,
                                    num_threads=os.cpu_count()):
     """
     Create variable sized cutouts (hardcoded to 1.5 times the LGZ_Size) for each of the cutouts
@@ -352,6 +352,8 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     :param use_multiprocessing: Whether to use multiprocessing
     :param num_threads: Number of threads to use, if multiprocessing is true
     :param strict_filter: Use the same filtering as for Jelle's subsample, with total flux > 10 mJy, and size > 15 arcseconds
+    :param filter_optical: Whether to filter out sources with only optical sources or not
+    :param filter_lgz: Whether to filter on LGZ_Size
     :return:
     """
 
@@ -360,10 +362,11 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     if filter_lgz:
         l_objects = l_objects[~np.isnan(l_objects['LGZ_Size'])]
         print(len(l_objects))
-    l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]
-    print(len(l_objects))
-    l_objects = l_objects[~np.isnan(l_objects["ID_dec"])]
-    print(len(l_objects))
+    if filter_optical:
+        l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]
+        print(len(l_objects))
+        l_objects = l_objects[~np.isnan(l_objects["ID_dec"])]
+        print(len(l_objects))
     if strict_filter:
         l_objects = l_objects[l_objects["LGZ_Size"] > 15.]
         l_objects = l_objects[l_objects["Total_Flux"] > 10.]

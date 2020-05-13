@@ -2,11 +2,13 @@ import os
 import pickle
 import random
 from pathlib import Path
+from zlib import crc32
 
 import numpy as np
 import cv2
 from PIL import Image
 from detectron2.structures import BoxMode
+import matplotlib.pyplot as plt
 
 from lofarnn.data.cutouts import convert_to_valid_color, augment_image_and_bboxes
 from lofarnn.visualization.cutouts import plot_three_channel_debug
@@ -166,7 +168,7 @@ def make_single_coco_annotation_set(image_names, L, m,
         record["annotations"] = objs
         L.append(record)
 
-import matplotlib.pyplot as plt
+
 def create_coco_annotations(image_names,
                             image_destination_dir=None,
                             json_dir='', json_name='json_data.pkl',
@@ -300,7 +302,18 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             verbose=verbose)
 
 
-def split_data(image_directory, split=(0.6, 0.8)):
+# Function to check test set's identifier.
+def test_set_check(identifier, test_ratio):
+    return crc32(np.int64(identifier)) & 0xffffffff < test_ratio * 2 ** 32
+
+
+# Function to split train/test
+def split_train_test_by_id(data, test_ratio):
+    in_test_set = np.asarray([test_set_check(x.split("/")[-1], test_ratio) for x in data])
+    return data[~in_test_set], data[in_test_set]
+
+
+def split_data(image_directory, split=0.8):
     """
     Split up the data and return which images should go to which train, test, val directory
     :param image_directory: The directory where all the images are located, i.e. the "all" directory
@@ -313,17 +326,19 @@ def split_data(image_directory, split=(0.6, 0.8)):
     im_paths = []
     for p in image_paths:
         im_paths.append(p)
-    random.shuffle(im_paths)
-    train_images = im_paths[:int(len(im_paths) * split[0])]
-    val_images = im_paths[int(len(im_paths) * split[0]):int(len(im_paths) * split[1])]
-    test_images = im_paths[int(len(im_paths) * split[1]):]
+    train_images, test_images = split_train_test_by_id(np.asarray(im_paths), split)
+    #random.shuffle(im_paths)
+    #train_images = im_paths[:int(len(im_paths) * split[0])]
+    #val_images = im_paths[int(len(im_paths) * split[0]):int(len(im_paths) * split[1])]
+    #test_images = im_paths[int(len(im_paths) * split[1]):]
 
     return {"train": train_images,
-            "val": val_images,
+            "val": [],
             "test": test_images}
 
+
 def online_single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
-    val = np.reshape(image[:,:,layer], -1)
+    val = np.reshape(image[:, :, layer], -1)
     img_mean = np.mean(val)
     img_std = np.std(val)
     layer_ks[layer] += 1
@@ -332,6 +347,7 @@ def online_single_layer_mean_and_std(image, layer, layer_means, layer_stds, laye
     delta2 = val - mean
     layer_stds[layer] = layer_stds[layer] + delta * delta2
     return
+
 
 def faster_single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
     """
@@ -343,12 +359,13 @@ def faster_single_layer_mean_and_std(image, layer, layer_means, layer_stds, laye
     :param layer_ks:
     :return:
     """
-    layer_means[layer] += image[:,:,layer].sum()
-    layer_stds[layer] += np.square(image[:,:,layer]).sum()
-    layer_ks[layer] += image[:,:,layer].size()
-    print(image[:,:,layer].size())
+    layer_means[layer] += image[:, :, layer].sum()
+    layer_stds[layer] += np.square(image[:, :, layer]).sum()
+    layer_ks[layer] += image[:, :, layer].size()
+    print(image[:, :, layer].size())
     # mean = sum_x / n
     # stdev = sqrt( sum_x2/n - mean^2 )
+
 
 def get_single_image_std_mean(image, num_layers, layer_means, layer_stds, layer_ks):
     try:
@@ -361,8 +378,8 @@ def get_single_image_std_mean(image, num_layers, layer_means, layer_stds, layer_
     image = np.array(data)
     for layer in range(num_layers):
         faster_single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks)
-    #print(f"Current Mean and STD Dev: ")
-    #for layer in range(num_layers):
+    # print(f"Current Mean and STD Dev: ")
+    # for layer in range(num_layers):
     #    print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / (layer_ks[layer]) - layer_means[layer]/layer_ks[layer]))}")
 
 
@@ -382,7 +399,8 @@ def get_pixel_mean_and_std_multi(image_paths, num_layers=3):
     pool.close()
     pool.join()
     for layer in range(num_layers):
-        print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / layer_ks[layer]) - (layer_means[layer]/layer_ks[layer]))}")
+        print(
+            f"Layer {layer} Mean: {layer_means[layer] / layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / layer_ks[layer]) - (layer_means[layer] / layer_ks[layer]))}")
 
 
 def get_all_single_image_std_mean(image, num_layers, layer_means, layer_stds, layer_ks):
@@ -394,9 +412,9 @@ def get_all_single_image_std_mean(image, num_layers, layer_means, layer_stds, la
         except:
             print("Failed")
     image = np.array(data)
-    layer_means.append(image[:,:,0])
-    layer_stds.append(image[:,:,1])
-    layer_ks.append(image[:,:,2])
+    layer_means.append(image[:, :, 0])
+    layer_stds.append(image[:, :, 1])
+    layer_ks.append(image[:, :, 2])
 
 
 def get_all_pixel_mean_and_std_multi(image_paths, num_layers=3):
@@ -410,7 +428,8 @@ def get_all_pixel_mean_and_std_multi(image_paths, num_layers=3):
     layer_green = manager.list()
     layer_blue = manager.list()
     pool = Pool(processes=os.cpu_count())
-    [pool.apply_async(get_all_single_image_std_mean, args=[image, num_layers, layer_red, layer_green, layer_blue]) for image
+    [pool.apply_async(get_all_single_image_std_mean, args=[image, num_layers, layer_red, layer_green, layer_blue]) for
+     image
      in image_paths]
     pool.close()
     pool.join()
