@@ -246,14 +246,13 @@ def create_coco_annotations(image_names,
         print(f'COCO annotation file created in \'{json_dir}\'.\n')
 
 
-def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0.6, 0.8), resize=None, rotation=None,
+def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.2, resize=None, rotation=None,
                         convert=True, all_channels=False, precomputed_proposals=False,
                         verbose=False):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
     directories, and create the COCO annotation file to be loaded into Detectron2, or other similar models
-    :param split_fraction: Tuple of train, val, test split,
-    in form of (train fraction, val fraction), with the rest being put in test directory
+    :param split_fraction: Fraction of the data for the test set. the validation set is rolled into the test set.
     :param root_directory: root directory for the COCO dataset
     :param multiple_bboxes: Whether to include multiple bounding boxes, or only the main source
     :param resize: Image size to resize to, or None if not resizing
@@ -278,17 +277,18 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=(0
                             all_channels=all_channels,
                             precomputed_proposals=precomputed_proposals,
                             verbose=verbose)
-    create_coco_annotations(data_split["val"],
-                            json_dir=annotations_directory,
-                            image_destination_dir=val_directory,
-                            json_name=f"json_val_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}.pkl",
-                            multiple_bboxes=multiple_bboxes,
-                            resize=resize,
-                            rotation=rotation,
-                            convert=convert,
-                            all_channels=all_channels,
-                            precomputed_proposals=precomputed_proposals,
-                            verbose=verbose)
+    if len(data_split["val"]) > 0: # No need for separate validation set for Detectron2, its taken from the training one
+        create_coco_annotations(data_split["val"],
+                                json_dir=annotations_directory,
+                                image_destination_dir=val_directory,
+                                json_name=f"json_val_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}.pkl",
+                                multiple_bboxes=multiple_bboxes,
+                                resize=resize,
+                                rotation=rotation,
+                                convert=convert,
+                                all_channels=all_channels,
+                                precomputed_proposals=precomputed_proposals,
+                                verbose=verbose)
     create_coco_annotations(data_split["test"],
                             json_dir=annotations_directory,
                             image_destination_dir=test_directory,
@@ -309,16 +309,15 @@ def test_set_check(identifier, test_ratio):
 
 # Function to split train/test
 def split_train_test_by_id(data, test_ratio):
-    in_test_set = np.asarray([test_set_check(x.split("/")[-1], test_ratio) for x in data])
+    in_test_set = np.asarray([test_set_check(hash(str(x).split("/")[-1]), test_ratio) for x in data])
     return data[~in_test_set], data[in_test_set]
 
 
-def split_data(image_directory, split=0.8):
+def split_data(image_directory, split=0.2):
     """
     Split up the data and return which images should go to which train, test, val directory
     :param image_directory: The directory where all the images are located, i.e. the "all" directory
-    :param split: Tuple of train, val, test split,
-    in form of (train fraction, val fraction), with the rest being put in test directory
+    :param split: Fraction of the data for the test set. the validation set is rolled into the test set.
     :return: A dict containing which images go to which directory
     """
 

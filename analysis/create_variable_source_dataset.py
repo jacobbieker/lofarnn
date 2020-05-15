@@ -18,7 +18,7 @@ else:
     pan_wise_location = "/home/jacob/hetdex_ps1_allwise_photoz_v0.6.fits"
     dr_two = "/mnt/LargeSSD/mosaics/"
     vac = '/home/jacob/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits'
-    cutout_directory = "/mnt/HDD/variable_test/"
+    cutout_directory = "/home/jacob/variable_test/"
     multi_process = True
 create_coco_dataset(root_directory=cutout_directory, multiple_bboxes=False, rotation=None, convert=True, all_channels=False, precomputed_proposals=False, resize=400)
 exit()
