@@ -141,6 +141,7 @@ def make_single_coco_annotation_set(image_names, L, m,
 
         # Insert bounding boxes and their corresponding classes
         objs = []
+        '''
         if not multiple_bboxes:
             cutouts = [cutouts[0]]  # Only take the first one, the main optical source
         for bbox in cutouts:
@@ -161,6 +162,7 @@ def make_single_coco_annotation_set(image_names, L, m,
                 "iscrowd": 0
             }
             objs.append(obj)
+        '''
         if precomputed_proposals:
             record["proposal_boxes"] = proposal_boxes
             record["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
@@ -233,12 +235,12 @@ def create_coco_annotations(image_names,
                                         rotation, convert, all_channels, precomputed_proposals, bbox_size,
                                         verbose)
     # Write all image dictionaries to file as one json
-    print(np.mean(bbox_size))
-    print(np.std(bbox_size))
-    print(np.max(bbox_size))
-    print(np.min(bbox_size))
-    plt.hist(bbox_size, bins=50)
-    plt.show()
+    #print(np.mean(bbox_size))
+    #print(np.std(bbox_size))
+    #print(np.max(bbox_size))
+    #print(np.min(bbox_size))
+    #plt.hist(bbox_size, bins=50)
+    #plt.show()
     json_path = os.path.join(json_dir, json_name)
     with open(json_path, "wb") as outfile:
         pickle.dump(dataset_dicts, outfile)
