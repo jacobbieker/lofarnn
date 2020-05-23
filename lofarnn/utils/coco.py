@@ -141,28 +141,31 @@ def make_single_coco_annotation_set(image_names, L, m,
 
         # Insert bounding boxes and their corresponding classes
         objs = []
-        '''
-        if not multiple_bboxes:
-            cutouts = [cutouts[0]]  # Only take the first one, the main optical source
-        for bbox in cutouts:
-            assert float(bbox[2]) >= float(bbox[0])
-            assert float(bbox[3]) >= float(bbox[1])
+        # check if there is no optical source
+        try:
+            if cutouts[0][4] == "Optical Source" or cutouts[0][4] == "Other Optical Source": # There is an optical source
+                if not multiple_bboxes:
+                    cutouts = [cutouts[0]]  # Only take the first one, the main optical source
+                for bbox in cutouts:
+                    assert float(bbox[2]) >= float(bbox[0])
+                    assert float(bbox[3]) >= float(bbox[1])
 
-            if bbox[4] == "Other Optical Source":
-                category_id = 0
-            else:
-                category_id = 0
-            stats.append(BoundingBox(bbox[0], bbox[1], bbox[2], bbox[3]).area)
+                    if bbox[4] == "Other Optical Source":
+                        category_id = 0
+                    else:
+                        category_id = 0
+                    stats.append(BoundingBox(bbox[0], bbox[1], bbox[2], bbox[3]).area)
 
-            obj = {
-                "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
-                "bbox_mode": BoxMode.XYXY_ABS,
-                # "segmentation": [poly],
-                "category_id": category_id,
-                "iscrowd": 0
-            }
-            objs.append(obj)
-        '''
+                    obj = {
+                        "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
+                        "bbox_mode": BoxMode.XYXY_ABS,
+                        # "segmentation": [poly],
+                        "category_id": category_id,
+                        "iscrowd": 0
+                    }
+                    objs.append(obj)
+        except:
+            print("No Optical source found")
         if precomputed_proposals:
             record["proposal_boxes"] = proposal_boxes
             record["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
