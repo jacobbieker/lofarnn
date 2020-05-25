@@ -77,7 +77,7 @@ assert len(argv) > 1, "Insert path of configuration file when executing this scr
 cfg.merge_from_file(argv[1])
 EXPERIMENT_NAME= argv[2] + f'_size{cfg.INPUT.MIN_SIZE_TRAIN[0]}_prop{cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE}_depth{cfg.MODEL.RESNETS.DEPTH}_batchSize{cfg.SOLVER.IMS_PER_BATCH}_anchorSize{cfg.MODEL.ANCHOR_GENERATOR.SIZES}'
 DATASET_PATH= argv[3]
-cfg.OUTPUT_DIR = os.path.join("/mnt/10tb/", "reports", EXPERIMENT_NAME)
+cfg.OUTPUT_DIR = os.path.join("/home/jacob/", "reports", EXPERIMENT_NAME)
 print(f"Experiment: {EXPERIMENT_NAME}")
 print(f"Output path: {cfg.OUTPUT_DIR}")
 print(f"Attempt to load training data from: {DATASET_PATH}")
@@ -90,8 +90,11 @@ for d in ["train", "val", "test"]:
     MetadataCatalog.get(f"{argv[2]}_" + d).set(thing_classes=["Optical source"])
 lofar_metadata = MetadataCatalog.get("train")
 '''
-#cfg.MODEL.WEIGHTS = os.path.join("/home/jacob/Development/lofarnn/reports/frcnn_long_size200_prop4096_depth101_batchSize2_anchorSize[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 26, 32, 48, 64, 80, 96, 112, 128, 256, 512]]", "model_final.pth")
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.1   # set the testing threshold for this model
+cfg.DATASETS.TRAIN = (f"{argv[2]}_train",)
+cfg.DATASETS.VAL = (f"{argv[2]}_val",)
+cfg.DATASETS.TEST = (f"{argv[2]}_test",)
+cfg.MODEL.WEIGHTS = os.path.join(f"/home/jacob/reports/{EXPERIMENT_NAME}", "model_final.pth")
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.9   # set the testing threshold for this model
 predictor = DefaultPredictor(cfg)
 import numpy as np
 import random
@@ -102,25 +105,32 @@ from detectron2.structures.instances import Instances
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 import matplotlib.pyplot as plt
 
-dataset_dicts = get_lofar_dicts(os.path.join(DATASET_PATH, f"json_test.pkl"))
-for i, d in enumerate(random.sample(dataset_dicts, 20)):
+dataset_dicts = get_lofar_dicts(os.path.join(DATASET_PATH, f"json_test_prop{precompute}_all{all_channel}_multi{multi}.pkl"))
+frac_predict = 0
+for i, d in enumerate(random.sample(dataset_dicts, 100)):
     im = cv2.imread(d["file_name"])
-    source = BoundingBox(d["annotations"][0]["bbox"][0],d["annotations"][0]["bbox"][1],d["annotations"][0]["bbox"][2],d["annotations"][0]["bbox"][3])
-    bbs = BoundingBoxesOnImage([source], shape=im.shape)
-    image_bbs = bbs.draw_on_image(im, size=1, alpha=1, color=(255,105,180))
-    outputs = predictor(im)
-    print(outputs['instances'])
+    proposals = {"proposal_boxes": d["proposal_boxes"],
+                               "proposal_objectness_logits": d["proposal_objectness_logits"],
+                               "proposal_bbox_mode": d["proposal_bbox_mode"]}
+    #source = BoundingBox(d["annotations"][0]["bbox"][0],d["annotations"][0]["bbox"][1],d["annotations"][0]["bbox"][2],d["annotations"][0]["bbox"][3])
+    #bbs = BoundingBoxesOnImage([source], shape=im.shape)
+    #image_bbs = bbs.draw_on_image(im, size=1, alpha=1, color=(255,105,180))
+    outputs = predictor(im, d)
     pred_boxes = outputs['instances'].pred_boxes.tensor.cpu().numpy()
+    print(len(pred_boxes))
     if len(pred_boxes) > 0:
+        frac_predict += 1
         pred_bbs = BoundingBoxesOnImage([BoundingBox(pred_boxes[0][0],pred_boxes[0][1],
                                                     pred_boxes[0][2],pred_boxes[0][3])], shape=im.shape)
-        image_all = pred_bbs.draw_on_image(image_bbs, size=1, color=(255,255,255), alpha=1)
+        image_all = pred_bbs.draw_on_image(im, size=1, color=(255,255,255), alpha=1)
     else:
-        image_all = image_bbs
-    plt.imshow(image_all)
-    plt.savefig(f"/home/jacob/Development/test_{i}.png")
-    plt.clf()
-    plt.cla()
+        image_all = im
+    if len(pred_boxes) > 0:
+        plt.imshow(image_all)
+        plt.savefig(f"/home/jacob/Development/test_{i}.png")
+        plt.clf()
+        plt.cla()
+print(float(frac_predict)/100.)
 exit()
 '''
 # # Train mode

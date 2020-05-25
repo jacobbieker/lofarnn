@@ -143,7 +143,7 @@ def make_single_coco_annotation_set(image_names, L, m,
         objs = []
         # check if there is no optical source
         try:
-            if cutouts[0][4] == "Optical Source" or cutouts[0][4] == "Other Optical Source": # There is an optical source
+            if len(cutouts) > 0: # There is an optical source
                 if not multiple_bboxes:
                     cutouts = [cutouts[0]]  # Only take the first one, the main optical source
                 for bbox in cutouts:
@@ -242,8 +242,8 @@ def create_coco_annotations(image_names,
     #print(np.std(bbox_size))
     #print(np.max(bbox_size))
     #print(np.min(bbox_size))
-    #plt.hist(bbox_size, bins=50)
-    #plt.show()
+    plt.hist(bbox_size, bins=50)
+    plt.show()
     json_path = os.path.join(json_dir, json_name)
     with open(json_path, "wb") as outfile:
         pickle.dump(dataset_dicts, outfile)
@@ -314,7 +314,7 @@ def test_set_check(identifier, test_ratio):
 
 # Function to split train/test
 def split_train_test_by_id(data, test_ratio):
-    in_test_set = np.asarray([test_set_check(hash(str(x).split("/")[-1]), test_ratio) for x in data])
+    in_test_set = np.asarray([test_set_check(crc32(str(x).split("/")[-1].encode()), test_ratio) for x in data])
     return data[~in_test_set], data[in_test_set]
 
 
@@ -330,12 +330,10 @@ def split_data(image_directory, split=0.2):
     im_paths = []
     for p in image_paths:
         im_paths.append(p)
+    print(len(im_paths))
     train_images, test_images = split_train_test_by_id(np.asarray(im_paths), split)
-    #random.shuffle(im_paths)
-    #train_images = im_paths[:int(len(im_paths) * split[0])]
-    #val_images = im_paths[int(len(im_paths) * split[0]):int(len(im_paths) * split[1])]
-    #test_images = im_paths[int(len(im_paths) * split[1]):]
-
+    print(len(train_images))
+    print(len(test_images))
     return {"train": train_images,
             "val": [],
             "test": test_images}
@@ -382,9 +380,9 @@ def get_single_image_std_mean(image, num_layers, layer_means, layer_stds, layer_
     image = np.array(data)
     for layer in range(num_layers):
         faster_single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks)
-    # print(f"Current Mean and STD Dev: ")
-    # for layer in range(num_layers):
-    #    print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / (layer_ks[layer]) - layer_means[layer]/layer_ks[layer]))}")
+    print(f"Current Mean and STD Dev: ")
+    for layer in range(num_layers):
+       print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / (layer_ks[layer]) - layer_means[layer]/layer_ks[layer]))}")
 
 
 def get_pixel_mean_and_std_multi(image_paths, num_layers=3):
@@ -407,7 +405,7 @@ def get_pixel_mean_and_std_multi(image_paths, num_layers=3):
             f"Layer {layer} Mean: {layer_means[layer] / layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / layer_ks[layer]) - (layer_means[layer] / layer_ks[layer]))}")
 
 
-def get_all_single_image_std_mean(image, num_layers, layer_means, layer_stds, layer_ks):
+def get_all_single_image_std_mean(image, num_layers, layer_0, layer_1, layer_2, layer_3, layer_4, layer_5, layer_6, layer_7, layer_8, layer_9):
     try:
         data = Image.open(image).convert('RGB')
     except:
@@ -416,10 +414,16 @@ def get_all_single_image_std_mean(image, num_layers, layer_means, layer_stds, la
         except:
             print("Failed")
     image = np.array(data)
-    layer_means.append(image[:, :, 0])
-    layer_stds.append(image[:, :, 1])
-    layer_ks.append(image[:, :, 2])
-
+    layer_0.append(image[:, :, 0])
+    layer_1.append(image[:, :, 1])
+    layer_2.append(image[:, :, 2])
+    layer_3.append(image[:, :, 3])
+    layer_4.append(image[:, :, 4])
+    layer_5.append(image[:, :, 5])
+    layer_6.append(image[:, :, 6])
+    layer_7.append(image[:, :, 7])
+    layer_8.append(image[:, :, 8])
+    layer_9.append(image[:, :, 9])
 
 def get_all_pixel_mean_and_std_multi(image_paths, num_layers=3):
     """
@@ -428,20 +432,41 @@ def get_all_pixel_mean_and_std_multi(image_paths, num_layers=3):
     :return:
     """
     manager = Manager()
-    layer_red = manager.list()
-    layer_green = manager.list()
-    layer_blue = manager.list()
+    layer_0 = manager.list()
+    layer_1 = manager.list()
+    layer_2 = manager.list()
+    layer_3 = manager.list()
+    layer_4 = manager.list()
+    layer_5 = manager.list()
+    layer_6 = manager.list()
+    layer_7 = manager.list()
+    layer_8 = manager.list()
+    layer_9 = manager.list()
     pool = Pool(processes=os.cpu_count())
-    [pool.apply_async(get_all_single_image_std_mean, args=[image, num_layers, layer_red, layer_green, layer_blue]) for
+    [pool.apply_async(get_all_single_image_std_mean, args=[image, num_layers, layer_0, layer_1, layer_2, layer_3, layer_4, layer_5, layer_6, layer_7, layer_8, layer_9]) for
      image
      in image_paths]
     pool.close()
     pool.join()
-    layer_red = np.concatenate([np.array(i) for i in layer_red])
-    layer_blue = np.concatenate([np.array(i) for i in layer_blue])
-    layer_green = np.concatenate([np.array(i) for i in layer_green])
-    print(layer_red.shape)
-    print(f"Layer Red Mean: {np.mean(layer_red)} Std: {np.std(layer_red)}")
-    print(f"Layer Green Mean: {np.mean(layer_green)} Std: {np.std(layer_green)}")
-    print(f"Layer Blue Mean: {np.mean(layer_blue)} Std: {np.std(layer_blue)}")
-    print(layer_red.shape)
+    layer_0 = np.concatenate([np.array(i) for i in layer_0])
+    layer_2 = np.concatenate([np.array(i) for i in layer_2])
+    layer_1 = np.concatenate([np.array(i) for i in layer_1])
+    layer_3 = np.concatenate([np.array(i) for i in layer_3])
+    layer_4 = np.concatenate([np.array(i) for i in layer_4])
+    layer_5 = np.concatenate([np.array(i) for i in layer_5])
+    layer_6 = np.concatenate([np.array(i) for i in layer_6])
+    layer_7 = np.concatenate([np.array(i) for i in layer_7])
+    layer_8 = np.concatenate([np.array(i) for i in layer_8])
+    layer_9 = np.concatenate([np.array(i) for i in layer_9])
+    print(layer_0.shape)
+    print(f"Layer 0 Mean: {np.mean(layer_0)} Std: {np.std(layer_0)}")
+    print(f"Layer 1 Mean: {np.mean(layer_1)} Std: {np.std(layer_1)}")
+    print(f"Layer 2 Mean: {np.mean(layer_2)} Std: {np.std(layer_2)}")
+    print(f"Layer 3 Mean: {np.mean(layer_3)} Std: {np.std(layer_3)}")
+    print(f"Layer 4 Mean: {np.mean(layer_4)} Std: {np.std(layer_4)}")
+    print(f"Layer 5 Mean: {np.mean(layer_5)} Std: {np.std(layer_5)}")
+    print(f"Layer 6 Mean: {np.mean(layer_6)} Std: {np.std(layer_6)}")
+    print(f"Layer 7 Mean: {np.mean(layer_7)} Std: {np.std(layer_7)}")
+    print(f"Layer 8 Mean: {np.mean(layer_8)} Std: {np.std(layer_8)}")
+    print(f"Layer 9 Mean: {np.mean(layer_9)} Std: {np.std(layer_9)}")
+    print(layer_0.shape)
