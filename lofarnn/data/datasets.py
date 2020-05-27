@@ -10,6 +10,7 @@ from astropy.wcs import WCS
 from astropy.wcs.utils import skycoord_to_pixel
 from itertools import repeat
 from scipy.ndimage.filters import gaussian_filter
+from photutils import detect_sources, detect_threshold
 
 from lofarnn.utils.coco import create_coco_style_directory_structure
 from lofarnn.visualization.cutouts import plot_three_channel_debug
@@ -132,6 +133,7 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, gaussian=None, verb
         layer = gaussian_filter(layer, sigma=gaussian)
     return layer
 
+
 def make_proposal_boxes(wcs, shape, catalogue, gaussian=None):
     """
    Create Faster RCNN proposal boxes for all sources in the image
@@ -154,10 +156,12 @@ def make_proposal_boxes(wcs, shape, catalogue, gaussian=None):
     coords = skycoord_to_pixel(sky_coords, wcs, 0)
     for index, x in enumerate(coords[0]):
         try:
-            proposals.append(make_bounding_box(ra_array[index], dec_array[index], wcs=wcs, class_name="Proposal Box", gaussian=gaussian))
+            proposals.append(make_bounding_box(ra_array[index], dec_array[index], wcs=wcs, class_name="Proposal Box",
+                                               gaussian=gaussian))
         except Exception as e:
             print(f"Failed Proposal: {e}")
     return proposals
+
 
 def make_bounding_box(ra, dec, wcs, class_name="Optical source", gaussian=None):
     """
@@ -205,7 +209,7 @@ def make_segmentation_map(ra, dec, wcs, shape, class_name="Optical source", gaus
     layer = np.zeros(shape=shape)
     for index, x in enumerate(coords[0]):
         try:
-             layer[int(np.floor(coords[0][index]))][int(np.floor(coords[1][index]))] = 1
+            layer[int(np.floor(coords[0][index]))][int(np.floor(coords[1][index]))] = 1
         except Exception as e:
             if verbose:
                 print(f"Failed: {e}")
@@ -214,7 +218,79 @@ def make_segmentation_map(ra, dec, wcs, shape, class_name="Optical source", gaus
         layer = layer > 0
     return layer
 
-def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,
+
+def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, component_ra, component_dec, n_components, sigma=5., verbose=False):
+    """
+    Creates binary mask for radio source, and mask for all detected components that are not part of the current source
+    :param ra: RA of the Radio Source
+    :param dec: Dec of the Radio source
+    :param wcs: WCS of the cutout
+    :param radio_field: Non-background subtracted radio data field
+    :param rms_field: RMS field of the cutout
+    :param component_ra: Component RA Coordinates, taken from the Component Catalog
+    :param component_dec: Component DEC Coordinates, taken from the Component Catalog
+    :param sigma: Sigma cutoff, should generally be either 5 sigma (default) or 3 sigma
+    :param verbose:
+    :return: Binary mask of radio source, Binary mask of all other components other than the radio source
+    """
+
+    # use segmentation map to grow the box to the 5sigma contour level
+    # 1: retrieve RA and DEC of sources that make up this value added source
+    # Caculating the rms and threshold
+    threshold = sigma * rms_field
+    segmentation_map = detect_sources(radio_field, threshold, 1)
+    source_skycoord = SkyCoord(ra, dec, unit='deg')
+    component_skycoord = SkyCoord(component_ra, component_dec, unit='deg')
+    coords = skycoord_to_pixel(source_skycoord, wcs, 0)
+    component_coords = skycoord_to_pixel(component_skycoord, wcs, 0)
+
+    # 2: turn coordinates into x,y for this cutout
+    pixel_xs, pixel_ys = component_coords[0], component_coords[1]
+
+    # clean up the x,ys and make sure they stay inside the data
+    dx, dy = radio_field.shape
+    pixel_xs = np.clip(pixel_xs, 0, dx - 1)
+    pixel_ys = np.clip(pixel_ys, 0, dy - 1)
+    # 3: collect segmentation labels for these xs,ys
+
+    try:
+        labels = [segmentation_map.data[int(round(y)), int(round(x))] for x, y in
+                  zip(pixel_xs, pixel_ys)]
+    except:
+        print(f'\nSegment and data shapes disagree?. Shape data {radio_field.shape}, shape segment'
+              f' {segmentation_map.data}. Source flagged!\n')
+        print([[x, y] for x, y in
+               zip(pixel_xs, pixel_ys)])
+        return False
+    labels = [l for l in labels if not l == 0]
+
+    component_ids = np.asarray(list(set(labels)))
+    #print(f"Shape IDS: {component_ids.shape}, Num Components: {n_components}")
+    #print(component_ids)
+    #import matplotlib.pyplot as plt
+    #plt.imshow(radio_field/rms_field)
+    #plt.imshow(segmentation_map.data, alpha=0.5)
+    #plt.show()
+    non_source_component_mask = segmentation_map.copy()
+    non_source_component_mask.remove_labels(component_ids)
+    #non_source_component_mask.relabel_consecutive()
+    segmentation_map.keep_labels(component_ids)
+    segmentation_map.reassign_labels(component_ids, new_label=1)# Creates binary mask
+    #print(segmentation_map.shape)
+    #plt.imshow(radio_field/rms_field)
+    #plt.imshow(non_source_component_mask, alpha=0.5)
+    #plt.show()
+    #if verbose:
+        #plt.imshow(radio_field/rms_field)
+        #plt.imshow(segmentation_map, alpha=0.5)
+        #plt.show()
+        #plt.imshow(radio_field/rms_field)
+        #plt.imshow(non_source_component_mask, alpha=0.5)
+        #plt.show()
+    return segmentation_map, non_source_component_mask
+
+
+def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_catalog, mosaic_location,
                    save_cutout_directory, gaussian=None, all_channels=False, source_size=None, verbose=False):
     """
     Create cutouts of all sources in a field
@@ -272,6 +348,15 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             header = lhdu[0].header
             wcs = WCS(header)
 
+            # Now segmentation map
+            source_components = component_catalog[component_catalog["Source_Name"] == source["Source_Name"]]
+            component_seg, non_component_seg = make_component_segmentation_map(source['ID_ra'], source['ID_dec'], wcs=wcs,
+                                            radio_field=lhdu[0].data, rms_field=lrms[0].data,
+                                            component_ra=source_components['RA'], component_dec=source_components['DEC'],
+                                            sigma=5., n_components=len(source_components), verbose=True)
+            sem_seg = np.asarray([component_seg.data, non_component_seg.data])
+            #exit()
+
             # Now time to get the data from the catalogue and add that in their own channels
             if verbose:
                 print(f"Image Shape: {img_array[0].data.shape}")
@@ -283,10 +368,10 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
                 layers = ["iFApMag", "w1Mag"]
             # Get the catalog sources once, to speed things up
             # cuts size in two to only get sources that fall within the cutout, instead of ones that go twice as large
-            cutout_catalog = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size/2,
+            cutout_catalog = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size / 2,
                                                                  pan_wise_catalog, source)
             # Now determine if there are other sources in the area
-            other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size/2,
+            other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size / 2,
                                                                         mosaic_cutouts, source)
 
             # Now make proposal boxes
@@ -301,17 +386,17 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
             img_array = np.moveaxis(img_array, 0, 2)
             # Include another array giving the bounding box for the source
             bounding_boxes = []
-            source_bbox = make_bounding_box(source['ID_ra'], source['ID_dec'], wcs, gaussian=gaussian)
             try:
+                source_bbox = make_bounding_box(source['ID_ra'], source['ID_dec'], wcs, gaussian=gaussian)
                 assert source_bbox[1] >= 0
                 assert source_bbox[0] >= 0
                 assert source_bbox[3] < img_array.shape[0]
                 assert source_bbox[2] < img_array.shape[1]
+                source_bounding_box = list(source_bbox)
+                bounding_boxes.append(source_bounding_box)
             except:
                 print("Source not in bounds")
                 continue
-            source_bounding_box = list(source_bbox)
-            bounding_boxes.append(source_bounding_box)
             if verbose:
                 plot_three_channel_debug(img_array, bounding_boxes, 1, bounding_boxes[0][5])
             # Now go through and for any other sources in the field of view, add those
@@ -320,15 +405,16 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
                                                wcs, class_name="Other Optical Source", gaussian=gaussian)
                 if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][
                     1]):  # Make sure not same one
-                    if other_bbox[1] >= 0 and other_bbox[0] >= 0 and other_bbox[3] < img_array.shape[0] and other_bbox[2] < img_array.shape[1]:
+                    if other_bbox[1] >= 0 and other_bbox[0] >= 0 and other_bbox[3] < img_array.shape[0] and other_bbox[
+                        2] < img_array.shape[1]:
                         bounding_boxes.append(
                             list(other_bbox))  # Only add the bounding box if it is within the image shape
-            # Now save out the combined file
 
+            # Now save out the combined file
             bounding_boxes = np.array(bounding_boxes)
             if verbose:
                 print(bounding_boxes)
-            combined_array = [img_array, bounding_boxes, proposal_boxes]
+            combined_array = [img_array, bounding_boxes, proposal_boxes, sem_seg]
             try:
                 np.save(os.path.join(save_cutout_directory, source['Source_Name']), combined_array)
             except Exception as e:
@@ -337,120 +423,11 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_locatio
         else:
             print(f"Skipped: {l}")
 
-def create_no_optical_cutouts(mosaic, value_added_catalog, pan_wise_catalog, mosaic_location,
-                   save_cutout_directory, gaussian=None, all_channels=False, source_size=None, verbose=False):
-    """
-    Create cutouts of all sources in a field
-    :param mosaic: Name of the field to use
-    :param value_added_catalog: The VAC of the LoTSS data release
-    :param pan_wise_catalog: The PanSTARRS-ALLWISE catalogue used for Williams, 2018, the LoTSS III paper
-    :param mosaic_location: The location of the LoTSS DR2 mosaics
-    :param save_cutout_directory: Where to save the cutout npy files
-    :param all_channels: Whether to include all possible channels (grizy,W1,2,3,4 bands) in npy file or just (radio,i,W1)
-    :param fixed_size: Whether to use fixed size cutouts, in arcseconds, or the LGZ size (default: LGZ)
-    :param verbose: Whether to print extra information or not
-    :return:
-    """
-    lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
-    lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
-    if gaussian is False:
-        gaussian = None
-    if type(pan_wise_catalog) == str:
-        print("Trying To Open")
-        pan_wise_catalog = fits.open(pan_wise_catalog, memmap=True)
-        pan_wise_catalog = pan_wise_catalog[1].data
-        print("Opened Catalog")
-    # Load the data once, then do multiple cutouts
-    try:
-        fits.open(lofar_data_location, memmap=True)
-        fits.open(lofar_rms_location, memmap=True)
-    except:
-        if verbose:
-            print(f"Mosaic {mosaic} does not exist!")
-
-    mosaic_cutouts = value_added_catalog[value_added_catalog["Mosaic_ID"] == mosaic]
-    # Go through each cutout for that mosaic
-    for l, source in enumerate(mosaic_cutouts):
-        if not os.path.exists(os.path.join(save_cutout_directory, source['Source_Name'])):
-            img_array = []
-            # Get the ra and dec of the radio source
-            source_ra = source["RA"]
-            source_dec = source["DEC"]
-            # Get the size of the cutout needed
-            if source_size is None or source_size is False:
-                source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
-            try:
-                lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=verbose)
-            except:
-                if verbose:
-                    print(f"Failed to make data cutout for source: {source['Source_Name']}")
-                continue
-            try:
-                lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=verbose)
-            except:
-                if verbose:
-                    print(f"Failed to make rms cutout for source: {source['Source_Name']}")
-                continue
-            img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
-            header = lhdu[0].header
-            wcs = WCS(header)
-
-            # Now time to get the data from the catalogue and add that in their own channels
-            if verbose:
-                print(f"Image Shape: {img_array[0].data.shape}")
-            # Should now be in Radio/RMS, i, W1 format, else we skip it
-            # Need from catalog ra, dec, iFApMag, w1Mag, also have a z_best, which might or might not be available for all
-            if all_channels:
-                layers = ["iFApMag", "w1Mag", "gFApMag", "rFApMag", "zFApMag", "yFApMag", "w2Mag", "w3Mag", "w4Mag"]
-            else:
-                layers = ["iFApMag", "w1Mag"]
-            # Get the catalog sources once, to speed things up
-            # cuts size in two to only get sources that fall within the cutout, instead of ones that go twice as large
-            cutout_catalog = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size/2,
-                                                                 pan_wise_catalog, source)
-            # Now determine if there are other sources in the area
-            other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size/2,
-                                                                        mosaic_cutouts, source)
-
-            # Now make proposal boxes
-            proposal_boxes = np.asarray(make_proposal_boxes(wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian))
-            for layer in layers:
-                tmp = make_catalogue_layer(layer, wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian)
-                img_array.append(tmp)
-
-            img_array = np.array(img_array)
-            if verbose:
-                print(img_array.shape)
-            img_array = np.moveaxis(img_array, 0, 2)
-            # Include another array giving the bounding box for the source
-            bounding_boxes = []
-            if verbose:
-                plot_three_channel_debug(img_array, bounding_boxes, 1, bounding_boxes[0][5])
-            # Now go through and for any other sources in the field of view, add those
-            for other_source in other_visible_sources:
-                other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
-                                               wcs, class_name="Other Optical Source", gaussian=gaussian)
-                if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][
-                    1]):  # Make sure not same one
-                    if other_bbox[1] >= 0 and other_bbox[0] >= 0 and other_bbox[3] < img_array.shape[0] and other_bbox[2] < img_array.shape[1]:
-                        bounding_boxes.append(
-                            list(other_bbox))  # Only add the bounding box if it is within the image shape
-            # Now save out the combined file
-
-            bounding_boxes = np.array(bounding_boxes)
-            if verbose:
-                print(bounding_boxes)
-            combined_array = [img_array, bounding_boxes, proposal_boxes]
-            try:
-                np.save(os.path.join(save_cutout_directory, source['Source_Name']), combined_array)
-            except Exception as e:
-                if verbose:
-                    print(f"Failed to save: {e}")
-        else:
-            print(f"Skipped: {l}")
 
 def create_variable_source_dataset(cutout_directory, pan_wise_location,
-                                   value_added_catalog_location, dr_two_location, gaussian=None, all_channels=False, fixed_size=None, filter_lgz=True,
+                                   value_added_catalog_location, component_catalog_location,
+                                   dr_two_location, gaussian=None, all_channels=False,
+                                   fixed_size=None, filter_lgz=True,
                                    verbose=False, use_multiprocessing=False, strict_filter=False, filter_optical=True, no_source=False,
                                    num_threads=os.cpu_count()):
     """
@@ -482,11 +459,17 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
             l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]
             l_objects = l_objects[~np.isnan(l_objects["ID_dec"])]
         print(len(l_objects))
+    else:  # Otherwise, remove those with optical IDs
+        l_objects = l_objects[np.isnan(l_objects["ID_ra"])]
+        l_objects = l_objects[np.isnan(l_objects["ID_dec"])]
+        print(len(l_objects))
     if strict_filter:
         l_objects = l_objects[l_objects["LGZ_Size"] > 15.]
-        l_objects = l_objects[l_objects["Total_Flux"] > 10.]
+        l_objects = l_objects[l_objects["Total_flux"] > 10.]
         print(len(l_objects))
     mosaic_names = set(l_objects["Mosaic_ID"])
+
+    comp_catalog = get_lotss_objects(component_catalog_location, False)
 
     # Go through each object, creating the cutout and saving to a directory
     # Create a directory structure identical for detectron2
@@ -500,34 +483,19 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
 
     if use_multiprocessing:
         pool = multiprocessing.Pool(num_threads)
-        if no_source:
-            pool.starmap(create_no_optical_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_location),
-                                             repeat(dr_two_location), repeat(all_directory), repeat(gaussian),
-                                             repeat(all_channels), repeat(fixed_size),
-                                             repeat(verbose)))
-        else:
-            pool.starmap(create_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_location),
-                                                        repeat(dr_two_location), repeat(all_directory), repeat(gaussian),
-                                                        repeat(all_channels), repeat(fixed_size),
-                                                        repeat(verbose)))
+        pool.starmap(create_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_location), repeat(comp_catalog),
+                                         repeat(dr_two_location), repeat(all_directory), repeat(gaussian),
+                                         repeat(all_channels), repeat(fixed_size),
+                                         repeat(verbose)))
     else:
         pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
         pan_wise_catalogue = pan_wise_catalogue[1].data
         print("Loaded")
         for mosaic in mosaic_names:
-            if no_source:
-                create_no_optical_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue,
-                               mosaic_location=dr_two_location,
-                               save_cutout_directory=all_directory,
-                               gaussian=gaussian,
-                               all_channels=all_channels,
-                               source_size=fixed_size,
-                               verbose=verbose)
-            else:
-                create_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue,
-                                          mosaic_location=dr_two_location,
-                                          save_cutout_directory=all_directory,
-                                          gaussian=gaussian,
-                                          all_channels=all_channels,
-                                          source_size=fixed_size,
-                                          verbose=verbose)
+            create_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue, component_catalog=comp_catalog,
+                           mosaic_location=dr_two_location,
+                           save_cutout_directory=all_directory,
+                           gaussian=gaussian,
+                           all_channels=all_channels,
+                           source_size=fixed_size,
+                           verbose=verbose)

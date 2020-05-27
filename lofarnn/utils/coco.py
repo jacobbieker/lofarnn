@@ -339,72 +339,6 @@ def split_data(image_directory, split=0.2):
             "test": test_images}
 
 
-def online_single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
-    val = np.reshape(image[:, :, layer], -1)
-    img_mean = np.mean(val)
-    img_std = np.std(val)
-    layer_ks[layer] += 1
-    delta = img_mean - layer_means[layer]
-    mean = layer_means[layer] + delta / layer_ks[layer]
-    delta2 = val - mean
-    layer_stds[layer] = layer_stds[layer] + delta * delta2
-    return
-
-
-def faster_single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks):
-    """
-    Faster way of getting channelwise mean and stddev
-    :param image:
-    :param layer:
-    :param layer_means:
-    :param layer_stds:
-    :param layer_ks:
-    :return:
-    """
-    layer_means[layer] += image[:, :, layer].sum()
-    layer_stds[layer] += np.square(image[:, :, layer]).sum()
-    layer_ks[layer] += image[:, :, layer].size()
-    print(image[:, :, layer].size())
-    # mean = sum_x / n
-    # stdev = sqrt( sum_x2/n - mean^2 )
-
-
-def get_single_image_std_mean(image, num_layers, layer_means, layer_stds, layer_ks):
-    try:
-        data = Image.open(image).convert('RGB')
-    except:
-        try:
-            data = np.nan_to_num(np.load(image, allow_pickle=True))
-        except:
-            print("Failed")
-    image = np.array(data)
-    for layer in range(num_layers):
-        faster_single_layer_mean_and_std(image, layer, layer_means, layer_stds, layer_ks)
-    print(f"Current Mean and STD Dev: ")
-    for layer in range(num_layers):
-       print(f"Layer {layer} Mean: {layer_means[layer]/layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / (layer_ks[layer]) - layer_means[layer]/layer_ks[layer]))}")
-
-
-def get_pixel_mean_and_std_multi(image_paths, num_layers=3):
-    """
-    Get the channelwise mean and std dev of all the images
-    :param image_paths: Paths to the images
-    :return:
-    """
-    manager = Manager()
-    layer_means = manager.list([np.zeros(1) for _ in range(num_layers)])
-    layer_stds = manager.list([np.zeros(1) for _ in range(num_layers)])
-    layer_ks = manager.list([1 for _ in range(num_layers)])
-    pool = Pool(processes=os.cpu_count())
-    [pool.apply_async(get_single_image_std_mean, args=[image, num_layers, layer_means, layer_stds, layer_ks]) for image
-     in image_paths]
-    pool.close()
-    pool.join()
-    for layer in range(num_layers):
-        print(
-            f"Layer {layer} Mean: {layer_means[layer] / layer_ks[layer]} Std: {np.sqrt((layer_stds[layer] / layer_ks[layer]) - (layer_means[layer] / layer_ks[layer]))}")
-
-
 def get_all_single_image_std_mean(image, num_layers, layer_0, layer_1, layer_2, layer_3, layer_4, layer_5, layer_6, layer_7, layer_8, layer_9):
     try:
         data = Image.open(image).convert('RGB')
@@ -417,13 +351,14 @@ def get_all_single_image_std_mean(image, num_layers, layer_0, layer_1, layer_2, 
     layer_0.append(image[:, :, 0])
     layer_1.append(image[:, :, 1])
     layer_2.append(image[:, :, 2])
-    layer_3.append(image[:, :, 3])
-    layer_4.append(image[:, :, 4])
-    layer_5.append(image[:, :, 5])
-    layer_6.append(image[:, :, 6])
-    layer_7.append(image[:, :, 7])
-    layer_8.append(image[:, :, 8])
-    layer_9.append(image[:, :, 9])
+    if num_layers > 3:
+        layer_3.append(image[:, :, 3])
+        layer_4.append(image[:, :, 4])
+        layer_5.append(image[:, :, 5])
+        layer_6.append(image[:, :, 6])
+        layer_7.append(image[:, :, 7])
+        layer_8.append(image[:, :, 8])
+        layer_9.append(image[:, :, 9])
 
 def get_all_pixel_mean_and_std_multi(image_paths, num_layers=3):
     """
@@ -451,22 +386,35 @@ def get_all_pixel_mean_and_std_multi(image_paths, num_layers=3):
     layer_0 = np.concatenate([np.array(i) for i in layer_0])
     layer_2 = np.concatenate([np.array(i) for i in layer_2])
     layer_1 = np.concatenate([np.array(i) for i in layer_1])
-    layer_3 = np.concatenate([np.array(i) for i in layer_3])
-    layer_4 = np.concatenate([np.array(i) for i in layer_4])
-    layer_5 = np.concatenate([np.array(i) for i in layer_5])
-    layer_6 = np.concatenate([np.array(i) for i in layer_6])
-    layer_7 = np.concatenate([np.array(i) for i in layer_7])
-    layer_8 = np.concatenate([np.array(i) for i in layer_8])
-    layer_9 = np.concatenate([np.array(i) for i in layer_9])
+    if num_layers > 3:
+        layer_3 = np.concatenate([np.array(i) for i in layer_3])
+        layer_4 = np.concatenate([np.array(i) for i in layer_4])
+        layer_5 = np.concatenate([np.array(i) for i in layer_5])
+        layer_6 = np.concatenate([np.array(i) for i in layer_6])
+        layer_7 = np.concatenate([np.array(i) for i in layer_7])
+        layer_8 = np.concatenate([np.array(i) for i in layer_8])
+        layer_9 = np.concatenate([np.array(i) for i in layer_9])
     print(layer_0.shape)
     print(f"Layer 0 Mean: {np.mean(layer_0)} Std: {np.std(layer_0)}")
     print(f"Layer 1 Mean: {np.mean(layer_1)} Std: {np.std(layer_1)}")
     print(f"Layer 2 Mean: {np.mean(layer_2)} Std: {np.std(layer_2)}")
-    print(f"Layer 3 Mean: {np.mean(layer_3)} Std: {np.std(layer_3)}")
-    print(f"Layer 4 Mean: {np.mean(layer_4)} Std: {np.std(layer_4)}")
-    print(f"Layer 5 Mean: {np.mean(layer_5)} Std: {np.std(layer_5)}")
-    print(f"Layer 6 Mean: {np.mean(layer_6)} Std: {np.std(layer_6)}")
-    print(f"Layer 7 Mean: {np.mean(layer_7)} Std: {np.std(layer_7)}")
-    print(f"Layer 8 Mean: {np.mean(layer_8)} Std: {np.std(layer_8)}")
-    print(f"Layer 9 Mean: {np.mean(layer_9)} Std: {np.std(layer_9)}")
+    if num_layers > 3:
+        print(f"Layer 3 Mean: {np.mean(layer_3)} Std: {np.std(layer_3)}")
+        print(f"Layer 4 Mean: {np.mean(layer_4)} Std: {np.std(layer_4)}")
+        print(f"Layer 5 Mean: {np.mean(layer_5)} Std: {np.std(layer_5)}")
+        print(f"Layer 6 Mean: {np.mean(layer_6)} Std: {np.std(layer_6)}")
+        print(f"Layer 7 Mean: {np.mean(layer_7)} Std: {np.std(layer_7)}")
+        print(f"Layer 8 Mean: {np.mean(layer_8)} Std: {np.std(layer_8)}")
+        print(f"Layer 9 Mean: {np.mean(layer_9)} Std: {np.std(layer_9)}")
+        print(f"[[{np.round(np.mean(layer_0),5)},{np.round(np.mean(layer_1),5)},{np.round(np.mean(layer_2),5)},"
+              f"{np.round(np.mean(layer_3),5)},{np.round(np.mean(layer_4),5)},{np.round(np.mean(layer_5),5)},"
+              f"{np.round(np.mean(layer_6),5)},{np.round(np.mean(layer_7),5)},{np.round(np.mean(layer_8),5)},"
+              f"{np.round(np.mean(layer_9),5)}]]")
+        print(f"[[{np.round(np.std(layer_0),5)},{np.round(np.std(layer_1),5)},{np.round(np.std(layer_2),5)},"
+              f"{np.round(np.std(layer_3),5)},{np.round(np.std(layer_4),5)},{np.round(np.std(layer_5),5)},"
+              f"{np.round(np.std(layer_6),5)},{np.round(np.std(layer_7),5)},{np.round(np.std(layer_8),5)},"
+              f"{np.round(np.std(layer_9),5)}]]")
+    else:
+        print(f"[[{np.round(np.mean(layer_0),5)},{np.round(np.mean(layer_1),5)},{np.round(np.mean(layer_2),5)}]]")
+        print(f"[[{np.round(np.std(layer_0),5)},{np.round(np.std(layer_1),5)},{np.round(np.std(layer_2),5)}]]")
     print(layer_0.shape)
