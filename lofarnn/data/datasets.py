@@ -239,55 +239,41 @@ def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, compon
     # Caculating the rms and threshold
     threshold = sigma * rms_field
     segmentation_map = detect_sources(radio_field, threshold, 1)
-    source_skycoord = SkyCoord(ra, dec, unit='deg')
-    component_skycoord = SkyCoord(component_ra, component_dec, unit='deg')
-    coords = skycoord_to_pixel(source_skycoord, wcs, 0)
-    component_coords = skycoord_to_pixel(component_skycoord, wcs, 0)
+    if segmentation_map is not None:
+        source_skycoord = SkyCoord(ra, dec, unit='deg')
+        component_skycoord = SkyCoord(component_ra, component_dec, unit='deg')
+        coords = skycoord_to_pixel(source_skycoord, wcs, 0)
+        component_coords = skycoord_to_pixel(component_skycoord, wcs, 0)
 
-    # 2: turn coordinates into x,y for this cutout
-    pixel_xs, pixel_ys = component_coords[0], component_coords[1]
+        # 2: turn coordinates into x,y for this cutout
+        pixel_xs, pixel_ys = component_coords[0], component_coords[1]
 
-    # clean up the x,ys and make sure they stay inside the data
-    dx, dy = radio_field.shape
-    pixel_xs = np.clip(pixel_xs, 0, dx - 1)
-    pixel_ys = np.clip(pixel_ys, 0, dy - 1)
-    # 3: collect segmentation labels for these xs,ys
+        # clean up the x,ys and make sure they stay inside the data
+        dx, dy = radio_field.shape
+        pixel_xs = np.clip(pixel_xs, 0, dx - 1)
+        pixel_ys = np.clip(pixel_ys, 0, dy - 1)
+        # 3: collect segmentation labels for these xs,ys
 
-    try:
-        labels = [segmentation_map.data[int(round(y)), int(round(x))] for x, y in
-                  zip(pixel_xs, pixel_ys)]
-    except:
-        print(f'\nSegment and data shapes disagree?. Shape data {radio_field.shape}, shape segment'
-              f' {segmentation_map.data}. Source flagged!\n')
-        print([[x, y] for x, y in
-               zip(pixel_xs, pixel_ys)])
-        return False
-    labels = [l for l in labels if not l == 0]
+        try:
+            labels = [segmentation_map.data[int(round(y)), int(round(x))] for x, y in
+                      zip(pixel_xs, pixel_ys)]
+        except:
+            print(f'\nSegment and data shapes disagree?. Shape data {radio_field.shape}, shape segment'
+                  f' {segmentation_map.data}. Source flagged!\n')
+            print([[x, y] for x, y in
+                   zip(pixel_xs, pixel_ys)])
+            return False
+        labels = [l for l in labels if not l == 0]
 
-    component_ids = np.asarray(list(set(labels)))
-    #print(f"Shape IDS: {component_ids.shape}, Num Components: {n_components}")
-    #print(component_ids)
-    #import matplotlib.pyplot as plt
-    #plt.imshow(radio_field/rms_field)
-    #plt.imshow(segmentation_map.data, alpha=0.5)
-    #plt.show()
-    non_source_component_mask = segmentation_map.copy()
-    non_source_component_mask.remove_labels(component_ids)
-    #non_source_component_mask.relabel_consecutive()
-    segmentation_map.keep_labels(component_ids)
-    segmentation_map.reassign_labels(component_ids, new_label=1)# Creates binary mask
-    #print(segmentation_map.shape)
-    #plt.imshow(radio_field/rms_field)
-    #plt.imshow(non_source_component_mask, alpha=0.5)
-    #plt.show()
-    #if verbose:
-        #plt.imshow(radio_field/rms_field)
-        #plt.imshow(segmentation_map, alpha=0.5)
-        #plt.show()
-        #plt.imshow(radio_field/rms_field)
-        #plt.imshow(non_source_component_mask, alpha=0.5)
-        #plt.show()
-    return segmentation_map, non_source_component_mask
+        component_ids = np.asarray(list(set(labels)))
+        non_source_component_mask = segmentation_map.copy()
+        non_source_component_mask.remove_labels(component_ids)
+        segmentation_map.keep_labels(component_ids)
+        segmentation_map.reassign_labels(component_ids, new_label=1)# Creates binary mask
+        return segmentation_map.data, non_source_component_mask.data
+    else: # photutils returned None, so no sources are found, return empty masks
+        print("Empty Segmentation Map")
+        return np.zeros(radio_field.shape), np.zeros(radio_field.shape)
 
 
 def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_catalog, mosaic_location,
@@ -397,7 +383,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
                                                                                radio_field=lhdu[0].data, rms_field=lrms[0].data,
                                                                                component_ra=source_components['RA'], component_dec=source_components['DEC'],
                                                                                sigma=5., n_components=len(source_components), verbose=False)
-            sem_seg = [component_seg.data]
+            sem_seg = [component_seg]
             # Now go through and for any other sources in the field of view, add those
             for other_source in other_visible_sources:
                 other_components = component_catalog[component_catalog["Source_Name"] == other_source["Source_Name"]]
@@ -405,7 +391,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
                                                                                    radio_field=lhdu[0].data, rms_field=lrms[0].data,
                                                                                    component_ra=other_components['RA'], component_dec=other_components['DEC'],
                                                                                    sigma=5., n_components=len(other_components), verbose=False)
-                sem_seg.append(other_component_masks[0].data)
+                sem_seg.append(other_component_masks[0])
                 other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
                                                wcs, class_name="Other Optical Source", gaussian=gaussian)
                 if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][
@@ -417,7 +403,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
 
             # Now save out the combined file
             bounding_boxes = np.array(bounding_boxes)
-            sem_seg.append(non_component_seg.data)
+            sem_seg.append(non_component_seg)
             sem_seg = np.array(sem_seg)
             if verbose:
                 print(bounding_boxes)
