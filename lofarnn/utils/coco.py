@@ -295,7 +295,7 @@ def create_coco_annotations(image_names,
 
 
 def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.2, resize=None, rotation=None,
-                        convert=True, all_channels=False, precomputed_proposals=False, segmentation=False,
+                        convert=True, all_channels=False, precomputed_proposals=False, segmentation=False, normalize=True,
                         verbose=False):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
@@ -317,7 +317,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.
     create_coco_annotations(data_split["train"],
                             json_dir=annotations_directory,
                             image_destination_dir=train_directory,
-                            json_name=f"json_train_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}.pkl",
+                            json_name=f"json_train_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}_norm{normalize}.pkl",
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
                             rotation=rotation,
@@ -325,12 +325,11 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.
                             all_channels=all_channels,
                             precomputed_proposals=precomputed_proposals,
                             verbose=verbose)
-    if len(data_split[
-               "val"]) > 0:  # No need for separate validation set for Detectron2, its taken from the training one
+    if len(data_split["val"]) > 0:
         create_coco_annotations(data_split["val"],
                                 json_dir=annotations_directory,
                                 image_destination_dir=val_directory,
-                                json_name=f"json_val_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}.pkl",
+                                json_name=f"json_val_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}_norm{normalize}.pkl",
                                 multiple_bboxes=multiple_bboxes,
                                 resize=resize,
                                 rotation=rotation,
@@ -341,7 +340,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.
     create_coco_annotations(data_split["test"],
                             json_dir=annotations_directory,
                             image_destination_dir=test_directory,
-                            json_name=f"json_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}.pkl",
+                            json_name=f"json_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}_norm{normalize}.pkl",
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
                             rotation=rotation,
