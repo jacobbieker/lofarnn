@@ -9,6 +9,7 @@ import cv2
 from PIL import Image
 from detectron2.structures import BoxMode
 import matplotlib.pyplot as plt
+from pycocotools import mask
 
 from lofarnn.data.cutouts import convert_to_valid_color, augment_image_and_bboxes
 from lofarnn.visualization.cutouts import plot_three_channel_debug
@@ -75,7 +76,8 @@ def make_single_coco_annotation_set(image_names, L, m,
                                     image_destination_dir=None,
                                     multiple_bboxes=True, resize=None,
                                     rotation=None, convert=True,
-                                    all_channels=False, precomputed_proposals=False, stats=[], verbose=False):
+                                    all_channels=False, precomputed_proposals=False, segmentation=False, normalize=True, stats=[],
+                                    verbose=False):
     """
     For use with multiprocessing, goes through and does one rotation for the COCO annotations
     """
@@ -88,28 +90,34 @@ def make_single_coco_annotation_set(image_names, L, m,
                 image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".{m}.npy")
             else:
                 image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".npy")
-        image, cutouts, proposal_boxes = np.load(image_name, allow_pickle=True)  # mmap_mode might allow faster read
+        segmap_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".semseg.png")
+        image, cutouts, proposal_boxes, segmentation_maps = np.load(image_name,
+                                                                    allow_pickle=True)  # mmap_mode might allow faster read
         prev_shape = image.shape[0]
         image = np.nan_to_num(image)
         if rotation is not None:
             if type(rotation) == tuple:
-                image, cutouts, proposal_boxes = augment_image_and_bboxes(image,
-                                                                          cutouts=cutouts,
-                                                                          proposal_boxes=proposal_boxes,
-                                                                          angle=rotation[m],
-                                                                          new_size=resize)
+                image, cutouts, proposal_boxes, segmentation_maps = augment_image_and_bboxes(image,
+                                                                                             cutouts=cutouts,
+                                                                                             proposal_boxes=proposal_boxes,
+                                                                                             segmentation_maps=segmentation_maps,
+                                                                                             angle=rotation[m],
+                                                                                             new_size=resize)
             else:
-                image, cutouts, proposal_boxes = augment_image_and_bboxes(image,
-                                                                          cutouts=cutouts,
-                                                                          proposal_boxes=proposal_boxes,
-                                                                          angle=np.random.uniform(-rotation, rotation),
-                                                                          new_size=resize)
+                image, cutouts, proposal_boxes, segmentation_maps = augment_image_and_bboxes(image,
+                                                                                             cutouts=cutouts,
+                                                                                             proposal_boxes=proposal_boxes,
+                                                                                             segmentation_maps=segmentation_maps,
+                                                                                             angle=np.random.uniform(
+                                                                                                 -rotation, rotation),
+                                                                                             new_size=resize)
         else:
             # Need this to convert the bbox coordinates into the correct format
-            image, cutouts, proposal_boxes = augment_image_and_bboxes(image, cutouts=cutouts,
-                                                                      proposal_boxes=proposal_boxes,
-                                                                      angle=0,
-                                                                      new_size=resize)
+            image, cutouts, proposal_boxes, segmentation_maps = augment_image_and_bboxes(image, cutouts=cutouts,
+                                                                                         proposal_boxes=proposal_boxes,
+                                                                                         segmentation_maps=segmentation_maps,
+                                                                                         angle=0,
+                                                                                         new_size=resize)
         width, height, depth = np.shape(image)
         if all_channels and depth != 10:
             continue
@@ -118,11 +126,11 @@ def make_single_coco_annotation_set(image_names, L, m,
         scale_size = image.shape[0] / prev_shape
         # First R (Radio) channel
         image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
-                                                normalize=True, scaling=None)
+                                                normalize=normalize, scaling=None)
         for layer in range(image.shape[2]):
             image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=0.,
                                                         upper_clip=25.,
-                                                        normalize=True, scaling=None)
+                                                        normalize=normalize, scaling=None)
         if convert:
             image = np.nan_to_num(image)
             image = (255.0 * image).astype(np.uint8)
@@ -143,10 +151,10 @@ def make_single_coco_annotation_set(image_names, L, m,
         objs = []
         # check if there is no optical source
         try:
-            if len(cutouts) > 0: # There is an optical source
+            if len(cutouts) > 0:  # There is an optical source
                 if not multiple_bboxes:
                     cutouts = [cutouts[0]]  # Only take the first one, the main optical source
-                for bbox in cutouts:
+                for source_num, bbox in enumerate(cutouts):
                     assert float(bbox[2]) >= float(bbox[0])
                     assert float(bbox[3]) >= float(bbox[1])
 
@@ -159,7 +167,7 @@ def make_single_coco_annotation_set(image_names, L, m,
                     obj = {
                         "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
                         "bbox_mode": BoxMode.XYXY_ABS,
-                        # "segmentation": [poly],
+                        "segmentation": mask.encode(np.asarray(segmentation_maps[source_num], order="F")),
                         "category_id": category_id,
                         "iscrowd": 0
                     }
@@ -171,6 +179,20 @@ def make_single_coco_annotation_set(image_names, L, m,
             record["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
             record["proposal_bbox_mode"] = BoxMode.XYXY_ABS
         record["annotations"] = objs
+        if segmentation:
+            # Now save out the ground truth semantic segmentation mask
+            if not multiple_bboxes:
+                ground_truth_mask = segmentation_maps[0] # Choose the first one, the primary source
+            else:
+                # Have to go through and add all the other segmaps into a single one, leaving out full background one
+                ground_truth_mask = np.zeros(segmentation_maps[0].shape)
+                for source_num, source_segmap in enumerate(segmentation_maps[:-1]):
+                    source_segmap = np.where(source_segmap > 0, source_num+1, 0)
+                    np.add(ground_truth_mask, source_segmap)
+            # Now save out the ground truth map
+            ground_truth_mask = Image.fromarray(ground_truth_mask)
+            ground_truth_mask.save(segmap_dest_filename)
+            record["sem_seg_file_name"] = segmap_dest_filename
         L.append(record)
 
 
@@ -178,11 +200,12 @@ def create_coco_annotations(image_names,
                             image_destination_dir=None,
                             json_dir='', json_name='json_data.pkl',
                             multiple_bboxes=True, resize=None, rotation=None, convert=True, all_channels=False,
-                            precomputed_proposals=False,
+                            precomputed_proposals=False, segmentation=False, normalize=True,
                             verbose=False):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
     directory
+    :param segmentation: Whether to include the segmentation maps or not
     :param image_names: Image names, i.e., the source names
     :param image_destination_dir: The directory the images will end up in
     :param json_dir: The directory where to put the JSON annotation file
@@ -212,7 +235,7 @@ def create_coco_annotations(image_names,
         bbox_size = manager.list()
         [pool.apply_async(make_single_coco_annotation_set,
                           args=[image_names, L, m, image_destination_dir, multiple_bboxes, resize, rotation, convert,
-                                all_channels, precomputed_proposals, bbox_size,
+                                all_channels, precomputed_proposals, segmentation, normalize, bbox_size,
                                 verbose]) for m in range(num_copies)]
         pool.close()
         pool.join()
@@ -235,13 +258,13 @@ def create_coco_annotations(image_names,
     bbox_size = []
     for m in range(num_copies):
         make_single_coco_annotation_set(image_names, dataset_dicts, m, image_destination_dir, multiple_bboxes, resize,
-                                        rotation, convert, all_channels, precomputed_proposals, bbox_size,
+                                        rotation, convert, all_channels, precomputed_proposals, segmentation, normalize, bbox_size,
                                         verbose)
     # Write all image dictionaries to file as one json
-    #print(np.mean(bbox_size))
-    #print(np.std(bbox_size))
-    #print(np.max(bbox_size))
-    #print(np.min(bbox_size))
+    # print(np.mean(bbox_size))
+    # print(np.std(bbox_size))
+    # print(np.max(bbox_size))
+    # print(np.min(bbox_size))
     plt.hist(bbox_size, bins=50)
     plt.show()
     json_path = os.path.join(json_dir, json_name)
@@ -252,7 +275,7 @@ def create_coco_annotations(image_names,
 
 
 def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.2, resize=None, rotation=None,
-                        convert=True, all_channels=False, precomputed_proposals=False,
+                        convert=True, all_channels=False, precomputed_proposals=False, segmentation=False,
                         verbose=False):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
@@ -274,7 +297,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.
     create_coco_annotations(data_split["train"],
                             json_dir=annotations_directory,
                             image_destination_dir=train_directory,
-                            json_name=f"json_train_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}.pkl",
+                            json_name=f"json_train_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}.pkl",
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
                             rotation=rotation,
@@ -282,11 +305,12 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.
                             all_channels=all_channels,
                             precomputed_proposals=precomputed_proposals,
                             verbose=verbose)
-    if len(data_split["val"]) > 0: # No need for separate validation set for Detectron2, its taken from the training one
+    if len(data_split[
+               "val"]) > 0:  # No need for separate validation set for Detectron2, its taken from the training one
         create_coco_annotations(data_split["val"],
                                 json_dir=annotations_directory,
                                 image_destination_dir=val_directory,
-                                json_name=f"json_val_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}.pkl",
+                                json_name=f"json_val_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}.pkl",
                                 multiple_bboxes=multiple_bboxes,
                                 resize=resize,
                                 rotation=rotation,
@@ -297,7 +321,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.
     create_coco_annotations(data_split["test"],
                             json_dir=annotations_directory,
                             image_destination_dir=test_directory,
-                            json_name=f"json_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}.pkl",
+                            json_name=f"json_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}.pkl",
                             multiple_bboxes=multiple_bboxes,
                             resize=resize,
                             rotation=rotation,
@@ -339,7 +363,8 @@ def split_data(image_directory, split=0.2):
             "test": test_images}
 
 
-def get_all_single_image_std_mean(image, num_layers, layer_0, layer_1, layer_2, layer_3, layer_4, layer_5, layer_6, layer_7, layer_8, layer_9):
+def get_all_single_image_std_mean(image, num_layers, layer_0, layer_1, layer_2, layer_3, layer_4, layer_5, layer_6,
+                                  layer_7, layer_8, layer_9):
     try:
         data = Image.open(image).convert('RGB')
     except:
@@ -360,6 +385,7 @@ def get_all_single_image_std_mean(image, num_layers, layer_0, layer_1, layer_2, 
         layer_8.append(image[:, :, 8])
         layer_9.append(image[:, :, 9])
 
+
 def get_all_pixel_mean_and_std_multi(image_paths, num_layers=3):
     """
     Get the channelwise mean and std dev of all the images
@@ -378,7 +404,9 @@ def get_all_pixel_mean_and_std_multi(image_paths, num_layers=3):
     layer_8 = manager.list()
     layer_9 = manager.list()
     pool = Pool(processes=os.cpu_count())
-    [pool.apply_async(get_all_single_image_std_mean, args=[image, num_layers, layer_0, layer_1, layer_2, layer_3, layer_4, layer_5, layer_6, layer_7, layer_8, layer_9]) for
+    [pool.apply_async(get_all_single_image_std_mean,
+                      args=[image, num_layers, layer_0, layer_1, layer_2, layer_3, layer_4, layer_5, layer_6, layer_7,
+                            layer_8, layer_9]) for
      image
      in image_paths]
     pool.close()
@@ -406,15 +434,15 @@ def get_all_pixel_mean_and_std_multi(image_paths, num_layers=3):
         print(f"Layer 7 Mean: {np.mean(layer_7)} Std: {np.std(layer_7)}")
         print(f"Layer 8 Mean: {np.mean(layer_8)} Std: {np.std(layer_8)}")
         print(f"Layer 9 Mean: {np.mean(layer_9)} Std: {np.std(layer_9)}")
-        print(f"[[{np.round(np.mean(layer_0),5)},{np.round(np.mean(layer_1),5)},{np.round(np.mean(layer_2),5)},"
-              f"{np.round(np.mean(layer_3),5)},{np.round(np.mean(layer_4),5)},{np.round(np.mean(layer_5),5)},"
-              f"{np.round(np.mean(layer_6),5)},{np.round(np.mean(layer_7),5)},{np.round(np.mean(layer_8),5)},"
-              f"{np.round(np.mean(layer_9),5)}]]")
-        print(f"[[{np.round(np.std(layer_0),5)},{np.round(np.std(layer_1),5)},{np.round(np.std(layer_2),5)},"
-              f"{np.round(np.std(layer_3),5)},{np.round(np.std(layer_4),5)},{np.round(np.std(layer_5),5)},"
-              f"{np.round(np.std(layer_6),5)},{np.round(np.std(layer_7),5)},{np.round(np.std(layer_8),5)},"
-              f"{np.round(np.std(layer_9),5)}]]")
+        print(f"[[{np.round(np.mean(layer_0), 5)},{np.round(np.mean(layer_1), 5)},{np.round(np.mean(layer_2), 5)},"
+              f"{np.round(np.mean(layer_3), 5)},{np.round(np.mean(layer_4), 5)},{np.round(np.mean(layer_5), 5)},"
+              f"{np.round(np.mean(layer_6), 5)},{np.round(np.mean(layer_7), 5)},{np.round(np.mean(layer_8), 5)},"
+              f"{np.round(np.mean(layer_9), 5)}]]")
+        print(f"[[{np.round(np.std(layer_0), 5)},{np.round(np.std(layer_1), 5)},{np.round(np.std(layer_2), 5)},"
+              f"{np.round(np.std(layer_3), 5)},{np.round(np.std(layer_4), 5)},{np.round(np.std(layer_5), 5)},"
+              f"{np.round(np.std(layer_6), 5)},{np.round(np.std(layer_7), 5)},{np.round(np.std(layer_8), 5)},"
+              f"{np.round(np.std(layer_9), 5)}]]")
     else:
-        print(f"[[{np.round(np.mean(layer_0),5)},{np.round(np.mean(layer_1),5)},{np.round(np.mean(layer_2),5)}]]")
-        print(f"[[{np.round(np.std(layer_0),5)},{np.round(np.std(layer_1),5)},{np.round(np.std(layer_2),5)}]]")
+        print(f"[[{np.round(np.mean(layer_0), 5)},{np.round(np.mean(layer_1), 5)},{np.round(np.mean(layer_2), 5)}]]")
+        print(f"[[{np.round(np.std(layer_0), 5)},{np.round(np.std(layer_1), 5)},{np.round(np.std(layer_2), 5)}]]")
     print(layer_0.shape)

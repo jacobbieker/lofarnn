@@ -5,6 +5,7 @@ import cv2
 import imgaug.augmenters as iaa
 import imgaug as ia
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+from imgaug.augmentables.segmaps import SegmentationMapOnImage, SegmentationMapsOnImage
 
 
 
@@ -60,7 +61,7 @@ def make_bounding_box(source_location):
 
 import matplotlib.pyplot as plt
 
-def augment_image_and_bboxes(image, cutouts, proposal_boxes, angle, new_size, verbose=False):
+def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, angle, new_size, verbose=False):
     bounding_boxes = []
     prop_boxes = []
     for cutout in cutouts:
@@ -69,6 +70,7 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, angle, new_size, ve
         prop_boxes.append(BoundingBox(pbox[1]+0.5, pbox[0]+0.5, pbox[3]+0.5, pbox[2]+0.5))
     bbs = BoundingBoxesOnImage(bounding_boxes, shape=image.shape)
     pbbs = BoundingBoxesOnImage(prop_boxes, shape=image.shape)
+    segmaps = SegmentationMapsOnImage(segmentation_maps, shape=image.shape)
     # Rescale image and bounding boxes
     if type(new_size) == int or type(new_size):
         image_rescaled = ia.imresize_single_image(image, (new_size, new_size))
@@ -76,7 +78,9 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, angle, new_size, ve
         image_rescaled = ia.imresize_single_image(image, (image.shape[0], image.shape[1]))
     bbs_rescaled = bbs.on(image_rescaled)
     pbbs_rescaled = pbbs.on(image_rescaled)
+    segmaps_rescaled = segmaps.resize((image_rescaled.shape[0],image_rescaled.shape[1]))
     _, bbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=bbs_rescaled)
+    _, segmaps_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, segmentation_maps=segmaps_rescaled)
     image_rescaled, pbbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=pbbs_rescaled)
     # Remove bounding boxes that go out of bounds
     pbbs_rescaled = pbbs_rescaled.remove_out_of_image(partly=True)
@@ -108,4 +112,4 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, angle, new_size, ve
     for index, bbox in enumerate(pbbs_rescaled):
         pbs.append(np.asarray((bbox.x1, bbox.y1, bbox.x2, bbox.y2)))
     pbs = np.asarray(pbs)
-    return image_rescaled, cutouts, pbs
+    return image_rescaled, cutouts, pbs, segmaps_rescaled.get_arr()
