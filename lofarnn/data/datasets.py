@@ -379,11 +379,16 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
                 plot_three_channel_debug(img_array, bounding_boxes, 1, bounding_boxes[0][5])
             # Now segmentation map
             source_components = component_catalog[component_catalog["Source_Name"] == source["Source_Name"]]
-            component_seg, non_component_seg = make_component_segmentation_map(source['ID_ra'], source['ID_dec'], wcs=wcs,
+            component_seg, non_component_seg_five = make_component_segmentation_map(source['ID_ra'], source['ID_dec'], wcs=wcs,
                                                                                radio_field=lhdu[0].data, rms_field=lrms[0].data,
                                                                                component_ra=source_components['RA'], component_dec=source_components['DEC'],
                                                                                sigma=5., n_components=len(source_components), verbose=False)
-            sem_seg = [component_seg]
+            sem_seg_five = [component_seg]
+            component_seg, non_component_seg_three = make_component_segmentation_map(source['ID_ra'], source['ID_dec'], wcs=wcs,
+                                                                               radio_field=lhdu[0].data, rms_field=lrms[0].data,
+                                                                               component_ra=source_components['RA'], component_dec=source_components['DEC'],
+                                                                               sigma=3., n_components=len(source_components), verbose=False)
+            sem_seg_three = [component_seg]
             # Now go through and for any other sources in the field of view, add those
             for other_source in other_visible_sources:
                 other_components = component_catalog[component_catalog["Source_Name"] == other_source["Source_Name"]]
@@ -391,7 +396,12 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
                                                                                    radio_field=lhdu[0].data, rms_field=lrms[0].data,
                                                                                    component_ra=other_components['RA'], component_dec=other_components['DEC'],
                                                                                    sigma=5., n_components=len(other_components), verbose=False)
-                sem_seg.append(other_component_masks[0])
+                sem_seg_five.append(other_component_masks[0])
+                other_component_masks = make_component_segmentation_map(other_source['ID_ra'], other_source['ID_dec'], wcs=wcs,
+                                                                        radio_field=lhdu[0].data, rms_field=lrms[0].data,
+                                                                        component_ra=other_components['RA'], component_dec=other_components['DEC'],
+                                                                        sigma=3., n_components=len(other_components), verbose=False)
+                sem_seg_three.append(other_component_masks[0])
                 other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
                                                wcs, class_name="Other Optical Source", gaussian=gaussian)
                 if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][
@@ -403,11 +413,13 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
 
             # Now save out the combined file
             bounding_boxes = np.array(bounding_boxes)
-            sem_seg.append(non_component_seg)
-            sem_seg = np.array(sem_seg)
+            sem_seg_five.append(non_component_seg_five)
+            sem_seg_three.append(non_component_seg_three)
+            sem_seg_five = np.array(sem_seg_five)
+            sem_seg_three = np.array(sem_seg_three)
             if verbose:
                 print(bounding_boxes)
-            combined_array = [img_array, bounding_boxes, proposal_boxes, sem_seg]
+            combined_array = [img_array, bounding_boxes, proposal_boxes, sem_seg_five, sem_seg_three]
             try:
                 np.save(os.path.join(save_cutout_directory, source['Source_Name']), combined_array)
             except Exception as e:
