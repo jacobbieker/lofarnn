@@ -186,10 +186,11 @@ def make_single_coco_annotation_set(image_names, L, m,
                     obj = {
                         "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
                         "bbox_mode": BoxMode.XYXY_ABS,
-                        "segmentation": mask.encode(np.asarray(segmentation_maps[source_num], order="F")),
                         "category_id": category_id,
                         "iscrowd": 0
                     }
+                    if segmentation:
+                        obj["segmentation"] = mask.encode(np.asarray(segmentation_maps[source_num], order="F")),
                     objs.append(obj)
         except:
             print("No Optical source found")
