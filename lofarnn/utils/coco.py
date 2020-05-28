@@ -80,6 +80,21 @@ def make_single_coco_annotation_set(image_names, L, m,
                                     verbose=False):
     """
     For use with multiprocessing, goes through and does one rotation for the COCO annotations
+    :param image_names:
+    :param L:
+    :param m:
+    :param image_destination_dir:
+    :param multiple_bboxes:
+    :param resize:
+    :param rotation:
+    :param convert:
+    :param all_channels:
+    :param precomputed_proposals:
+    :param segmentation: Whether to do segmentation or not, if True, or 5, then uses the 5 sigma segmentation maps, if 3, uses the 3 sigma maps
+    :param normalize:
+    :param stats:
+    :param verbose:
+    :return:
     """
     for i, image_name in enumerate(image_names):
         # Get image dimensions and insert them in a python dict
@@ -91,8 +106,12 @@ def make_single_coco_annotation_set(image_names, L, m,
             else:
                 image_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".npy")
         segmap_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".semseg.png")
-        image, cutouts, proposal_boxes, segmentation_maps = np.load(image_name,
+        image, cutouts, proposal_boxes, segmentation_maps_five, segmentation_maps_three = np.load(image_name,
                                                                     allow_pickle=True)  # mmap_mode might allow faster read
+        if segmentation == 3:
+            segmentation_maps = segmentation_maps_three
+        else:
+            segmentation_maps = segmentation_maps_five
         prev_shape = image.shape[0]
         image = np.nan_to_num(image)
         if rotation is not None:
