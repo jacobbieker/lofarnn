@@ -1,4 +1,0 @@
-_BASE_: "source_base.yaml"
-MODEL:
-  PIXEL_MEAN: [15.421, 9.533, 7.334]
-  PIXEL_STD: [29.931, 21.771, 20.132]
