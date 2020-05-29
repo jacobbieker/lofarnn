@@ -109,9 +109,9 @@ def make_single_coco_annotation_set(image_names, L, m,
         image, cutouts, proposal_boxes, segmentation_maps_five, segmentation_maps_three = np.load(image_name,
                                                                     allow_pickle=True)  # mmap_mode might allow faster read
         if segmentation == 3:
-            segmentation_maps = segmentation_maps_three
+            segmentation_maps = segmentation_maps_three.astype(np.uint8)
         else:
-            segmentation_maps = segmentation_maps_five
+            segmentation_maps = segmentation_maps_five.astype(np.uint8)
         prev_shape = image.shape[0]
         image = np.nan_to_num(image)
         if rotation is not None:
