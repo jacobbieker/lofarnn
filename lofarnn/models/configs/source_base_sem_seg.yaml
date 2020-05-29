@@ -8,14 +8,9 @@ INPUT:
 DATALOADER:
   NUM_WORKERS: 6
 MODEL:
-  MASK_ON: False
-  #WEIGHTS: "detectron2://ImageNetPretrained/FAIR/X-101-32x8d.pkl"
-  # Determine mean of our GBR channels
-  #Layer 0 Mean: [16.04951283] Std: [30.84018818]
-  #Layer 1 Mean: [2.39659263] Std: [13.68579664]
-  #Layer 2 Mean: [1.61892633] Std: [11.35677329]
-  PIXEL_MEAN: [15.905, 2.394, 1.611]
-  PIXEL_STD: [30.759, 13.674, 11.303]
+  MASK_ON: True
+  PIXEL_MEAN: [18.71869,1.1018,0.73096]
+  PIXEL_STD: [40.58461,15.3448,12.72729]
   ROI_HEADS:
     BATCH_SIZE_PER_IMAGE: 4096   # faster, and good enough for this toy dataset (default: 512)
     NUM_CLASSES: 1  # only has one class (Optical Source)
@@ -30,10 +25,10 @@ MODEL:
     FREEZE_AT: -1
   ANCHOR_GENERATOR:
     ASPECT_RATIOS: [[1.0,]]
-    SIZES: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 26, 30, 32, 40, 48, 56, 64, 70, 76, 80, 88, 96, 112, 128, 256, 512, 1024]]
+    SIZES: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 44, 48, 56, 64, 70, 76, 80, 88, 96, 112, 120, 128, 136, 148, 164, 190, 214, 256, 1300, 1900]]
 SOLVER:
   BASE_LR: 0.0001
   IMS_PER_BATCH: 2
-  STEPS: (210000, 250000)
-  MAX_ITER: 150000
+  STEPS: (60000, 80000)
+  MAX_ITER: 90000
   CHECKPOINT_PERIOD: 50000

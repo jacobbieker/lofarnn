@@ -7,7 +7,7 @@ INPUT:
   FORMAT: "RGB"
 MODEL:
   #WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
-  MASK_ON: False
+  MASK_ON: True
   LOAD_PROPOSALS: True
   PIXEL_MEAN: [18.71869,1.1018,0.73096]
   PIXEL_STD: [40.58461,15.3448,12.72729]
@@ -24,19 +24,13 @@ MODEL:
   ANCHOR_GENERATOR:
     ASPECT_RATIOS: [[1.0,]]
     ANGLES: [[0.,]]
-    SIZES: [[4]]
-    #SIZES: [[1,2,3,4,5,6,7,8,9,10,12,14,16,20,26,30,32,40,48,56,64,70,76,80,88,96,112,128,256,512,1024]]
-    #SIZES: [[1,2,3,4,5,6,7,8,9,10,20],[12,14,16,18,24,26,28,30,40],[32,34,36,38,40,56,64,80],[70,76,80,96,120,128,256],[136,148,164,256,512,1024]]
-    #SIZES: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 44, 48, 56, 64, 70, 76, 80, 88, 96, 112, 120, 128, 136, 148, 164, 190, 214, 256, 1300, 1900]]
-#DATASETS:
-#  PROPOSAL_FILES_TRAIN: ("detectron2://COCO-Detection/rpn_R_50_FPN_1x/137258492/coco_2017_train_box_proposals_21bc3a.pkl", )
-#  PROPOSAL_FILES_TEST: ("detectron2://COCO-Detection/rpn_R_50_FPN_1x/137258492/coco_2017_val_box_proposals_ee0dad.pkl", )
+    SIZES: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 44, 48, 56, 64, 70, 76, 80, 88, 96, 112, 120, 128, 136, 148, 164, 190, 214, 256, 1300, 1900]]
 DATALOADER:
   # proposals are part of the dataset_dicts, and take a lot of RAM
   NUM_WORKERS: 2
 SOLVER:
   BASE_LR: 0.0001
   IMS_PER_BATCH: 2
-  STEPS: (210000, 250000)
+  STEPS: (60000, 80000)
   MAX_ITER: 90000
   CHECKPOINT_PERIOD: 50000
