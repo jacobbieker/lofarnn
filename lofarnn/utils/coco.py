@@ -322,6 +322,8 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.
                             resize=resize,
                             rotation=rotation,
                             convert=convert,
+                            segmentation=segmentation,
+                            normalize=normalize,
                             all_channels=all_channels,
                             precomputed_proposals=precomputed_proposals,
                             verbose=verbose)
@@ -334,6 +336,8 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.
                                 resize=resize,
                                 rotation=rotation,
                                 convert=convert,
+                                segmentation=segmentation,
+                                normalize=normalize,
                                 all_channels=all_channels,
                                 precomputed_proposals=precomputed_proposals,
                                 verbose=verbose)
@@ -345,6 +349,8 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.
                             resize=resize,
                             rotation=rotation,
                             convert=convert,
+                            segmentation=segmentation,
+                            normalize=normalize,
                             all_channels=all_channels,
                             precomputed_proposals=precomputed_proposals,
                             verbose=verbose)
