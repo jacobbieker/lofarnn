@@ -117,6 +117,10 @@ def make_single_coco_annotation_set(image_names, L, m,
             segmentation_maps = segmentation_maps_five.astype(np.uint8)
         prev_shape = image.shape[0]
         image = np.nan_to_num(image)
+        print(segmentation_maps[0].shape)
+        # Change order to H,W,C for imgaug
+        segmentation_maps = np.moveaxis(segmentation_maps,0,-1)
+        print(segmentation_maps[0].shape)
         if rotation is not None:
             if type(rotation) == tuple:
                 image, cutouts, proposal_boxes, segmentation_maps = augment_image_and_bboxes(image,
@@ -141,6 +145,9 @@ def make_single_coco_annotation_set(image_names, L, m,
                                                                                          angle=0,
                                                                                          new_size=resize)
         width, height, depth = np.shape(image)
+        # Move the segmentation maps back to original order
+        segmentation_maps = np.moveaxis(segmentation_maps, -1, 0)
+        print(segmentation_maps[0].shape)
         if all_channels and depth != 10:
             continue
 
