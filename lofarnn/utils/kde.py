@@ -23,7 +23,8 @@ def check_predictions(nn_prediction_path, training_path, save_cutout_location):
     predictions = load(nn_prediction_path)
     training_data = pickle.load(open(training_path, "rb"))
     compared_predictions = {}
-
+    fraction_matched = 0
+    total = 0
     for image_data in training_data:
         # Now go through each dict to get the source Name, ground truth, npy as its 10 channel
         source_name = image_data['file_name'].split("/")[-1].split(".npy")[0]
@@ -45,8 +46,14 @@ def check_predictions(nn_prediction_path, training_path, save_cutout_location):
                 bbox = pred_data["bbox"]
                 in_pred = check_box(bbox, jelle_prediction)
                 compared_predictions[source_name] = in_pred
+                if in_pred:
+                    fraction_matched += 1
+                    total += 1
+                else:
+                    total += 1
                 found=True
     pickle.dump(compared_predictions, open(f"compared_predictions.pkl", "wb"))
+    print(f"Fraction Matched: {float(fraction_matched)/total}")
 
 
 
