@@ -1,0 +1,4 @@
+_BASE_: "source_fast_base_sem_seg.yaml"
+MODEL:
+  PIXEL_MEAN: [2.448, 0.765, 0.5355]
+  PIXEL_STD: [9.435, 13.005, 11.373]

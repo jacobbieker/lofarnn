@@ -5,6 +5,7 @@ INPUT:
   MAX_SIZE_TRAIN: 400
   MAX_SIZE_TEST: 400
   FORMAT: "RGB"
+  MASK_FORMAT: bitmask
 MODEL:
   #WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
   MASK_ON: True
