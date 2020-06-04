@@ -14,13 +14,10 @@ import os
 
 # import some common detectron2 utilities
 
-from detectron2.evaluation import COCOEvaluator
-
 os.environ["LOFARNN_ARCH"] = "XPS"
 environment = os.environ["LOFARNN_ARCH"]
 from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup, launch, DefaultPredictor
 from detectron2.evaluation import COCOEvaluator,inference_on_dataset
-from lofarnn.models.evaluators.SourceEvaluator import SourceEvaluator
 from detectron2.data import (
     MetadataCatalog,
     build_detection_test_loader,

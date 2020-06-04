@@ -2,3 +2,5 @@ _BASE_: "source_fast_base.yaml"
 MODEL:
   PIXEL_MEAN: [2.448, 0.765, 0.5355]
   PIXEL_STD: [9.435, 13.005, 11.373]
+  ANCHOR_GENERATOR:
+    SIZES: [[1,2,3,4,]]

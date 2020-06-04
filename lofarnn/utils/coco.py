@@ -76,22 +76,24 @@ def make_single_coco_annotation_set(image_names, L, m,
                                     image_destination_dir=None,
                                     multiple_bboxes=True, resize=None,
                                     rotation=None, convert=True,
-                                    all_channels=False, precomputed_proposals=False, segmentation=False, normalize=True, stats=[],
+                                    all_channels=False, precomputed_proposals=False, segmentation=False, normalize=True, box_seg=True, stats=[],
                                     verbose=False):
     """
     For use with multiprocessing, goes through and does one rotation for the COCO annotations
-    :param image_names:
-    :param L:
+    :param box_seg: Whether to have segmentation maps and bounding boxes for sources as well as radio components. I.e. bounding boxes with 2 classes:
+    Optical source with segmentation of the entire bounding box, and radio component with bounding box of the entire? image and segmentation map inside that
+    :param image_names: Image names to load and use for generating dataset
+    :param L: Array to add the sources to
     :param m:
-    :param image_destination_dir:
-    :param multiple_bboxes:
-    :param resize:
-    :param rotation:
-    :param convert:
-    :param all_channels:
-    :param precomputed_proposals:
+    :param image_destination_dir: The destination directory of the images
+    :param multiple_bboxes: Whether to include multiple bounding boxes and segmentation maps
+    :param resize: What to resize to
+    :param rotation: How much to rotate
+    :param convert: Whether to convert to PNG and normalize to between 0 and 255 for all channels
+    :param all_channels: Whether to use all 10 channels, or just radio, iband, W1 band
+    :param precomputed_proposals: Whether to create precomputed proposals
     :param segmentation: Whether to do segmentation or not, if True, or 5, then uses the 5 sigma segmentation maps, if 3, uses the 3 sigma maps
-    :param normalize:
+    :param normalize: Whether to normalize input data between 0 and 1
     :param stats:
     :param verbose:
     :return:
@@ -176,6 +178,17 @@ def make_single_coco_annotation_set(image_names, L, m,
         record = {"file_name": image_dest_filename, "image_id": i, "height": height, "width": width,
                   "depth": rec_depth}
 
+        # Get segmentation maps for bounding boxes
+        box_seg_maps = []
+        if box_seg and len(cutouts) > 0:
+            # Make segmentation map of inside the bounding box as the source
+            for bbox in enumerate(cutouts):
+                box_seg_map = np.zeros((image.shape[0], image.shape[1])).astype(np.uint8)
+                instance_bbox = BoundingBox(bbox[0], bbox[1], bbox[2], bbox[3])
+                for i in range(instance_bbox.x1_int, instance_bbox.x2_int):
+                    for j in range(instance_bbox.y1_int, instance_bbox.y2_int):
+                        box_seg_map[i][j] = 1
+                box_seg_maps.append(box_seg_map)
         # Insert bounding boxes and their corresponding classes
         objs = []
         # check if there is no optical source
@@ -196,11 +209,25 @@ def make_single_coco_annotation_set(image_names, L, m,
                     obj = {
                         "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
                         "bbox_mode": BoxMode.XYXY_ABS,
-                        "category_id": category_id,
+                        "category_id": category_id, # For Optical Source
                         "iscrowd": 0
                     }
-                    if segmentation:
-                        obj["segmentation"] = mask.encode(np.asarray(segmentation_maps[source_num], order="F")),
+                    if box_seg:
+                        # Now have to create bounding box of segmentation map
+                        #TODO maybe make the bounding box smaller around segmentation map
+                        seg_obj = {
+                            "bbox": [0.0,0.0,float(image.shape[0]-1), float(image.shape[1]-1)],
+                            "bbox_mode": BoxMode.XYXY_ABS,
+                            "category_id": 1, # For Radio Component
+                            "iscrowd": 0,
+                            "segmentation": mask.encode(np.asarray(segmentation_maps[source_num], order="F"))
+                        }
+
+                    if segmentation and not box_seg:
+                        obj["segmentation"] = mask.encode(np.asarray(segmentation_maps[source_num], order="F"))
+                    elif box_seg:
+                        seg_obj["segmentation"] = mask.encode(np.asarray(box_seg_maps[source_num], order="F"))
+                        objs.append(seg_obj)
                     objs.append(obj)
         except:
             print("No Optical source found")
@@ -213,12 +240,19 @@ def make_single_coco_annotation_set(image_names, L, m,
             # Now save out the ground truth semantic segmentation mask
             if not multiple_bboxes:
                 ground_truth_mask = segmentation_maps[0] # Choose the first one, the primary source
+                if box_seg:
+                    # Have to add ground truth for the source segmentations
+                    np.add(ground_truth_mask, box_seg_maps[0])
             else:
                 # Have to go through and add all the other segmaps into a single one, leaving out full background one
                 ground_truth_mask = np.zeros(segmentation_maps[0].shape)
                 for source_num, source_segmap in enumerate(segmentation_maps[:-1]):
                     source_segmap = np.where(source_segmap > 0, source_num+1, 0)
                     np.add(ground_truth_mask, source_segmap)
+                if box_seg and len(box_seg_maps) > 0:
+                    for source_num, source_segmap in enumerate(box_seg_maps):
+                        source_segmap = np.where(source_segmap > 0, len(segmentation_maps) + source_num + 1, 0)
+                        np.add(ground_truth_mask, source_segmap)
             # Now save out the ground truth map
             ground_truth_mask = Image.fromarray(ground_truth_mask)
             ground_truth_mask.save(segmap_dest_filename)
