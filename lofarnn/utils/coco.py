@@ -166,8 +166,8 @@ def make_single_coco_annotation_set(image_names, L, m,
             image = np.nan_to_num(image)
             image = (255.0 * image).astype(np.uint8)
             # If converting, only take the first three layers, generally Radio, i band, W1 band
-            image = Image.fromarray(image[:, :, :3], 'RGB')
-            image.save(image_dest_filename)
+            pil_im = Image.fromarray(image[:, :, :3], 'RGB')
+            pil_im.save(image_dest_filename)
         else:
             image = np.nan_to_num(image)
             np.save(image_dest_filename, image)  # Save to the final destination
