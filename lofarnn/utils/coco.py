@@ -7,7 +7,7 @@ from zlib import crc32
 import numpy as np
 import cv2
 from PIL import Image
-from detectron2.structures import BoxMode
+#from detectron2.structures import BoxMode
 import matplotlib.pyplot as plt
 from pycocotools import mask
 
@@ -222,16 +222,20 @@ def make_single_coco_annotation_set(image_names, L, m,
                             "iscrowd": 0,
                             "segmentation": mask.encode(np.asarray(segmentation_maps[source_num], order="F"))
                         }
+                        objs.append(seg_obj)
 
                     if segmentation and not box_seg:
                         obj["segmentation"] = mask.encode(np.asarray(segmentation_maps[source_num], order="F"))
                     elif box_seg:
-                        seg_obj["segmentation"] = mask.encode(np.asarray(box_seg_maps[source_num], order="F"))
-                        objs.append(seg_obj)
+                        obj["segmentation"] = mask.encode(np.asarray(box_seg_maps[source_num], order="F"))
                     objs.append(obj)
-        except:
+        except Exception as e:
+            print(e)
             print("No Optical source found")
         if precomputed_proposals:
+            if box_seg:
+                semseg_prop = np.asarray([[0.0,0.0,float(image.shape[0]-1), float(image.shape[1]-1)] for _ in cutouts])
+                proposal_boxes = np.concatenate([proposal_boxes, semseg_prop])
             record["proposal_boxes"] = proposal_boxes
             record["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
             record["proposal_bbox_mode"] = BoxMode.XYXY_ABS
