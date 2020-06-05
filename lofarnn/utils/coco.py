@@ -182,7 +182,7 @@ def make_single_coco_annotation_set(image_names, L, m,
         box_seg_maps = []
         if box_seg and len(cutouts) > 0:
             # Make segmentation map of inside the bounding box as the source
-            for bbox in enumerate(cutouts):
+            for i, bbox in enumerate(cutouts):
                 box_seg_map = np.zeros((image.shape[0], image.shape[1])).astype(np.uint8)
                 instance_bbox = BoundingBox(bbox[0], bbox[1], bbox[2], bbox[3])
                 for i in range(instance_bbox.x1_int, instance_bbox.x2_int):
