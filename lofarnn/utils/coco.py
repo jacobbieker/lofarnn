@@ -303,7 +303,7 @@ def create_coco_annotations(image_names,
         bbox_size = manager.list()
         [pool.apply_async(make_single_coco_annotation_set,
                           args=[image_names, L, m, image_destination_dir, multiple_bboxes, resize, rotation, convert,
-                                all_channels, precomputed_proposals, segmentation, normalize, bbox_size,
+                                all_channels, precomputed_proposals, segmentation, normalize, True, bbox_size,
                                 verbose]) for m in range(num_copies)]
         pool.close()
         pool.join()
@@ -326,7 +326,7 @@ def create_coco_annotations(image_names,
     bbox_size = []
     for m in range(num_copies):
         make_single_coco_annotation_set(image_names, dataset_dicts, m, image_destination_dir, multiple_bboxes, resize,
-                                        rotation, convert, all_channels, precomputed_proposals, segmentation, normalize, bbox_size,
+                                        rotation, convert, all_channels, precomputed_proposals, segmentation, normalize, True, bbox_size,
                                         verbose)
     # Write all image dictionaries to file as one json
     # print(np.mean(bbox_size))
