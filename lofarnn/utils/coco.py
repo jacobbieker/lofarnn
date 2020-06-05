@@ -7,7 +7,7 @@ from zlib import crc32
 import numpy as np
 import cv2
 from PIL import Image
-#from detectron2.structures import BoxMode
+from detectron2.structures import BoxMode
 import matplotlib.pyplot as plt
 from pycocotools import mask
 
