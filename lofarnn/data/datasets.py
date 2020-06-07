@@ -272,17 +272,19 @@ def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, compon
         segmentation_map.keep_labels(component_ids)
         segmentation_map.reassign_labels(component_ids, new_label=1)# Creates binary mask
         print(segmentation_map.slices)
-
-        bounding_box = segmentation_map.slices
-        segm_labels = np.array(segmentation_map.slices)
-        xmin = segm_labels[0][0].start
-        ymin = segm_labels[0][1].start
-        xmax = segm_labels[0][0].stop
-        ymax = segm_labels[0][1].stop
-        return segmentation_map.data, non_source_component_mask.data, [xmin, ymin,xmax,ymax, "Radio Component"]
+        if segmentation_map.slices:
+            segm_labels = np.array(segmentation_map.slices)
+            xmin = segm_labels[0][0].start
+            ymin = segm_labels[0][1].start
+            xmax = segm_labels[0][0].stop
+            ymax = segm_labels[0][1].stop
+            return segmentation_map.data, non_source_component_mask.data, [xmin, ymin,xmax,ymax, "Radio Component"]
+        else: # Still empty map if no slices
+            print("Empty Segmentation Map")
+            return np.zeros(radio_field.shape), np.zeros(radio_field.shape), [-1,-1,-1,-1,"No Component"]
     else: # photutils returned None, so no sources are found, return empty masks
         print("Empty Segmentation Map")
-        return np.zeros(radio_field.shape), np.zeros(radio_field.shape)
+        return np.zeros(radio_field.shape), np.zeros(radio_field.shape), [-1,-1,-1,-1,"No Component"]
 
 
 def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_catalog, mosaic_location,
