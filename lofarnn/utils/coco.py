@@ -76,7 +76,8 @@ def make_single_coco_annotation_set(image_names, L, m,
                                     image_destination_dir=None,
                                     multiple_bboxes=True, resize=None,
                                     rotation=None, convert=True,
-                                    all_channels=False, precomputed_proposals=False, segmentation=False, normalize=True, box_seg=True, stats=[],
+                                    all_channels=False, precomputed_proposals=False, segmentation=False, normalize=True,
+                                    box_seg=True, stats=[],
                                     verbose=False):
     """
     For use with multiprocessing, goes through and does one rotation for the COCO annotations
@@ -111,45 +112,65 @@ def make_single_coco_annotation_set(image_names, L, m,
             segmap_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".semseg.multi.png")
         else:
             segmap_dest_filename = os.path.join(image_destination_dir, image_name.stem + f".semseg.png")
-        image, cutouts, proposal_boxes, segmentation_maps_five, segmentation_maps_three = np.load(image_name,
-                                                                    allow_pickle=True)  # mmap_mode might allow faster read
+        image, cutouts, proposal_boxes, segmentation_maps_five, seg_box_five, segmentation_maps_three, seg_box_three = np.load(
+            image_name,
+            allow_pickle=True)  # mmap_mode might allow faster read
         if segmentation == 3:
             segmentation_maps = segmentation_maps_three.astype(np.uint8)
+            segmentation_proposals = seg_box_three
         else:
             segmentation_maps = segmentation_maps_five.astype(np.uint8)
+            segmentation_proposals = seg_box_five
+
+        # Clean out segmentation proposals that do not have positive bounding boxes, if we need bounding boxes around them
+        if box_seg:
+            kept_i = []
+            for i, sbox in enumerate(segmentation_proposals):
+                if sbox[0] >= 0:  # All negative values are for invalid segmentation maps
+                    kept_i.append(i)
+            # Only keep those with positive bounding boxes
+            segmentation_maps = np.take(segmentation_maps, kept_i, axis=0)
+            segmentation_proposals = np.take(segmentation_proposals, kept_i, axis=0)
         prev_shape = image.shape[0]
         image = np.nan_to_num(image)
-        #print(segmentation_maps[0].shape)
+        print(segmentation_maps[0].shape)
         # Change order to H,W,C for imgaug
-        segmentation_maps = np.moveaxis(segmentation_maps,0,-1)
-        #print(segmentation_maps[0].shape)
+        segmentation_maps = np.moveaxis(segmentation_maps, 0, -1)
+        print(segmentation_maps[0].shape)
         if rotation is not None:
             if type(rotation) == tuple:
-                image, cutouts, proposal_boxes, segmentation_maps = augment_image_and_bboxes(image,
-                                                                                             cutouts=cutouts,
-                                                                                             proposal_boxes=proposal_boxes,
-                                                                                             segmentation_maps=segmentation_maps,
-                                                                                             angle=rotation[m],
-                                                                                             new_size=resize)
+                image, cutouts, proposal_boxes, segmentation_maps, segmentation_proposals = augment_image_and_bboxes(
+                    image,
+                    cutouts=cutouts,
+                    proposal_boxes=proposal_boxes,
+                    segmentation_maps=segmentation_maps,
+                    segmentation_proposals=segmentation_proposals,
+                    angle=rotation[m],
+                    new_size=resize)
             else:
-                image, cutouts, proposal_boxes, segmentation_maps = augment_image_and_bboxes(image,
-                                                                                             cutouts=cutouts,
-                                                                                             proposal_boxes=proposal_boxes,
-                                                                                             segmentation_maps=segmentation_maps,
-                                                                                             angle=np.random.uniform(
-                                                                                                 -rotation, rotation),
-                                                                                             new_size=resize)
+                image, cutouts, proposal_boxes, segmentation_maps, segmentation_proposals = augment_image_and_bboxes(
+                    image,
+                    cutouts=cutouts,
+                    proposal_boxes=proposal_boxes,
+                    segmentation_maps=segmentation_maps,
+                    segmentation_proposals=segmentation_proposals,
+                    angle=np.random.uniform(
+                        -rotation, rotation),
+                    new_size=resize)
         else:
             # Need this to convert the bbox coordinates into the correct format
-            image, cutouts, proposal_boxes, segmentation_maps = augment_image_and_bboxes(image, cutouts=cutouts,
-                                                                                         proposal_boxes=proposal_boxes,
-                                                                                         segmentation_maps=segmentation_maps,
-                                                                                         angle=0,
-                                                                                         new_size=resize)
+            image, cutouts, proposal_boxes, segmentation_maps, segmentation_proposals = augment_image_and_bboxes(image,
+                                                                                                                 cutouts=cutouts,
+                                                                                                                 proposal_boxes=proposal_boxes,
+                                                                                                                 segmentation_maps=segmentation_maps,
+                                                                                                                 segmentation_proposals=segmentation_proposals,
+                                                                                                                 angle=0,
+                                                                                                                 new_size=resize,
+                                                                                                                 verbose=True)
         width, height, depth = np.shape(image)
         # Move the segmentation maps back to original order
         segmentation_maps = np.moveaxis(segmentation_maps, -1, 0)
-        #print(segmentation_maps[0].shape)
+        # print(segmentation_maps[0].shape)
         if all_channels and depth != 10:
             continue
 
@@ -159,8 +180,8 @@ def make_single_coco_annotation_set(image_names, L, m,
         image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
                                                 normalize=normalize, scaling=None)
         for layer in range(image.shape[2]):
-            image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=0.,
-                                                        upper_clip=25.,
+            image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=14.,
+                                                        upper_clip=28.,
                                                         normalize=normalize, scaling=None)
         if convert:
             image = np.nan_to_num(image)
@@ -209,33 +230,35 @@ def make_single_coco_annotation_set(image_names, L, m,
                     obj = {
                         "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
                         "bbox_mode": BoxMode.XYXY_ABS,
-                        "category_id": category_id, # For Optical Source
+                        "category_id": category_id,  # For Optical Source
                         "iscrowd": 0
                     }
-                    if box_seg:
-                        # Now have to create bounding box of segmentation map
-                        #TODO maybe make the bounding box smaller around segmentation map
-                        seg_obj = {
-                            "bbox": [0.0,0.0,float(image.shape[0]-1), float(image.shape[1]-1)],
-                            "bbox_mode": BoxMode.XYXY_ABS,
-                            "category_id": 1, # For Radio Component
-                            "iscrowd": 0,
-                            "segmentation": mask.encode(np.asarray(segmentation_maps[source_num], order="F"))
-                        }
-                        objs.append(seg_obj)
 
                     if segmentation and not box_seg:
                         obj["segmentation"] = mask.encode(np.asarray(segmentation_maps[source_num], order="F"))
                     elif box_seg:
                         obj["segmentation"] = mask.encode(np.asarray(box_seg_maps[source_num], order="F"))
                     objs.append(obj)
+            if len(segmentation_proposals) > 0:  # There are radio sources
+                if not multiple_bboxes:
+                    segmentation_proposals = [segmentation_proposals[0]]
+                for source_num, bbox in enumerate(cutouts):
+                    assert float(bbox[2]) >= float(bbox[0])
+                    assert float(bbox[3]) >= float(bbox[1])
+                    obj = {
+                        "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
+                        "bbox_mode": BoxMode.XYXY_ABS,
+                        "category_id": 1,  # For Radio Component
+                        "segmentation": mask.encode(np.asarray(segmentation_maps[source_num], order="F")),
+                        "iscrowd": 0
+                    }
+                    objs.append(obj)
         except Exception as e:
             print(e)
             print("No Optical source found")
         if precomputed_proposals:
             if box_seg:
-                semseg_prop = np.asarray([[0.0,0.0,float(image.shape[0]-1), float(image.shape[1]-1)] for _ in cutouts])
-                proposal_boxes = np.concatenate([proposal_boxes, semseg_prop])
+                proposal_boxes = np.concatenate([proposal_boxes, segmentation_proposals])
             record["proposal_boxes"] = proposal_boxes
             record["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
             record["proposal_bbox_mode"] = BoxMode.XYXY_ABS
@@ -243,7 +266,7 @@ def make_single_coco_annotation_set(image_names, L, m,
         if segmentation:
             # Now save out the ground truth semantic segmentation mask
             if not multiple_bboxes:
-                ground_truth_mask = segmentation_maps[0] # Choose the first one, the primary source
+                ground_truth_mask = segmentation_maps[0]  # Choose the first one, the primary source
                 if box_seg:
                     # Have to add ground truth for the source segmentations
                     np.add(ground_truth_mask, box_seg_maps[0])
@@ -251,7 +274,7 @@ def make_single_coco_annotation_set(image_names, L, m,
                 # Have to go through and add all the other segmaps into a single one, leaving out full background one
                 ground_truth_mask = np.zeros(segmentation_maps[0].shape)
                 for source_num, source_segmap in enumerate(segmentation_maps[:-1]):
-                    source_segmap = np.where(source_segmap > 0, source_num+1, 0)
+                    source_segmap = np.where(source_segmap > 0, source_num + 1, 0)
                     np.add(ground_truth_mask, source_segmap)
                 if box_seg and len(box_seg_maps) > 0:
                     for source_num, source_segmap in enumerate(box_seg_maps):
@@ -261,6 +284,7 @@ def make_single_coco_annotation_set(image_names, L, m,
             ground_truth_mask = Image.fromarray(ground_truth_mask)
             ground_truth_mask.save(segmap_dest_filename)
             record["sem_seg_file_name"] = segmap_dest_filename
+            print("Made GT Segmentation")
         L.append(record)
 
 
@@ -326,7 +350,8 @@ def create_coco_annotations(image_names,
     bbox_size = []
     for m in range(num_copies):
         make_single_coco_annotation_set(image_names, dataset_dicts, m, image_destination_dir, multiple_bboxes, resize,
-                                        rotation, convert, all_channels, precomputed_proposals, segmentation, normalize, True, bbox_size,
+                                        rotation, convert, all_channels, precomputed_proposals, segmentation, normalize,
+                                        True, bbox_size,
                                         verbose)
     # Write all image dictionaries to file as one json
     # print(np.mean(bbox_size))
@@ -343,7 +368,8 @@ def create_coco_annotations(image_names,
 
 
 def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.2, resize=None, rotation=None,
-                        convert=True, all_channels=False, precomputed_proposals=False, segmentation=False, normalize=True,
+                        convert=True, all_channels=False, precomputed_proposals=False, segmentation=False,
+                        normalize=True,
                         verbose=False):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct

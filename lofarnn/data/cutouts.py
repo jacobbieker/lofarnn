@@ -61,15 +61,20 @@ def make_bounding_box(source_location):
 
 import matplotlib.pyplot as plt
 
-def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, angle, new_size, verbose=False):
+def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, segmentation_proposals, angle, new_size, verbose=False):
     bounding_boxes = []
     prop_boxes = []
+    seg_boxes = []
     for cutout in cutouts:
         bounding_boxes.append(BoundingBox(cutout[1]+0.5, cutout[0]+0.5, cutout[3]+0.5, cutout[2]+0.5))
     for pbox in proposal_boxes:
         prop_boxes.append(BoundingBox(pbox[1]+0.5, pbox[0]+0.5, pbox[3]+0.5, pbox[2]+0.5))
+    for i, sbox in enumerate(segmentation_proposals):
+        seg_boxes.append(BoundingBox(sbox[0], sbox[1], sbox[2],sbox[3]))
+
     bbs = BoundingBoxesOnImage(bounding_boxes, shape=image.shape)
     pbbs = BoundingBoxesOnImage(prop_boxes, shape=image.shape)
+    sbbs = BoundingBoxesOnImage(seg_boxes, shape=image.shape)
     segmaps = SegmentationMapsOnImage(segmentation_maps, shape=image.shape)
     # Rescale image and bounding boxes
     if type(new_size) == int or type(new_size):
@@ -78,14 +83,18 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, 
         image_rescaled = ia.imresize_single_image(image, (image.shape[0], image.shape[1]))
     bbs_rescaled = bbs.on(image_rescaled)
     pbbs_rescaled = pbbs.on(image_rescaled)
+    sbbs_rescaled = sbbs.on(image_rescaled)
     segmaps_rescaled = segmaps.resize((image_rescaled.shape[0],image_rescaled.shape[1]))
     _, bbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=bbs_rescaled)
+    _, sbbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=sbbs_rescaled)
     _, segmaps_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, segmentation_maps=segmaps_rescaled)
     image_rescaled, pbbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=pbbs_rescaled)
     # Remove bounding boxes that go out of bounds
-    pbbs_rescaled = pbbs_rescaled.remove_out_of_image(partly=True)
+    pbbs_rescaled = pbbs_rescaled.remove_out_of_image(partly=False).clip_out_of_image()
     # But only clip source bounding boxes that are partly out of frame, so that no sources are lost
     bbs_rescaled = bbs_rescaled.remove_out_of_image(partly=False).clip_out_of_image()
+    # Also remove those and clip of segmentation maps
+    sbbs_rescaled = sbbs_rescaled.remove_out_of_image(partly=False).clip_out_of_image()
     # Draw image before/after rescaling and with rescaled bounding boxes
     if verbose:
         print(bbs)
@@ -94,8 +103,10 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, 
         print(np.transpose(np.nonzero(image[:,:,1])))
         print("Coordinates in i band non zero After")
         print(np.transpose(np.nonzero(image_rescaled[:,:,1])))
-        image_bbs = bbs.draw_on_image(image, size=1, alpha=1)
-        image_rescaled_bbs = bbs_rescaled.draw_on_image(image_rescaled, size=1, alpha=1)
+        image_bbs = bbs.draw_on_image(image, size=1, alpha=1, color=(255,255,255))
+        image_bbs = sbbs.draw_on_image(image_bbs, size=1, alpha=1, color=(0,255,255))
+        image_rescaled_bbs = bbs_rescaled.draw_on_image(image_rescaled, size=1, alpha=1, color=(255,255,255))
+        image_rescaled_bbs = sbbs_rescaled.draw_on_image(image_rescaled_bbs, size=1, alpha=1, color=(0,255,255))
         plt.imshow(image_bbs)
         plt.title("Before")
         plt.show()
@@ -112,4 +123,8 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, 
     for index, bbox in enumerate(pbbs_rescaled):
         pbs.append(np.asarray((bbox.x1, bbox.y1, bbox.x2, bbox.y2)))
     pbs = np.asarray(pbs)
-    return image_rescaled, cutouts, pbs, segmaps_rescaled.get_arr()
+    sbs = []
+    for index, bbox in enumerate(sbbs_rescaled):
+        sbs.append(np.asarray((bbox.x1, bbox.y1, bbox.x2, bbox.y2)))
+    sbs = np.asarray(sbs)
+    return image_rescaled, cutouts, pbs, segmaps_rescaled.get_arr(), sbs
