@@ -84,9 +84,11 @@ print(f"Attempt to load training data from: {DATASET_PATH}")
 multi = False
 all_channel = False
 precompute = True
+semseg = True
+norm = True
 for d in ["train", "val", "test"]:
     DatasetCatalog.register(f"{argv[2]}_" + d,
-                            lambda d=d: get_lofar_dicts(os.path.join(DATASET_PATH, f"json_{d}_prop{precompute}_all{all_channel}_multi{multi}.pkl")))
+                            lambda d=d: get_lofar_dicts(os.path.join(DATASET_PATH, f"json_{d}_prop{precompute}_all{all_channel}_multi{multi}_seg{semseg}_norm{norm}.pkl")))
     MetadataCatalog.get(f"{argv[2]}_" + d).set(thing_classes=["Optical source"])
 lofar_metadata = MetadataCatalog.get("train")
 

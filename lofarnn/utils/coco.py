@@ -119,10 +119,10 @@ def make_single_coco_annotation_set(image_names, L, m,
             segmentation_maps = segmentation_maps_five.astype(np.uint8)
         prev_shape = image.shape[0]
         image = np.nan_to_num(image)
-        print(segmentation_maps[0].shape)
+        #print(segmentation_maps[0].shape)
         # Change order to H,W,C for imgaug
         segmentation_maps = np.moveaxis(segmentation_maps,0,-1)
-        print(segmentation_maps[0].shape)
+        #print(segmentation_maps[0].shape)
         if rotation is not None:
             if type(rotation) == tuple:
                 image, cutouts, proposal_boxes, segmentation_maps = augment_image_and_bboxes(image,
@@ -149,7 +149,7 @@ def make_single_coco_annotation_set(image_names, L, m,
         width, height, depth = np.shape(image)
         # Move the segmentation maps back to original order
         segmentation_maps = np.moveaxis(segmentation_maps, -1, 0)
-        print(segmentation_maps[0].shape)
+        #print(segmentation_maps[0].shape)
         if all_channels and depth != 10:
             continue
 
@@ -166,8 +166,8 @@ def make_single_coco_annotation_set(image_names, L, m,
             image = np.nan_to_num(image)
             image = (255.0 * image).astype(np.uint8)
             # If converting, only take the first three layers, generally Radio, i band, W1 band
-            image = Image.fromarray(image[:, :, :3], 'RGB')
-            image.save(image_dest_filename)
+            pil_im = Image.fromarray(image[:, :, :3], 'RGB')
+            pil_im.save(image_dest_filename)
         else:
             image = np.nan_to_num(image)
             np.save(image_dest_filename, image)  # Save to the final destination
@@ -182,7 +182,7 @@ def make_single_coco_annotation_set(image_names, L, m,
         box_seg_maps = []
         if box_seg and len(cutouts) > 0:
             # Make segmentation map of inside the bounding box as the source
-            for bbox in enumerate(cutouts):
+            for i, bbox in enumerate(cutouts):
                 box_seg_map = np.zeros((image.shape[0], image.shape[1])).astype(np.uint8)
                 instance_bbox = BoundingBox(bbox[0], bbox[1], bbox[2], bbox[3])
                 for i in range(instance_bbox.x1_int, instance_bbox.x2_int):
@@ -222,16 +222,20 @@ def make_single_coco_annotation_set(image_names, L, m,
                             "iscrowd": 0,
                             "segmentation": mask.encode(np.asarray(segmentation_maps[source_num], order="F"))
                         }
+                        objs.append(seg_obj)
 
                     if segmentation and not box_seg:
                         obj["segmentation"] = mask.encode(np.asarray(segmentation_maps[source_num], order="F"))
                     elif box_seg:
-                        seg_obj["segmentation"] = mask.encode(np.asarray(box_seg_maps[source_num], order="F"))
-                        objs.append(seg_obj)
+                        obj["segmentation"] = mask.encode(np.asarray(box_seg_maps[source_num], order="F"))
                     objs.append(obj)
-        except:
+        except Exception as e:
+            print(e)
             print("No Optical source found")
         if precomputed_proposals:
+            if box_seg:
+                semseg_prop = np.asarray([[0.0,0.0,float(image.shape[0]-1), float(image.shape[1]-1)] for _ in cutouts])
+                proposal_boxes = np.concatenate([proposal_boxes, semseg_prop])
             record["proposal_boxes"] = proposal_boxes
             record["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
             record["proposal_bbox_mode"] = BoxMode.XYXY_ABS
@@ -299,7 +303,7 @@ def create_coco_annotations(image_names,
         bbox_size = manager.list()
         [pool.apply_async(make_single_coco_annotation_set,
                           args=[image_names, L, m, image_destination_dir, multiple_bboxes, resize, rotation, convert,
-                                all_channels, precomputed_proposals, segmentation, normalize, bbox_size,
+                                all_channels, precomputed_proposals, segmentation, normalize, True, bbox_size,
                                 verbose]) for m in range(num_copies)]
         pool.close()
         pool.join()
@@ -322,7 +326,7 @@ def create_coco_annotations(image_names,
     bbox_size = []
     for m in range(num_copies):
         make_single_coco_annotation_set(image_names, dataset_dicts, m, image_destination_dir, multiple_bboxes, resize,
-                                        rotation, convert, all_channels, precomputed_proposals, segmentation, normalize, bbox_size,
+                                        rotation, convert, all_channels, precomputed_proposals, segmentation, normalize, True, bbox_size,
                                         verbose)
     # Write all image dictionaries to file as one json
     # print(np.mean(bbox_size))
