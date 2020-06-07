@@ -222,6 +222,7 @@ def make_segmentation_map(ra, dec, wcs, shape, class_name="Optical source", gaus
 def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, component_ra, component_dec, n_components, sigma=5., verbose=False):
     """
     Creates binary mask for radio source, and mask for all detected components that are not part of the current source
+    Also returns a minimum bounding box around the segmentation, and returns it in the same format as for other bounding boxes
     :param ra: RA of the Radio Source
     :param dec: Dec of the Radio source
     :param wcs: WCS of the cutout
@@ -270,7 +271,15 @@ def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, compon
         non_source_component_mask.remove_labels(component_ids)
         segmentation_map.keep_labels(component_ids)
         segmentation_map.reassign_labels(component_ids, new_label=1)# Creates binary mask
-        return segmentation_map.data, non_source_component_mask.data
+        print(segmentation_map.slices)
+
+        bounding_box = segmentation_map.slices
+        segm_labels = np.array(segmentation_map.slices)
+        xmin = segm_labels[0][0].start
+        ymin = segm_labels[0][1].start
+        xmax = segm_labels[0][0].stop
+        ymax = segm_labels[0][1].stop
+        return segmentation_map.data, non_source_component_mask.data, [xmin, ymin,xmax,ymax, "Radio Component"]
     else: # photutils returned None, so no sources are found, return empty masks
         print("Empty Segmentation Map")
         return np.zeros(radio_field.shape), np.zeros(radio_field.shape)
@@ -379,16 +388,18 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
                 plot_three_channel_debug(img_array, bounding_boxes, 1, bounding_boxes[0][5])
             # Now segmentation map
             source_components = component_catalog[component_catalog["Source_Name"] == source["Source_Name"]]
-            component_seg, non_component_seg_five = make_component_segmentation_map(source['ID_ra'], source['ID_dec'], wcs=wcs,
+            component_seg, non_component_seg_five, seg_box_five = make_component_segmentation_map(source['ID_ra'], source['ID_dec'], wcs=wcs,
                                                                                radio_field=lhdu[0].data, rms_field=lrms[0].data,
                                                                                component_ra=source_components['RA'], component_dec=source_components['DEC'],
                                                                                sigma=5., n_components=len(source_components), verbose=False)
             sem_seg_five = [component_seg]
-            component_seg, non_component_seg_three = make_component_segmentation_map(source['ID_ra'], source['ID_dec'], wcs=wcs,
+            sem_seg_prop_five = [seg_box_five]
+            component_seg, non_component_seg_three, seg_box_three = make_component_segmentation_map(source['ID_ra'], source['ID_dec'], wcs=wcs,
                                                                                radio_field=lhdu[0].data, rms_field=lrms[0].data,
                                                                                component_ra=source_components['RA'], component_dec=source_components['DEC'],
                                                                                sigma=3., n_components=len(source_components), verbose=False)
             sem_seg_three = [component_seg]
+            sem_seg_prop_three = [seg_box_three]
             # Now go through and for any other sources in the field of view, add those
             for other_source in other_visible_sources:
                 other_components = component_catalog[component_catalog["Source_Name"] == other_source["Source_Name"]]
@@ -397,11 +408,13 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
                                                                                    component_ra=other_components['RA'], component_dec=other_components['DEC'],
                                                                                    sigma=5., n_components=len(other_components), verbose=False)
                 sem_seg_five.append(other_component_masks[0])
+                sem_seg_prop_five.append(other_components[2])
                 other_component_masks = make_component_segmentation_map(other_source['ID_ra'], other_source['ID_dec'], wcs=wcs,
                                                                         radio_field=lhdu[0].data, rms_field=lrms[0].data,
                                                                         component_ra=other_components['RA'], component_dec=other_components['DEC'],
                                                                         sigma=3., n_components=len(other_components), verbose=False)
                 sem_seg_three.append(other_component_masks[0])
+                sem_seg_prop_three.append(other_component_masks[2])
                 other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
                                                wcs, class_name="Other Optical Source", gaussian=gaussian)
                 if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][
@@ -417,9 +430,11 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
             sem_seg_three.append(non_component_seg_three)
             sem_seg_five = np.array(sem_seg_five)
             sem_seg_three = np.array(sem_seg_three)
+            sem_seg_prop_three = np.array(sem_seg_prop_three)
+            sem_seg_prop_five = np.array(sem_seg_prop_five)
             if verbose:
                 print(bounding_boxes)
-            combined_array = [img_array, bounding_boxes, proposal_boxes, sem_seg_five, sem_seg_three]
+            combined_array = [img_array, bounding_boxes, proposal_boxes, sem_seg_five, sem_seg_prop_five, sem_seg_three, sem_seg_prop_three]
             try:
                 np.save(os.path.join(save_cutout_directory, source['Source_Name']), combined_array)
             except Exception as e:
