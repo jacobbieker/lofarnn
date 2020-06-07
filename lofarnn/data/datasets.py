@@ -280,17 +280,109 @@ def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, compon
             ymax = segm_labels[0][1].stop
             return segmentation_map.data, non_source_component_mask.data, [xmin, ymin,xmax,ymax, "Radio Component"]
         else: # Still empty map if no slices
-            print("Empty Segmentation Map")
-            return np.zeros(radio_field.shape), np.zeros(radio_field.shape), [-1,-1,-1,-1,"No Component"]
+            print("Empty Segmentation Map Bounding Box")
+            return segmentation_map.data, non_source_component_mask.data, [-1,-1,-1,-1,"No Component"]
     else: # photutils returned None, so no sources are found, return empty masks
         print("Empty Segmentation Map")
         return np.zeros(radio_field.shape), np.zeros(radio_field.shape), [-1,-1,-1,-1,"No Component"]
 
+import pickle
+def make_kde_stuff(mosaic, value_added_catalog, mosaic_location, save_cutout_directory, kde_directory, source_size=None, verbose=False):
+    lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
+    lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
+    # Load the data once, then do multiple cutouts
+    try:
+        fits.open(lofar_data_location, memmap=True)
+        fits.open(lofar_rms_location, memmap=True)
+    except:
+        if verbose:
+            print(f"Mosaic {mosaic} does not exist!")
+
+    mosaic_cutouts = value_added_catalog[value_added_catalog["Mosaic_ID"] == mosaic]
+    # Go through each cutout for that mosaic
+    for l, source in enumerate(mosaic_cutouts):
+        if os.path.exists(os.path.join(kde_directory, f"{source['Source_Name']}_noopt.pkl")):
+            # Get the ra and dec of the radio source
+            source_ra = source["RA"]
+            source_dec = source["DEC"]
+            # Get the size of the cutout needed
+            if source_size is None or source_size is False:
+                source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
+            try:
+                lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=verbose)
+            except:
+                if verbose:
+                    print(f"Failed to make data cutout for source: {source['Source_Name']}")
+                continue
+            header = lhdu[0].header
+            wcs = WCS(header)
+            jelle = pickle.load(open(os.path.join(kde_directory, f"{source['Source_Name']}_noopt.pkl"), "rb"))
+            print(jelle)
+            print(f"Source RA, DEC: {source['ID_ra']}, {source['ID_dec']}")
+            jelle_skycoord = SkyCoord(jelle[1], jelle[2], unit='deg')
+            #j_skycoord_opt = SkyCoord(jelle[3], jelle[4], unit='deg')
+            j_pix_coord = skycoord_to_pixel(jelle_skycoord, wcs, 0)
+            pickle.dump([j_pix_coord[1], j_pix_coord[2]], open(os.path.join(save_cutout_directory, f"{source['Source_Name']}.pkl"), "wb"))
+    return
+import matplotlib.pyplot as plt
+def check_radio_sizes(mosaic, value_added_catalog, mosaic_location, save_cutout_directory, kde_directory, source_size=None, verbose=False):
+    lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
+    lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
+    # Load the data once, then do multiple cutouts
+    try:
+        fits.open(lofar_data_location, memmap=True)
+        fits.open(lofar_rms_location, memmap=True)
+    except:
+        if verbose:
+            print(f"Mosaic {mosaic} does not exist!")
+
+    mosaic_cutouts = value_added_catalog[value_added_catalog["Mosaic_ID"] == mosaic]
+    # Go through each cutout for that mosaic
+    img_array = []
+    for l, source in enumerate(mosaic_cutouts):
+        # Get the ra and dec of the radio source
+        source_ra = source["RA"]
+        source_dec = source["DEC"]
+        # Get the size of the cutout needed
+        if source_size is None or source_size is False:
+            source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
+        try:
+            lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=verbose)
+        except:
+            if verbose:
+                print(f"Failed to make data cutout for source: {source['Source_Name']}")
+            continue
+        try:
+            lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=verbose)
+        except:
+            if verbose:
+                print(f"Failed to make rms cutout for source: {source['Source_Name']}")
+            continue
+        img = lhdu[0].data/lrms[0].data
+        img_array.append(img)
+    print(f"Radio Divided hist")
+    img_array = np.asarray(img_array)
+    plt.hist(img_array, bins=100, density=True)
+    plt.title("Radio Image Range")
+    plt.show()
+    print(np.mean(img_array))
+    print(np.std(img_array))
+    return
 
 def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_catalog, mosaic_location,
                    save_cutout_directory, gaussian=None, all_channels=False, source_size=None, verbose=False):
     """
     Create cutouts of all sources in a field
+
+    Mapping of Source Name to pixel coordinates of the Jelle predictions
+    Then need to see if predictions fall within bounding box
+    For all sources where Jelle predictions are right, then know which ones it is, have source, just need to know if NN got it right
+    COCO inferences have image ID to label, in test set, so can go backwards to load that -> get file name -> Source Name
+
+    So need to load Jelle predictions, after cutout of the mosaics, and save out the Source Name,pixel x, pixel y
+    Do this on other computer, save in the ALL directory as the pixel coordinates, have to multiply the pixel coordinates by the ratio of the old to new sizeslauRa
+
+    Could just save out all wcs with source names, so can load that an
     :param mosaic: Name of the field to use
     :param value_added_catalog: The VAC of the LoTSS data release
     :param pan_wise_catalog: The PanSTARRS-ALLWISE catalogue used for Williams, 2018, the LoTSS III paper
@@ -321,7 +413,7 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
     mosaic_cutouts = value_added_catalog[value_added_catalog["Mosaic_ID"] == mosaic]
     # Go through each cutout for that mosaic
     for l, source in enumerate(mosaic_cutouts):
-        if not os.path.exists(os.path.join(save_cutout_directory, source['Source_Name'])):
+        if not os.path.exists(os.path.join(save_cutout_directory, f"{source['Source_Name']}.npy")):
             img_array = []
             # Get the ra and dec of the radio source
             source_ra = source["RA"]
@@ -405,18 +497,18 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
             # Now go through and for any other sources in the field of view, add those
             for other_source in other_visible_sources:
                 other_components = component_catalog[component_catalog["Source_Name"] == other_source["Source_Name"]]
-                other_component_masks = make_component_segmentation_map(other_source['ID_ra'], other_source['ID_dec'], wcs=wcs,
+                other_component_masks, _, other_seg_box = make_component_segmentation_map(other_source['ID_ra'], other_source['ID_dec'], wcs=wcs,
                                                                                    radio_field=lhdu[0].data, rms_field=lrms[0].data,
                                                                                    component_ra=other_components['RA'], component_dec=other_components['DEC'],
                                                                                    sigma=5., n_components=len(other_components), verbose=False)
-                sem_seg_five.append(other_component_masks[0])
-                sem_seg_prop_five.append(other_components[2])
-                other_component_masks = make_component_segmentation_map(other_source['ID_ra'], other_source['ID_dec'], wcs=wcs,
+                sem_seg_five.append(other_component_masks)
+                sem_seg_prop_five.append(other_seg_box)
+                other_component_masks, _, other_seg_box = make_component_segmentation_map(other_source['ID_ra'], other_source['ID_dec'], wcs=wcs,
                                                                         radio_field=lhdu[0].data, rms_field=lrms[0].data,
                                                                         component_ra=other_components['RA'], component_dec=other_components['DEC'],
                                                                         sigma=3., n_components=len(other_components), verbose=False)
-                sem_seg_three.append(other_component_masks[0])
-                sem_seg_prop_three.append(other_component_masks[2])
+                sem_seg_three.append(other_component_masks)
+                sem_seg_prop_three.append(other_seg_box)
                 other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
                                                wcs, class_name="Other Optical Source", gaussian=gaussian)
                 if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][
@@ -467,7 +559,17 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     :param filter_lgz: Whether to filter on LGZ_Size
     :return:
     """
-
+    pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
+    pan_wise_catalogue = pan_wise_catalogue[1].data[:int(len(pan_wise_catalogue[1].data)/2)]
+    print("Loaded")
+    mags = ["iFApMag", "w1Mag", "gFApMag", "rFApMag", "zFApMag", "yFApMag", "w2Mag", "w3Mag", "w4Mag"]
+    import matplotlib.pyplot as plt
+    for mag in mags:
+        print(mag)
+        plt.hist(pan_wise_catalogue, bins=50)
+        plt.title(mag)
+        plt.show()
+    exit()
     l_objects = get_lotss_objects(value_added_catalog_location, False)
     print(len(l_objects))
     if filter_lgz:
@@ -513,6 +615,13 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
         pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
         pan_wise_catalogue = pan_wise_catalogue[1].data
         print("Loaded")
+        mags = ["iFApMag", "w1Mag", "gFApMag", "rFApMag", "zFApMag", "yFApMag", "w2Mag", "w3Mag", "w4Mag"]
+        import matplotlib.pyplot as plt
+        for mag in mags:
+            plt.hist(pan_wise_catalogue, bins=50)
+            plt.title(mag)
+            plt.show()
+        exit()
         for mosaic in mosaic_names:
             create_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue, component_catalog=comp_catalog,
                            mosaic_location=dr_two_location,
