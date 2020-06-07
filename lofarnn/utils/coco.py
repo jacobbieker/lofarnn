@@ -273,7 +273,7 @@ def make_single_coco_annotation_set(image_names, L, m,
             else:
                 # Have to go through and add all the other segmaps into a single one, leaving out full background one
                 ground_truth_mask = np.zeros(segmentation_maps[0].shape)
-                for source_num, source_segmap in enumerate(segmentation_maps[:-1]):
+                for source_num, source_segmap in enumerate(segmentation_maps):
                     source_segmap = np.where(source_segmap > 0, source_num + 1, 0)
                     np.add(ground_truth_mask, source_segmap)
                 if box_seg and len(box_seg_maps) > 0:
