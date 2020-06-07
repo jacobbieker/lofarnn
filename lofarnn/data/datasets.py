@@ -559,17 +559,6 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     :param filter_lgz: Whether to filter on LGZ_Size
     :return:
     """
-    pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
-    pan_wise_catalogue = pan_wise_catalogue[1].data[:int(len(pan_wise_catalogue[1].data)/2)]
-    print("Loaded")
-    mags = ["iFApMag", "w1Mag", "gFApMag", "rFApMag", "zFApMag", "yFApMag", "w2Mag", "w3Mag", "w4Mag"]
-    import matplotlib.pyplot as plt
-    for mag in mags:
-        print(mag)
-        plt.hist(pan_wise_catalogue, bins=50)
-        plt.title(mag)
-        plt.show()
-    exit()
     l_objects = get_lotss_objects(value_added_catalog_location, False)
     print(len(l_objects))
     if filter_lgz:
