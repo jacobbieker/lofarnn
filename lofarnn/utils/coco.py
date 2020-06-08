@@ -182,12 +182,12 @@ def make_single_coco_annotation_set(image_names, L, m,
             continue
 
         # First R (Radio) channel
-        image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
-                                                normalize=normalize, scaling=None)
-        for layer in range(image.shape[2]):
-            image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=14.,
-                                                        upper_clip=28.,
-                                                        normalize=normalize, scaling=None)
+        #image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
+        #                                        normalize=normalize, scaling=None)
+        #for layer in range(image.shape[2]):
+        #    image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=14.,
+        #                                                upper_clip=28.,
+        #                                                normalize=normalize, scaling=None)
         if convert:
             image = np.nan_to_num(image)
             image = (255.0 * image).astype(np.uint8)
