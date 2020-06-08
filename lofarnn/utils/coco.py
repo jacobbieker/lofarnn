@@ -127,7 +127,7 @@ def make_single_coco_annotation_set(image_names, L, m,
             kept_i = []
             for i, sbox in enumerate(segmentation_proposals):
                 print(sbox)
-                if sbox[0] >= 0:  # All negative values are for invalid segmentation maps
+                if int(sbox[0]) >= 0:  # All negative values are for invalid segmentation maps
                     kept_i.append(i)
             # Only keep those with positive bounding boxes
             segmentation_maps = np.take(segmentation_maps, kept_i, axis=0)

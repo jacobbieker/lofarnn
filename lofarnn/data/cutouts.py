@@ -70,7 +70,7 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, 
     for pbox in proposal_boxes:
         prop_boxes.append(BoundingBox(pbox[1]+0.5, pbox[0]+0.5, pbox[3]+0.5, pbox[2]+0.5))
     for i, sbox in enumerate(segmentation_proposals):
-        seg_boxes.append(BoundingBox(sbox[0], sbox[1], sbox[2],sbox[3]))
+        seg_boxes.append(BoundingBox(float(sbox[0]), float(sbox[1]), float(sbox[2]),float(sbox[3])))
 
     bbs = BoundingBoxesOnImage(bounding_boxes, shape=image.shape)
     pbbs = BoundingBoxesOnImage(prop_boxes, shape=image.shape)
