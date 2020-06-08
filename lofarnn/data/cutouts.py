@@ -76,7 +76,7 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, 
     pbbs = BoundingBoxesOnImage(prop_boxes, shape=image.shape)
     if seg_boxes:
         sbbs = BoundingBoxesOnImage(seg_boxes, shape=image.shape)
-    if segmentation_maps:
+    if segmentation_maps.any():
         segmaps = SegmentationMapsOnImage(segmentation_maps, shape=image.shape)
     # Rescale image and bounding boxes
     if type(new_size) == int or type(new_size):
@@ -89,7 +89,7 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, 
         sbbs_rescaled = sbbs.on(image_rescaled)
         _, sbbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=sbbs_rescaled)
         sbbs_rescaled = sbbs_rescaled.remove_out_of_image(partly=False).clip_out_of_image()
-    if segmentation_maps:
+    if segmentation_maps.any():
         segmaps_rescaled = segmaps.resize((image_rescaled.shape[0],image_rescaled.shape[1]))
         _, segmaps_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, segmentation_maps=segmaps_rescaled)
     _, bbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=bbs_rescaled)
@@ -127,7 +127,7 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, 
     for index, bbox in enumerate(sbbs_rescaled):
         sbs.append(np.asarray((bbox.x1, bbox.y1, bbox.x2, bbox.y2)))
     sbs = np.asarray(sbs)
-    if segmentation_maps:
+    if segmentation_maps.any():
         return image_rescaled, cutouts, pbs, segmaps_rescaled.get_arr(), sbs
     else:
-        return image_rescaled, cutouts, pbs, [], sbs
+        return image_rescaled, cutouts, pbs, np.asarray([]), sbs

@@ -166,7 +166,7 @@ def make_single_coco_annotation_set(image_names, L, m,
                                                                                                                  verbose=False)
         width, height, depth = np.shape(image)
         # Move the segmentation maps back to original order
-        if segmentation_maps:
+        if segmentation_maps.any():
             segmentation_maps = np.moveaxis(segmentation_maps, -1, 0)
         # print(segmentation_maps[0].shape)
         if all_channels and depth != 10:
@@ -259,7 +259,7 @@ def make_single_coco_annotation_set(image_names, L, m,
             record["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
             record["proposal_bbox_mode"] = BoxMode.XYXY_ABS
         record["annotations"] = objs
-        if segmentation and segmentation_maps:
+        if segmentation and segmentation_maps.any():
             # Now save out the ground truth semantic segmentation mask
             if not multiple_bboxes:
                 ground_truth_mask = segmentation_maps[0]  # Choose the first one, the primary source
