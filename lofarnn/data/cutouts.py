@@ -99,8 +99,8 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, 
     if verbose:
         image = image[:,:,3]
         image_rescaled = image_rescaled[:,:,3]
-        image_bbs = bbs.draw_on_image(image, size=1, alpha=1, color=(255,255,255))
-        image_bbs = sbbs.draw_on_image(image_bbs, size=1, alpha=1, color=(0,255,255))
+        image_bbs = bbs.draw_on_image(image, size=1, alpha=1)
+        image_bbs = sbbs.draw_on_image(image_bbs, size=1, alpha=1)
         image_rescaled_bbs = bbs_rescaled.draw_on_image(image_rescaled, size=1, alpha=1, color=(255,255,255))
         image_rescaled_bbs = sbbs_rescaled.draw_on_image(image_rescaled_bbs, size=1, alpha=1, color=(0,255,255))
         plt.imshow(image_bbs)
