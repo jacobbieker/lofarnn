@@ -281,7 +281,10 @@ def make_single_coco_annotation_set(image_names, L, m,
             ground_truth_mask.save(segmap_dest_filename)
             record["sem_seg_file_name"] = segmap_dest_filename
             print("Made GT Segmentation")
-        L.append(record)
+        if box_seg and len(segmentation_proposals)>0:
+            L.append(record)
+        if not box_seg: # We don't care if segmentation proposals are not there, only want sources
+            L.append(record)
 
 
 def create_coco_annotations(image_names,
