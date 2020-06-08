@@ -253,7 +253,7 @@ def make_single_coco_annotation_set(image_names, L, m,
             print(e)
             print("No Optical source found")
         if precomputed_proposals:
-            if box_seg:
+            if box_seg and segmentation_proposals.any():
                 proposal_boxes = np.concatenate([proposal_boxes, segmentation_proposals])
             record["proposal_boxes"] = proposal_boxes
             record["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
