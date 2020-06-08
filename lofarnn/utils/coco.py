@@ -126,18 +126,14 @@ def make_single_coco_annotation_set(image_names, L, m,
         if box_seg:
             kept_i = []
             for i, sbox in enumerate(segmentation_proposals):
-                print(sbox)
                 if int(sbox[0]) >= 0:  # All negative values are for invalid segmentation maps
                     kept_i.append(i)
             # Only keep those with positive bounding boxes
             segmentation_maps = np.take(segmentation_maps, kept_i, axis=0)
             segmentation_proposals = np.take(segmentation_proposals, kept_i, axis=0)
-        prev_shape = image.shape[0]
         image = np.nan_to_num(image)
-        print(segmentation_maps[0].shape)
         # Change order to H,W,C for imgaug
         segmentation_maps = np.moveaxis(segmentation_maps, 0, -1)
-        print(segmentation_maps[0].shape)
         if rotation is not None:
             if type(rotation) == tuple:
                 image, cutouts, proposal_boxes, segmentation_maps, segmentation_proposals = augment_image_and_bboxes(
@@ -167,10 +163,11 @@ def make_single_coco_annotation_set(image_names, L, m,
                                                                                                                  segmentation_proposals=segmentation_proposals,
                                                                                                                  angle=0,
                                                                                                                  new_size=resize,
-                                                                                                                 verbose=True)
+                                                                                                                 verbose=False)
         width, height, depth = np.shape(image)
         # Move the segmentation maps back to original order
-        segmentation_maps = np.moveaxis(segmentation_maps, -1, 0)
+        if segmentation_maps:
+            segmentation_maps = np.moveaxis(segmentation_maps, -1, 0)
         # print(segmentation_maps[0].shape)
         if all_channels and depth != 10:
             continue
@@ -235,7 +232,7 @@ def make_single_coco_annotation_set(image_names, L, m,
 
                     if segmentation and not box_seg:
                         obj["segmentation"] = mask.encode(np.asarray(segmentation_maps[source_num], order="F"))
-                    elif box_seg:
+                    elif box_seg and box_seg_maps:
                         obj["segmentation"] = mask.encode(np.asarray(box_seg_maps[source_num], order="F"))
                     objs.append(obj)
             if len(segmentation_proposals) > 0:  # There are radio sources
@@ -262,7 +259,7 @@ def make_single_coco_annotation_set(image_names, L, m,
             record["proposal_objectness_logits"] = np.ones(len(proposal_boxes))  # TODO Not sure this is right
             record["proposal_bbox_mode"] = BoxMode.XYXY_ABS
         record["annotations"] = objs
-        if segmentation:
+        if segmentation and segmentation_maps:
             # Now save out the ground truth semantic segmentation mask
             if not multiple_bboxes:
                 ground_truth_mask = segmentation_maps[0]  # Choose the first one, the primary source
