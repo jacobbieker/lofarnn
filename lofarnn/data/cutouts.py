@@ -97,8 +97,9 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, 
     sbbs_rescaled = sbbs_rescaled.remove_out_of_image(partly=False).clip_out_of_image()
     # Draw image before/after rescaling and with rescaled bounding boxes
     if verbose:
-        image = image[:,:,3]
-        image_rescaled = image_rescaled[:,:,3]
+        image = image[:,:,:3]
+        image_rescaled = image_rescaled[:,:,:3]
+        print(image.shape)
         image_bbs = bbs.draw_on_image(image, size=1, alpha=1)
         image_bbs = sbbs.draw_on_image(image_bbs, size=1, alpha=1)
         image_rescaled_bbs = bbs_rescaled.draw_on_image(image_rescaled, size=1, alpha=1, color=(255,255,255))
