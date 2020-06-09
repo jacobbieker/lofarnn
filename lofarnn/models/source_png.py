@@ -16,8 +16,11 @@ import os
 
 from detectron2.evaluation import COCOEvaluator
 
-os.environ["LOFARNN_ARCH"] = "XPS"
-environment = os.environ["LOFARNN_ARCH"]
+try:
+    environment = os.environ["LOFARNN_ARCH"]
+except:
+    os.environ["LOFARNN_ARCH"] = "XPS"
+    environment = os.environ["LOFARNN_ARCH"]
 from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup, launch, DefaultPredictor
 from detectron2.evaluation import COCOEvaluator,inference_on_dataset
 from lofarnn.models.evaluators.SourceEvaluator import SourceEvaluator
@@ -77,14 +80,17 @@ assert len(argv) > 1, "Insert path of configuration file when executing this scr
 cfg.merge_from_file(argv[1])
 EXPERIMENT_NAME= argv[2] + f'_size{cfg.INPUT.MIN_SIZE_TRAIN[0]}_prop{cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE}_depth{cfg.MODEL.RESNETS.DEPTH}_batchSize{cfg.SOLVER.IMS_PER_BATCH}_anchorSize{cfg.MODEL.ANCHOR_GENERATOR.SIZES}'
 DATASET_PATH= argv[3]
-cfg.OUTPUT_DIR = os.path.join("/mnt/10tb/", "reports", EXPERIMENT_NAME)
+if environment == "XPS":
+    cfg.OUTPUT_DIR = os.path.join("/mnt/10tb/", "reports", EXPERIMENT_NAME)
+else:
+    cfg.OUTPUT_DIR = os.path.join("/home/s2153246/data/", "reports", EXPERIMENT_NAME)
 print(f"Experiment: {EXPERIMENT_NAME}")
 print(f"Output path: {cfg.OUTPUT_DIR}")
 print(f"Attempt to load training data from: {DATASET_PATH}")
 multi = False
 all_channel = False
 precompute = True
-semseg = True
+semseg = False
 norm = True
 for d in ["train", "val", "test"]:
     DatasetCatalog.register(f"{argv[2]}_" + d,

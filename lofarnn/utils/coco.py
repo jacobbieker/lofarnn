@@ -122,8 +122,12 @@ def make_single_coco_annotation_set(image_names, L, m,
             segmentation_maps = segmentation_maps_five.astype(np.uint8)
             segmentation_proposals = seg_box_five
 
+        if not segmentation:
+            segmentation_maps = np.asarray([])
+            segmentation_proposals = np.asarray([])
+
         # Clean out segmentation proposals that do not have positive bounding boxes, if we need bounding boxes around them
-        if box_seg:
+        if box_seg and segmentation:
             kept_i = []
             for i, sbox in enumerate(segmentation_proposals):
                 if int(sbox[0]) >= 0:  # All negative values are for invalid segmentation maps
@@ -386,7 +390,7 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.
         = create_coco_style_directory_structure(root_directory, verbose=verbose)
 
     # Gather data from all_directory
-    data_split = split_data(all_directory, split=split_fraction)
+    data_split = split_data(all_directory, val_split=split_fraction, test_split=split_fraction)
     create_coco_annotations(data_split["train"],
                             json_dir=annotations_directory,
                             image_destination_dir=train_directory,
@@ -440,11 +444,12 @@ def split_train_test_by_id(data, test_ratio):
     return data[~in_test_set], data[in_test_set]
 
 
-def split_data(image_directory, split=0.2):
+def split_data(image_directory, val_split=0.2, test_split=0.2):
     """
     Split up the data and return which images should go to which train, test, val directory
     :param image_directory: The directory where all the images are located, i.e. the "all" directory
-    :param split: Fraction of the data for the test set. the validation set is rolled into the test set.
+    :param test_split: Fraction of the data for the test set. the validation set is rolled into the test set.
+    :param val_split: Fraction of data in validation set
     :return: A dict containing which images go to which directory
     """
 
@@ -453,11 +458,13 @@ def split_data(image_directory, split=0.2):
     for p in image_paths:
         im_paths.append(p)
     print(len(im_paths))
-    train_images, test_images = split_train_test_by_id(np.asarray(im_paths), split)
+    train_images, test_images = split_train_test_by_id(np.asarray(im_paths), val_split+test_split)
+    val_images, test_images = split_train_test_by_id(test_images, val_split)
     print(len(train_images))
+    print(len(val_images))
     print(len(test_images))
     return {"train": train_images,
-            "val": [],
+            "val": val_images,
             "test": test_images}
 
 
