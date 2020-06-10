@@ -103,9 +103,10 @@ precompute = True
 semseg = True
 norm = True
 # Register train set with fraction
-DatasetCatalog.register(f"{argv[2]}_train",
-                            get_lofar_dicts(os.path.join(DATASET_PATH, f"json_train_prop{precompute}_all{all_channel}_multi{multi}_seg{semseg}_norm{norm}.pkl"), fraction=FRACTION))
-MetadataCatalog.get(f"{argv[2]}_train").set(thing_classes=["Optical source"])
+for d in ["train"]:
+    DatasetCatalog.register(f"{argv[2]}_" + d,
+                            lambda d=d: get_lofar_dicts(os.path.join(DATASET_PATH, f"json_{d}_prop{precompute}_all{all_channel}_multi{multi}_seg{semseg}_norm{norm}.pkl"), fraction=FRACTION))
+    MetadataCatalog.get(f"{argv[2]}_" + d).set(thing_classes=["Optical source"])
 # Keep val and test set the same so that its always testing on the same stuff
 for d in ["val", "test"]:
     DatasetCatalog.register(f"{argv[2]}_" + d,
