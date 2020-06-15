@@ -179,7 +179,7 @@ def make_single_coco_annotation_set(image_names, L, m,
         # First R (Radio) channel
         image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
                                                 normalize=normalize, scaling=None)
-        for layer in range(image.shape[2]):
+        for layer in range(1,image.shape[2]):
             image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=14.,
                                                         upper_clip=28.,
                                                         normalize=normalize, scaling=None)
@@ -372,7 +372,7 @@ def create_coco_annotations(image_names,
 
 def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.2, resize=None, rotation=None,
                         convert=True, all_channels=False, precomputed_proposals=False, segmentation=False,
-                        normalize=True,
+                        normalize=True, subset="",
                         verbose=False):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
@@ -383,14 +383,22 @@ def create_coco_dataset(root_directory, multiple_bboxes=False, split_fraction=0.
     :param resize: Image size to resize to, or None if not resizing
     :param convert: Whether to convert npy files to png, or to keep them in the original format, useful for SourceMapper
     :param verbose: Whether to print more data to stdout or not
+    :param subset: Whether to limit ones to only the fluxlimit sources, if not empty, should be path to list of source filepaths to use
     :return:
     """
 
     all_directory, train_directory, val_directory, test_directory, annotations_directory \
         = create_coco_style_directory_structure(root_directory, verbose=verbose)
 
+
     # Gather data from all_directory
     data_split = split_data(all_directory, val_split=split_fraction, test_split=split_fraction)
+    if subset:
+        # Keep only those already in the subset
+        subset = np.load(subset, allow_pickle=True)
+        for d in ["train", "test", "val"]:
+            data_split[d] = data_split[d][np.isin(data_split[d], subset)]
+        annotations_directory = os.path.join(annotations_directory, "subset")
     create_coco_annotations(data_split["train"],
                             json_dir=annotations_directory,
                             image_destination_dir=train_directory,
