@@ -41,7 +41,7 @@ def check_predictions(nn_prediction_path, training_path, save_cutout_location):
         found = False
         for pred_data in predictions:
             if found:
-                continue
+                break
             if pred_data["image_id"] == image_id:
                 bbox = pred_data["bbox"]
                 in_pred = check_box(bbox, jelle_prediction)
