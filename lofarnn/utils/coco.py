@@ -180,7 +180,7 @@ def make_single_coco_annotation_set(image_names, L, m,
         image[:, :, 0] = convert_to_valid_color(image[:, :, 0], clip=True, lower_clip=0.0, upper_clip=1000,
                                                 normalize=normalize, scaling=None)
         for layer in range(1,image.shape[2]):
-            image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=14.,
+            image[:, :, layer] = convert_to_valid_color(image[:, :, layer], clip=True, lower_clip=10.,
                                                         upper_clip=28.,
                                                         normalize=normalize, scaling=None)
         if convert:

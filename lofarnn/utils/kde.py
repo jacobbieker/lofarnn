@@ -20,18 +20,22 @@ def check_predictions(nn_prediction_path, training_path, save_cutout_location):
     :param training_path:
     :return:
     """
-    predictions = load(nn_prediction_path)
-    training_data = pickle.load(open(training_path, "rb"))
+    predictions = load(open(nn_prediction_path, "r"))
+    training_data = load(open(training_path, "r"))
+    training_data = training_data["images"]
     compared_predictions = {}
     fraction_matched = 0
     total = 0
     for image_data in training_data:
         # Now go through each dict to get the source Name, ground truth, npy as its 10 channel
+        #print(image_data)
         source_name = image_data['file_name'].split("/")[-1].split(".npy")[0]
-        print(source_name)
-        image_id = image_data["image_id"]
+        #print(source_name)
+        image_id = image_data["id"]
         # Get the Jelle Prediction
+        print(os.path.join(save_cutout_location, f"{source_name}.pkl"))
         if os.path.exists(os.path.join(save_cutout_location, f"{source_name}.pkl")):
+            print("Found!")
             jelle_prediction = pickle.load(open(os.path.join(save_cutout_location, f"{source_name}.pkl")))
         else:
             continue
@@ -56,4 +60,6 @@ def check_predictions(nn_prediction_path, training_path, save_cutout_location):
     print(f"Fraction Matched: {float(fraction_matched)/total}")
 
 
-
+check_predictions(nn_prediction_path="/home/jacob/Development/lofarnn/inference_fixed/inference_fixed/coco_instances_results.json",
+                  training_path="/home/jacob/Development/lofarnn/inference_fixed/inference_fixed/fast_rcnn_all_fixed_test_coco_format.json",
+                  save_cutout_location="/home/jacob/variable_lgz_tester/COCO/all/")
