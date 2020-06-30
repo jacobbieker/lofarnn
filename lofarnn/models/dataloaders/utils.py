@@ -23,7 +23,7 @@ def get_lofar_dicts(annotation_filepath, fraction=1.):
     return dataset_dicts
 
 
-def make_physical_dict(vac_catalog, size_cut=0, flux_cut=0, multi=False, lgz=True):
+def make_physical_dict(vac_catalog, size_cut=0., flux_cut=0., multi=False, lgz=True):
     """
     Makes cuts in the value added catalog for the size, flux, and multi vs single component
     :param vac_catalog: Value-added catalog location
@@ -32,27 +32,38 @@ def make_physical_dict(vac_catalog, size_cut=0, flux_cut=0, multi=False, lgz=Tru
     :param multi: Whether to split on multi component or not
     :return:
     """
+    #print("started")
     vac_catalog = get_lotss_objects(vac_catalog)
+    #print("loaded", flush=True)
     physical_cut = {}
     if lgz:
         vac_catalog = vac_catalog[~np.isnan(vac_catalog['LGZ_Size'])]
     if multi:
         all_multi = vac_catalog[vac_catalog["LGZ_Assoc"] > 1]
         all_single = vac_catalog[vac_catalog["LGZ_Assoc"] == 1]
+        #print(f"Multi: {len(all_multi)}", flush=True)
+        #print(f"Single: {len(all_single)}", flush=True)
+        physical_cut[f"multi_size{size_cut}_flux{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] >= size_cut) & (all_multi["Total_flux"] >= flux_cut)]["Source_Name"].data
+        #print(physical_cut, flush=True)
+        physical_cut[f"multi_sizeLess{size_cut}_flux{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] < size_cut) & (all_multi["Total_flux"] >= flux_cut)]["Source_Name"].data
+        physical_cut[f"single_size{size_cut}_flux{flux_cut}"] = all_single[(all_single["LGZ_Size"] >= size_cut) & (all_single["Total_flux"] >= flux_cut)]["Source_Name"].data
+        physical_cut[f"single_sizeLess{size_cut}_flux{flux_cut}"] = all_single[(all_single["LGZ_Size"] < size_cut) & (all_single["Total_flux"] >= flux_cut)]["Source_Name"].data
+        physical_cut[f"multi_size{size_cut}_fluxLess{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] >= size_cut) & (all_multi["Total_flux"] < flux_cut)]["Source_Name"].data
+        physical_cut[f"multi_sizeLess{size_cut}_fluxLess{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] < size_cut) & (all_multi["Total_flux"] < flux_cut)]["Source_Name"].data
+        physical_cut[f"single_size{size_cut}_fluxLess{flux_cut}"] = all_single[(all_single["LGZ_Size"] >= size_cut) & (all_single["Total_flux"] < flux_cut)]["Source_Name"].data
+        physical_cut[f"single_sizeLess{size_cut}_fluxLess{flux_cut}"] = all_single[(all_single["LGZ_Size"] < size_cut) & (all_single["Total_flux"] < flux_cut)]["Source_Name"].data
     else:
         all_multi = vac_catalog
-        all_single = all_multi
-    physical_cut[f"multi_size{size_cut}_flux{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] >= size_cut) & (all_multi["Total_flux"] >= flux_cut)]["Source_Name"]
-    physical_cut[f"multi_sizeLess{size_cut}_flux{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] < size_cut) & (all_multi["Total_flux"] >= flux_cut)]["Source_Name"]
-    physical_cut[f"single_size{size_cut}_flux{flux_cut}"] = all_single[(all_single["LGZ_Size"] >= size_cut) & (all_single["Total_flux"] >= flux_cut)]["Source_Name"]
-    physical_cut[f"single_sizeLess{size_cut}_flux{flux_cut}"] = all_single[(all_single["LGZ_Size"] < size_cut) & (all_single["Total_flux"] >= flux_cut)]["Source_Name"]
-    physical_cut[f"multi_size{size_cut}_fluxLess{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] >= size_cut) & (all_multi["Total_flux"] < flux_cut)]["Source_Name"]
-    physical_cut[f"multi_sizeLess{size_cut}_fluxLess{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] < size_cut) & (all_multi["Total_flux"] < flux_cut)]["Source_Name"]
-    physical_cut[f"single_size{size_cut}_fluxLess{flux_cut}"] = all_single[(all_single["LGZ_Size"] >= size_cut) & (all_single["Total_flux"] < flux_cut)]["Source_Name"]
-    physical_cut[f"single_sizeLess{size_cut}_fluxLess{flux_cut}"] = all_single[(all_single["LGZ_Size"] < size_cut) & (all_single["Total_flux"] < flux_cut)]["Source_Name"]
+        physical_cut[f"size{size_cut}_flux{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] >= size_cut) & (all_multi["Total_flux"] >= flux_cut)]["Source_Name"]
+        #print(physical_cut)
+        physical_cut[f"sizeLess{size_cut}_flux{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] < size_cut) & (all_multi["Total_flux"] >= flux_cut)]["Source_Name"]
+        physical_cut[f"size{size_cut}_fluxLess{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] >= size_cut) & (all_multi["Total_flux"] < flux_cut)]["Source_Name"]
+        physical_cut[f"sizeLess{size_cut}_fluxLess{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] < size_cut) & (all_multi["Total_flux"] < flux_cut)]["Source_Name"]
 
     return physical_cut
 
+dict_out = make_physical_dict("/run/media/jacob/SSD_Backup/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits", multi=True, size_cut=15., flux_cut=10., lgz=True)
+np.save("jelle_dicts", dict_out)
 
 def get_physical_dicts(annotation_filepath, size=0, vac_catalog=None):
     """

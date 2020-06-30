@@ -11,10 +11,11 @@ import datetime
 
 
 class LossEvalHook(HookBase):
-    def __init__(self, eval_period, model, data_loader):
+    def __init__(self, eval_period, extra_eval, model, data_loader):
         self._model = model
         self._period = eval_period
         self._data_loader = data_loader
+        self._extra_eval = extra_eval
 
     def _do_loss_eval(self):
         # Copying inference_on_dataset from evaluator.py
@@ -66,5 +67,7 @@ class LossEvalHook(HookBase):
         next_iter = self.trainer.iter + 1
         is_final = next_iter == self.trainer.max_iter
         if is_final or (self._period > 0 and next_iter % self._period == 0):
+            self._do_loss_eval()
+        elif self._period > 0 and next_iter in self._extra_eval:
             self._do_loss_eval()
         self.trainer.storage.put_scalars(timetest=12)

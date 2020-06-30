@@ -46,14 +46,14 @@ FRACTION = float(argv[4])
 EXPERIMENT_NAME = argv[2] + f'_size{cfg.INPUT.MIN_SIZE_TRAIN[0]}_prop{cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE}_depth{cfg.MODEL.RESNETS.DEPTH}_batchSize{cfg.SOLVER.IMS_PER_BATCH}_frac{FRACTION}'
 DATASET_PATH = argv[3]
 if environment == "XPS":
-    cfg.OUTPUT_DIR = os.path.join("/mnt/10tb/", "reports", EXPERIMENT_NAME)
+    cfg.OUTPUT_DIR = os.path.join("/home/jacob/", "reports", EXPERIMENT_NAME)
 else:
     cfg.OUTPUT_DIR = os.path.join("/home/s2153246/data/", "reports", EXPERIMENT_NAME)
 print(f"Experiment: {EXPERIMENT_NAME}")
 print(f"Output path: {cfg.OUTPUT_DIR}")
 print(f"Attempt to load training data from: {DATASET_PATH}")
 multi = False
-all_channel = False
+all_channel = True
 precompute = True
 semseg = False
 norm = True

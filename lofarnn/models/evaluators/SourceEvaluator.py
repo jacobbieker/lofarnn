@@ -200,7 +200,8 @@ class SourceEvaluator(DatasetEvaluator):
                 coco_eval, task, class_names=self._metadata.get("thing_classes")
             )
             self._results[task] = res
-
+        print(self._physical_cuts)
+        print(self._physical_cuts.keys())
         for physical_cut in self._physical_cuts.keys():
             self._logger.info(f"Evaluating on physical cut {physical_cut}...")
             prediction_cut = self._get_physical_cut_predictions(physical_cut, predictions)
