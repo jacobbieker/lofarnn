@@ -29,9 +29,12 @@ class SourceEvaluator(DatasetEvaluator):
     """
     Evaluate object proposal, instance detection/segmentation, keypoint detection
     outputs using COCO's metrics and APIs. But only do the bboxes with the one with the single highest confidence
+
+    Calculates it over multi-component, single-component, and size-limited subsets
+
     """
 
-    def __init__(self, dataset_name, cfg, distributed, output_dir=None):
+    def __init__(self, dataset_name, cfg, distributed, output_dir=None, physical_cut_dict=None):
         """
         Args:
             dataset_name (str): name of the dataset to be evaluated.
@@ -52,10 +55,13 @@ class SourceEvaluator(DatasetEvaluator):
                    format that contains all the raw original predictions.
                 2. "coco_instances_results.json" a json file in COCO's result
                    format.
+            physical_cut_dict (dict): Optional, Dictionary mapping Source Names to multicomponent,
+             single component, and size cuts, should be in format of {cut: [list]} where list is the Source Names for that cut
         """
         self._tasks = self._tasks_from_config(cfg)
         self._distributed = distributed
         self._output_dir = output_dir
+        self._physical_cuts = physical_cut_dict
 
         self._cpu_device = torch.device("cpu")
         self._logger = logging.getLogger(__name__)
@@ -105,7 +111,11 @@ class SourceEvaluator(DatasetEvaluator):
                 "instances" that contains :class:`Instances`.
         """
         for input, output in zip(inputs, outputs):
-            prediction = {"image_id": input["image_id"]}
+            if ".npy" in input["file_name"]:
+                source_name = input['file_name'].split("/")[-1].split(".npy")[0]
+            else:
+                source_name = input['file_name'].split("/")[-1].split(".png")[0]
+            prediction = {"image_id": input["image_id"], "source_name": source_name}  # Add Name to get component later
 
             # TODO this is ugly
             if "instances" in output:
@@ -186,11 +196,35 @@ class SourceEvaluator(DatasetEvaluator):
                 if len(coco_results) > 0
                 else None  # cocoapi does not handle empty results very well
             )
-
             res = self._derive_coco_results(
                 coco_eval, task, class_names=self._metadata.get("thing_classes")
             )
             self._results[task] = res
+
+        for physical_cut in self._physical_cuts.keys():
+            self._logger.info(f"Evaluating on physical cut {physical_cut}...")
+            prediction_cut = self._get_physical_cut_predictions(physical_cut, predictions)
+            physical_coco_results = list(itertools.chain(*[x["instances"] for x in prediction_cut]))
+            for task in sorted(tasks):
+                coco_eval = (
+                    _evaluate_predictions_on_coco(
+                        self._coco_api, physical_coco_results, task, kpt_oks_sigmas=self._kpt_oks_sigmas
+                    )
+                    if len(physical_coco_results) > 0
+                    else None  # cocoapi does not handle empty results very well
+                )
+                res = self._derive_coco_results(
+                    coco_eval, task, class_names=self._metadata.get("thing_classes")
+                )
+                result_name = f"{task}_{physical_cut}"
+                self._results[result_name] = res
+
+    def _get_physical_cut_predictions(self, cut_key, predictions):
+        prediction_cut = []
+        for prediction in predictions:
+            if prediction["source_name"] in self._physical_cuts[cut_key]:
+                prediction_cut.append(prediction)
+        return prediction_cut
 
     def _eval_box_proposals(self, predictions):
         """
@@ -246,8 +280,8 @@ class SourceEvaluator(DatasetEvaluator):
         """
 
         metrics = {
-            "bbox": ["AR", "AR50", "AR75", "ARs", "ARm", "ARl"],
-            "segm": ["AP", "AP50", "AP75", "APs", "APm", "APl"],
+            "bbox": ["AP", "AP50", "AP75", "APs", "APm", "APl", "AR", "AR50", "AR75", "ARs", "ARm", "ARl"],
+            "segm": ["AP", "AP50", "AP75", "APs", "APm", "APl", "AR", "AR50", "AR75", "ARs", "ARm", "ARl"],
             "keypoints": ["AP", "AP50", "AP75", "APm", "APl"],
         }[iou_type]
 
