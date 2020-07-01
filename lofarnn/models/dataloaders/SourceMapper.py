@@ -6,7 +6,6 @@ import numpy as np
 import torch
 from fvcore.common.file_io import PathManager
 from PIL import Image
-from detectron2.data.dataset_mapper import DatasetMapper
 
 """
 This file contains the mapping that's applied to "dataset dicts" for LOFAR Source finding.
@@ -106,7 +105,11 @@ class SourceMapper:
         # USER: Remove if you don't use pre-computed proposals.
         if self.load_proposals:
             utils.transform_proposals(
-                dataset_dict, image_shape, transforms, self.min_box_side_len, self.proposal_topk
+                dataset_dict,
+                image_shape,
+                transforms,
+                min_box_size=self.min_box_side_len,
+                proposal_topk=self.proposal_topk
             )
 
         if not self.is_train:
