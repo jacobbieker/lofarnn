@@ -17,7 +17,7 @@ def get_lofar_dicts(annotation_filepath, fraction=1.):
         num_kept = int(fraction * num_entries)
         step_size = int(num_entries / num_kept)
         new_dicts = []
-        for i in range(len(dataset_dicts), step=step_size):
+        for i in range(0, len(dataset_dicts), step_size):
             new_dicts.append(dataset_dicts[i])
         dataset_dicts = new_dicts
     return dataset_dicts
