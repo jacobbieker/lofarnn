@@ -41,6 +41,8 @@ def make_physical_dict(vac_catalog, size_cut=0., flux_cut=0., multi=False, lgz=T
     if multi:
         all_multi = vac_catalog[vac_catalog["LGZ_Assoc"] > 1]
         all_single = vac_catalog[vac_catalog["LGZ_Assoc"] == 1]
+        physical_cut["multi_comp"] = all_multi["Source_Name"].data
+        physical_cut["single_comp"] = all_single["Source_Name"].data
         #print(f"Multi: {len(all_multi)}", flush=True)
         #print(f"Single: {len(all_single)}", flush=True)
         physical_cut[f"multi_size{size_cut}_flux{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] >= size_cut) & (all_multi["Total_flux"] >= flux_cut)]["Source_Name"].data
