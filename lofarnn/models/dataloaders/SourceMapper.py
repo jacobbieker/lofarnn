@@ -73,12 +73,10 @@ class SourceMapper:
         dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
         # USER: Write your own image loading if it's not from a file
         image = np.nan_to_num(np.load(dataset_dict["file_name"], allow_pickle=True))
-        #image /= 255. # Rescales to between 0 and 1
-        #image, transforms = T.apply_transform_gens([T.Resize((200, 200))], image)
         utils.check_image_size(dataset_dict, image)
         # USER: Remove if you don't do semantic/panoptic segmentation.
         if "sem_seg_file_name" in dataset_dict:
-            sem_seg_gt = utils.read_image(dataset_dict.pop("sem_seg_file_name"), "L").squeeze(2)
+            sem_seg_gt = None#utils.read_image(dataset_dict.pop("sem_seg_file_name"), "L").squeeze(2)
         else:
             sem_seg_gt = None
 
@@ -90,7 +88,7 @@ class SourceMapper:
         # Pytorch's dataloader is efficient on torch.Tensor due to shared-memory,
         # but not efficient on large generic data structures due to the use of pickle & mp.Queue.
         # Therefore it's important to use torch.Tensor.
-        dataset_dict["image"] = torch.as_tensor(np.ascontiguousarray(image.transpose(2, 0, 1)))
+        dataset_dict["image"] = torch.as_tensor(np.ascontiguousarray(image.transpose(2, 0, 1)).astype("float32"))
         if sem_seg_gt is not None:
             dataset_dict["sem_seg"] = torch.as_tensor(sem_seg_gt.astype("long"))
 
