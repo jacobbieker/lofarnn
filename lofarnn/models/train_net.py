@@ -44,7 +44,7 @@ def setup(args):
 
     cfg.DATASETS.TRAIN = (f"{args.experiment}_train",)
     cfg.DATASETS.VAL = (f"{args.experiment}_test",)
-    cfg.DATASETS.TEST = (f"{args.experiment}_val",)  # Swapped because TEST is used for eval, and val is not, but can be used later
+    cfg.DATASETS.TEST = (f"{args.experiment}_val", f"{args.experiment}_train",)  # Swapped because TEST is used for eval, and val is not, but can be used later
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     cfg.freeze()
     default_setup(cfg, args)
