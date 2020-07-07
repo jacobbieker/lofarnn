@@ -71,9 +71,6 @@ def setup(args):
     cfg.DATASETS.TEST = (f"{args.experiment}_val",
                          f"{args.experiment}_train",)  # Swapped because TEST is used for eval, and val is not, but can be used later
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-    cfg.SOLVER.MAX_ITER = calc_epochs(cfg, len(get_lofar_dicts(os.path.join(args.dataset,
-                                                                            f"json_train_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl"),
-                                                               fraction=args.fraction_train)))
     cfg.freeze()
     default_setup(cfg, args)
     return cfg
