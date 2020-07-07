@@ -15,22 +15,7 @@ from photutils import detect_sources, detect_threshold
 from lofarnn.utils.coco import create_coco_style_directory_structure
 from lofarnn.visualization.cutouts import plot_three_channel_debug
 from lofarnn.utils.fits import extract_subimage
-
-
-def get_lotss_objects(fname, verbose=False):
-    """
-    Load the LoTSS objects from a file
-    """
-
-    with fits.open(fname) as hdul:
-        table = hdul[1].data
-
-    if verbose:
-        print(table.columns)
-
-    # convert from astropy.io.fits.fitsrec.FITS_rec to astropy.table.table.Table
-    return Table(table)
-
+from lofarnn.models.dataloaders.utils import get_lotss_objects
 
 def pad_with(vector, pad_width, iaxis, kwargs):
     """
@@ -287,7 +272,8 @@ def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, compon
         return np.zeros(radio_field.shape), np.zeros(radio_field.shape), [-1,-1,-1,-1,"No Component"]
 
 import pickle
-def make_kde_stuff(mosaic, value_added_catalog, mosaic_location, save_cutout_directory, kde_directory, source_size=None, verbose=False):
+def make_kde_stuff(mosaic, value_added_catalog, pan_wise_catalog, component_catalog, mosaic_location,
+                   save_cutout_directory, gaussian=None, all_channels=False, source_size=None, verbose=False):
     lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
     lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
     # Load the data once, then do multiple cutouts
@@ -300,29 +286,35 @@ def make_kde_stuff(mosaic, value_added_catalog, mosaic_location, save_cutout_dir
 
     mosaic_cutouts = value_added_catalog[value_added_catalog["Mosaic_ID"] == mosaic]
     # Go through each cutout for that mosaic
-    for l, source in enumerate(mosaic_cutouts):
-        if os.path.exists(os.path.join(kde_directory, f"{source['Source_Name']}_noopt.pkl")):
-            # Get the ra and dec of the radio source
-            source_ra = source["RA"]
-            source_dec = source["DEC"]
-            # Get the size of the cutout needed
-            if source_size is None or source_size is False:
-                source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
-            try:
-                lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=verbose)
-            except:
-                if verbose:
-                    print(f"Failed to make data cutout for source: {source['Source_Name']}")
-                continue
-            header = lhdu[0].header
-            wcs = WCS(header)
-            jelle = pickle.load(open(os.path.join(kde_directory, f"{source['Source_Name']}_noopt.pkl"), "rb"))
-            print(jelle)
-            print(f"Source RA, DEC: {source['ID_ra']}, {source['ID_dec']}")
-            jelle_skycoord = SkyCoord(jelle[1], jelle[2], unit='deg')
-            #j_skycoord_opt = SkyCoord(jelle[3], jelle[4], unit='deg')
-            j_pix_coord = skycoord_to_pixel(jelle_skycoord, wcs, 0)
-            pickle.dump([j_pix_coord[1], j_pix_coord[2]], open(os.path.join(save_cutout_directory, f"{source['Source_Name']}.pkl"), "wb"))
+    jelle = np.loadtxt("/home/jacob/Development/lofarnn/Ridgeline_predictions_no_ground_truth.csv", delimiter=",",
+                       dtype=str, skiprows=1)
+    for line in jelle:
+        print(line)
+        pred = (str(line[2]), float(line[5]), float(line[6]))
+        for l, source in enumerate(mosaic_cutouts):
+            if source["Source_Name"] == pred[0]:
+                print(source)
+                # Get the ra and dec of the radio source
+                source_ra = source["RA"]
+                source_dec = source["DEC"]
+                # Get the size of the cutout needed
+                if source_size is None or source_size is False:
+                    source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
+                try:
+                    lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=verbose)
+                except:
+                    if verbose:
+                        print(f"Failed to make data cutout for source: {source['Source_Name']}")
+                    continue
+                header = lhdu[0].header
+                wcs = WCS(header)
+                print(pred)
+                print(f"Source RA, DEC: {source['ID_ra']}, {source['ID_dec']}")
+                jelle_skycoord = SkyCoord(pred[1], pred[2], unit='deg')
+                #j_skycoord_opt = SkyCoord(jelle[3], jelle[4], unit='deg')
+                j_pix_coord = skycoord_to_pixel(jelle_skycoord, wcs, 0)
+                print(j_pix_coord[0])
+                pickle.dump([j_pix_coord[0], j_pix_coord[1]], open(os.path.join(save_cutout_directory, f"{source['Source_Name']}.pkl"), "wb"))
     return
 import matplotlib.pyplot as plt
 def check_radio_sizes(mosaic, value_added_catalog, mosaic_location, save_cutout_directory, kde_directory, source_size=None, verbose=False):
@@ -596,23 +588,23 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
 
     if use_multiprocessing:
         pool = multiprocessing.Pool(num_threads)
-        pool.starmap(create_cutouts, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_location), repeat(comp_catalog),
+        pool.starmap(make_kde_stuff, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_location), repeat(comp_catalog),
                                          repeat(dr_two_location), repeat(all_directory), repeat(gaussian),
                                          repeat(all_channels), repeat(fixed_size),
                                          repeat(verbose)))
     else:
-        pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
-        pan_wise_catalogue = pan_wise_catalogue[1].data
+        #pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
+        #pan_wise_catalogue = pan_wise_catalogue[1].data
         print("Loaded")
         mags = ["iFApMag", "w1Mag", "gFApMag", "rFApMag", "zFApMag", "yFApMag", "w2Mag", "w3Mag", "w4Mag"]
-        import matplotlib.pyplot as plt
-        for mag in mags:
-            plt.hist(pan_wise_catalogue, bins=50)
-            plt.title(mag)
-            plt.show()
-        exit()
+        #import matplotlib.pyplot as plt
+        #for mag in mags:
+        #    plt.hist(pan_wise_catalogue, bins=50)
+        #    plt.title(mag)
+        #    plt.show()
+        #exit()
         for mosaic in mosaic_names:
-            create_cutouts(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_catalogue, component_catalog=comp_catalog,
+            make_kde_stuff(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_location, component_catalog=comp_catalog,
                            mosaic_location=dr_two_location,
                            save_cutout_directory=all_directory,
                            gaussian=gaussian,

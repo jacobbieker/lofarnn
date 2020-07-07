@@ -1,8 +1,10 @@
 from detectron2.utils.logger import setup_logger
+
 setup_logger()
 import os
 import numpy as np
 from lofarnn.models.dataloaders.utils import get_lofar_dicts
+
 try:
     environment = os.environ["LOFARNN_ARCH"]
 except:
@@ -15,6 +17,21 @@ from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.config import get_cfg
 
 
+def calc_epochs(cfg, num_train_samples):
+    """
+    Calculate the number of epochs with the current batch size, so that all the models go through the same number of epochs?
+    :param cfg: CFG instance
+    :param num_train_samples:
+    :return: new iteration number for equal epochs to 200000 at batch size of 4
+    """
+
+    iterations_per_epoch = int(np.ceil(num_train_samples / cfg.SOLVER.IMS_PER_BATCH))
+    baseline_epochs = int(np.ceil(200000 / (num_train_samples / 4)))
+    new_max_iterations = baseline_epochs * iterations_per_epoch
+    print(f"New Max Iterations: {new_max_iterations}")
+    return new_max_iterations
+
+
 def setup(args):
     """
     Create configs and perform basic setups.
@@ -22,7 +39,14 @@ def setup(args):
     cfg = get_cfg()
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
-    experiment_name = args.experiment + f'_size{cfg.INPUT.MIN_SIZE_TRAIN[0]}_prop{cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE}_depth{cfg.MODEL.RESNETS.DEPTH}_batchSize{cfg.SOLVER.IMS_PER_BATCH}_frac{args.fraction_train}'
+    cfg.SOLVER.BASE_LR = args.lr
+    cfg.SOLVER.IMS_PER_BATCH = args.batch
+    experiment_name = args.experiment + f'_size{cfg.INPUT.MIN_SIZE_TRAIN[0]}' \
+                                        f'_prop{cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE}' \
+                                        f'_depth{cfg.MODEL.RESNETS.DEPTH}' \
+                                        f'_batchSize{cfg.SOLVER.IMS_PER_BATCH}' \
+                                        f'_lr{cfg.SOLVER.BASE_LR}' \
+                                        f'_frac{args.fraction_train}'
     if environment == "XPS":
         cfg.OUTPUT_DIR = os.path.join("/home/jacob/", "reports", experiment_name)
     else:
@@ -44,8 +68,12 @@ def setup(args):
 
     cfg.DATASETS.TRAIN = (f"{args.experiment}_train",)
     cfg.DATASETS.VAL = (f"{args.experiment}_test",)
-    cfg.DATASETS.TEST = (f"{args.experiment}_val", f"{args.experiment}_train",)  # Swapped because TEST is used for eval, and val is not, but can be used later
+    cfg.DATASETS.TEST = (f"{args.experiment}_val",
+                         f"{args.experiment}_train",)  # Swapped because TEST is used for eval, and val is not, but can be used later
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
+    cfg.SOLVER.MAX_ITER = calc_epochs(cfg, len(get_lofar_dicts(os.path.join(args.dataset,
+                                                                            f"json_train_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl"),
+                                                               fraction=args.fraction_train)))
     cfg.freeze()
     default_setup(cfg, args)
     return cfg
@@ -61,7 +89,8 @@ def main(args):
     if ".npy" in args.vac_file:
         physical_dict = np.load(args.vac_file, allow_pickle=True)
     else:
-        physical_dict = make_physical_dict(args.vac_file, size_cut=args.size_cut, flux_cut=args.flux_cut, multi=True, lgz=True)
+        physical_dict = make_physical_dict(args.vac_file, size_cut=args.size_cut, flux_cut=args.flux_cut, multi=True,
+                                           lgz=True)
     trainer = SourceTrainer(cfg, physical_dict=physical_dict)
     trainer.resume_or_load(resume=args.resume)
     return trainer.train()

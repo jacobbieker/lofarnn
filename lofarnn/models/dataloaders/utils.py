@@ -1,6 +1,23 @@
 import pickle
 import numpy as np
-from lofarnn.data.datasets import get_lotss_objects
+
+from astropy.io import fits
+from astropy.table import Table
+
+
+def get_lotss_objects(fname, verbose=False):
+    """
+    Load the LoTSS objects from a file
+    """
+
+    with fits.open(fname) as hdul:
+        table = hdul[1].data
+
+    if verbose:
+        print(table.columns)
+
+    # convert from astropy.io.fits.fitsrec.FITS_rec to astropy.table.table.Table
+    return Table(table)
 
 def get_source_from_dict(source):
     if ".npy" in source['file_name']:
@@ -32,9 +49,7 @@ def make_physical_dict(vac_catalog, size_cut=0., flux_cut=0., multi=False, lgz=T
     :param multi: Whether to split on multi component or not
     :return:
     """
-    #print("started")
     vac_catalog = get_lotss_objects(vac_catalog)
-    #print("loaded", flush=True)
     physical_cut = {}
     if lgz:
         vac_catalog = vac_catalog[~np.isnan(vac_catalog['LGZ_Size'])]
@@ -47,6 +62,10 @@ def make_physical_dict(vac_catalog, size_cut=0., flux_cut=0., multi=False, lgz=T
         physical_cut[f"flux{flux_cut}"] = vac_catalog[vac_catalog["Total_flux"] >= flux_cut]["Source_Name"].data
         physical_cut[f"fluxLess{flux_cut}"] = vac_catalog[vac_catalog["Total_flux"] < flux_cut]["Source_Name"].data
         physical_cut[f"sizeLess{size_cut}"] = vac_catalog[vac_catalog["LGZ_Size"] < size_cut]["Source_Name"].data
+        physical_cut[f"size{size_cut}_flux{flux_cut}"] = vac_catalog[(vac_catalog["LGZ_Size"] >= size_cut) & (vac_catalog["Total_flux"] >= flux_cut)]["Source_Name"].data
+        physical_cut[f"sizeLess{size_cut}_flux{flux_cut}"] = vac_catalog[(vac_catalog["LGZ_Size"] < size_cut) & (vac_catalog["Total_flux"] >= flux_cut)]["Source_Name"].data
+        physical_cut[f"size{size_cut}_fluxLess{flux_cut}"] = vac_catalog[(vac_catalog["LGZ_Size"] >= size_cut) & (vac_catalog["Total_flux"] < flux_cut)]["Source_Name"].data
+        physical_cut[f"sizeLess{size_cut}_fluxLess{flux_cut}"] = vac_catalog[(vac_catalog["LGZ_Size"] < size_cut) & (vac_catalog["Total_flux"] < flux_cut)]["Source_Name"].data
         physical_cut[f"multi_size{size_cut}_flux{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] >= size_cut) & (all_multi["Total_flux"] >= flux_cut)]["Source_Name"].data
         physical_cut[f"multi_sizeLess{size_cut}_flux{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] < size_cut) & (all_multi["Total_flux"] >= flux_cut)]["Source_Name"].data
         physical_cut[f"single_size{size_cut}_flux{flux_cut}"] = all_single[(all_single["LGZ_Size"] >= size_cut) & (all_single["Total_flux"] >= flux_cut)]["Source_Name"].data
@@ -56,17 +75,16 @@ def make_physical_dict(vac_catalog, size_cut=0., flux_cut=0., multi=False, lgz=T
         physical_cut[f"single_size{size_cut}_fluxLess{flux_cut}"] = all_single[(all_single["LGZ_Size"] >= size_cut) & (all_single["Total_flux"] < flux_cut)]["Source_Name"].data
         physical_cut[f"single_sizeLess{size_cut}_fluxLess{flux_cut}"] = all_single[(all_single["LGZ_Size"] < size_cut) & (all_single["Total_flux"] < flux_cut)]["Source_Name"].data
     else:
-        all_multi = vac_catalog
         physical_cut[f"size{size_cut}"] = vac_catalog[vac_catalog["LGZ_Size"] >= size_cut]["Source_Name"].data
         physical_cut[f"flux{flux_cut}"] = vac_catalog[vac_catalog["Total_flux"] >= flux_cut]["Source_Name"].data
         physical_cut[f"fluxLess{flux_cut}"] = vac_catalog[vac_catalog["Total_flux"] < flux_cut]["Source_Name"].data
         physical_cut[f"sizeLess{size_cut}"] = vac_catalog[vac_catalog["LGZ_Size"] < size_cut]["Source_Name"].data
-        physical_cut[f"size{size_cut}_flux{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] >= size_cut) & (all_multi["Total_flux"] >= flux_cut)]["Source_Name"]
-        #print(physical_cut)
-        physical_cut[f"sizeLess{size_cut}_flux{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] < size_cut) & (all_multi["Total_flux"] >= flux_cut)]["Source_Name"]
-        physical_cut[f"size{size_cut}_fluxLess{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] >= size_cut) & (all_multi["Total_flux"] < flux_cut)]["Source_Name"]
-        physical_cut[f"sizeLess{size_cut}_fluxLess{flux_cut}"] = all_multi[(all_multi["LGZ_Size"] < size_cut) & (all_multi["Total_flux"] < flux_cut)]["Source_Name"]
-
+        physical_cut[f"size{size_cut}_flux{flux_cut}"] = vac_catalog[(vac_catalog["LGZ_Size"] >= size_cut) & (vac_catalog["Total_flux"] >= flux_cut)]["Source_Name"].data
+        physical_cut[f"sizeLess{size_cut}_flux{flux_cut}"] = vac_catalog[(vac_catalog["LGZ_Size"] < size_cut) & (vac_catalog["Total_flux"] >= flux_cut)]["Source_Name"].data
+        physical_cut[f"size{size_cut}_fluxLess{flux_cut}"] = vac_catalog[(vac_catalog["LGZ_Size"] >= size_cut) & (vac_catalog["Total_flux"] < flux_cut)]["Source_Name"].data
+        physical_cut[f"sizeLess{size_cut}_fluxLess{flux_cut}"] = vac_catalog[(vac_catalog["LGZ_Size"] < size_cut) & (vac_catalog["Total_flux"] < flux_cut)]["Source_Name"].data
+    for key in physical_cut.keys():
+        print(f"Cut: {key} | Num Elements: {len(physical_cut[key])}")
     return physical_cut
 
 
