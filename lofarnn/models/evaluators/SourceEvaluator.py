@@ -401,7 +401,7 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
     area_range = area_ranges[areas[area]]
     gt_overlaps = []
     num_pos = 0
-
+    print(dataset_predictions)
     for prediction_dict in dataset_predictions:
         print(prediction_dict)
         predictions = prediction_dict["proposals"]
