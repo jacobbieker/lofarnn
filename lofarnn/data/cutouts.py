@@ -120,8 +120,16 @@ def augment_image_and_bboxes(
     pbbs = BoundingBoxesOnImage(prop_boxes, shape=image.shape)
     if seg_boxes:
         sbbs = BoundingBoxesOnImage(seg_boxes, shape=image.shape)
+        _, sbbs = seq(image=image, bounding_boxes=sbbs)
     if segmentation_maps.any():
         segmaps = SegmentationMapsOnImage(segmentation_maps, shape=image.shape)
+        _, segmaps_rescaled = seq(
+            image=image, segmentation_maps=segmaps
+        )
+    _, bbs = seq(image=image, bounding_boxes=bbs)
+    image, pbbs = seq(
+        image=image, bounding_boxes=pbbs
+    )
     # Rescale image and bounding boxes
     if type(new_size) == int or type(new_size):
         image_rescaled = ia.imresize_single_image(image, (new_size, new_size))
@@ -133,12 +141,6 @@ def augment_image_and_bboxes(
     pbbs_rescaled = pbbs.on(image_rescaled)
     if seg_boxes:
         sbbs_rescaled = sbbs.on(image_rescaled)
-        _, sbbs_rescaled = seq(image=image_rescaled, bounding_boxes=sbbs_rescaled)
-    _, bbs_rescaled = seq(image=image_rescaled, bounding_boxes=bbs_rescaled)
-    image_rescaled, pbbs_rescaled = seq(
-        image=image_rescaled, bounding_boxes=pbbs_rescaled
-    )
-    if seg_boxes:
         sbbs_rescaled = sbbs_rescaled.remove_out_of_image(
             partly=False
         ).clip_out_of_image()
@@ -146,9 +148,7 @@ def augment_image_and_bboxes(
         segmaps_rescaled = segmaps.resize(
             (image_rescaled.shape[0], image_rescaled.shape[1])
         )
-        _, segmaps_rescaled = seq(
-            image=image_rescaled, segmentation_maps=segmaps_rescaled
-        )
+
     # Remove bounding boxes that go out of bounds
     pbbs_rescaled = pbbs_rescaled.remove_out_of_image(partly=False).clip_out_of_image()
     # But only clip source bounding boxes that are partly out of frame, so that no sources are lost

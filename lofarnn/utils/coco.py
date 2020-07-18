@@ -189,7 +189,7 @@ def make_single_coco_annotation_set(
         # Change order to H,W,C for imgaug
         segmentation_maps = np.moveaxis(segmentation_maps, 0, -1)
         if rotation is not None:
-            if type(rotation) == tuple:
+            if isinstance(rotation, (list,tuple,np.ndarray)):
                 (
                     image,
                     cutouts,
@@ -473,6 +473,7 @@ def create_coco_annotations(
         pool = Pool(processes=os.cpu_count())
         L = manager.list()
         bbox_size = manager.list()
+        rotation = np.linspace(0,180,num_copies)
         [
             pool.apply_async(
                 make_single_coco_annotation_set,
@@ -501,6 +502,7 @@ def create_coco_annotations(
         pool.join()
         # Now do the same for the extra copies, but with more rotations, ~2.5 to equal out multi and single comp sources
         num_copies = int(num_copies * 2.5)
+        rotation = np.linspace(0, 180, num_copies)
         [
             pool.apply_async(
                 make_single_coco_annotation_set,

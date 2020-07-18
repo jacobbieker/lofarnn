@@ -21,12 +21,14 @@ if environment == "ALICE":
     pan_wise_location = "/home/s2153246/data/catalogues/pan_allwise.fits"
     multi_process = True
 else:
-    pan_wise_location = "/home/jacob/hetdex_ps1_allwise_photoz_v0.6.fits"
-    dr_two = "/run/media/jacob/SSD_Backup/mosaics/"
-    comp_cat = "/run/media/jacob/SSD_Backup/catalogues/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
-    vac = "/run/media/jacob/SSD_Backup/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
-    cutout_directory = "/home/jacob/fixed_lgz_rotated/"
-    multi_process = False
+    pan_wise_location = "/mnt/LargeSSD/hetdex_ps1_allwise_photoz_v0.6.fits"
+    dr_two = "/mnt/LargeSSD/mosaics/"
+    comp_cat = "/mnt/LargeSSD/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
+    vac = "/mnt/LargeSSD/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
+    cutout_directory = "/mnt/HDD/fixed_lgz_rotated/"
+    multi_process = True
+
+rotation = 180
 create_variable_source_dataset(
     cutout_directory=cutout_directory,
     pan_wise_location=pan_wise_location,
@@ -45,7 +47,7 @@ create_variable_source_dataset(
 create_coco_dataset(
     root_directory=cutout_directory,
     multiple_bboxes=False,
-    rotation=None,
+    rotation=rotation,
     convert=True,
     all_channels=False,
     precomputed_proposals=True,
@@ -56,7 +58,7 @@ create_coco_dataset(
 create_coco_dataset(
     root_directory=cutout_directory,
     multiple_bboxes=False,
-    rotation=None,
+    rotation=rotation,
     convert=True,
     all_channels=False,
     precomputed_proposals=False,
@@ -67,7 +69,7 @@ create_coco_dataset(
 create_coco_dataset(
     root_directory=cutout_directory,
     multiple_bboxes=False,
-    rotation=None,
+    rotation=rotation,
     convert=False,
     all_channels=True,
     precomputed_proposals=True,
@@ -78,7 +80,7 @@ create_coco_dataset(
 create_coco_dataset(
     root_directory=cutout_directory,
     multiple_bboxes=False,
-    rotation=None,
+    rotation=rotation,
     convert=False,
     all_channels=True,
     precomputed_proposals=False,
@@ -89,7 +91,7 @@ create_coco_dataset(
 create_coco_dataset(
     root_directory=cutout_directory,
     multiple_bboxes=False,
-    rotation=None,
+    rotation=rotation,
     convert=True,
     all_channels=False,
     precomputed_proposals=True,
@@ -100,7 +102,7 @@ create_coco_dataset(
 create_coco_dataset(
     root_directory=cutout_directory,
     multiple_bboxes=False,
-    rotation=None,
+    rotation=rotation,
     convert=True,
     all_channels=False,
     precomputed_proposals=False,
@@ -111,7 +113,7 @@ create_coco_dataset(
 create_coco_dataset(
     root_directory=cutout_directory,
     multiple_bboxes=False,
-    rotation=None,
+    rotation=rotation,
     convert=False,
     all_channels=True,
     precomputed_proposals=True,
@@ -122,7 +124,7 @@ create_coco_dataset(
 create_coco_dataset(
     root_directory=cutout_directory,
     multiple_bboxes=False,
-    rotation=None,
+    rotation=rotation,
     convert=False,
     all_channels=True,
     precomputed_proposals=False,
