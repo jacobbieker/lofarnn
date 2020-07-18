@@ -191,12 +191,17 @@ class SourceEvaluator(DatasetEvaluator):
         self._logger.info(f"Evaluating with non-mAR...")
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=1)
         self._results["own_recall"] = {"ar": all_recall["ar"], "recall": all_recall["recalls"][-1]}
+        all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=100)
+        self._results["own_recall_100"] = {"ar": all_recall["ar"], "recall": all_recall["recalls"][-1]}
         for physical_cut in self._physical_cuts.keys():
             self._logger.info(f"Evaluating with non-mAR on physical cut {physical_cut}...")
             prediction_cut = self._get_physical_cut_predictions(physical_cut, predictions)
             #physical_coco_results = list(itertools.chain(*[x["instances"] for x in prediction_cut]))
             phys_recall = _evaluate_box_proposals(prediction_cut, self._coco_api, limit=1)
             recall_name = f"own_recall_{physical_cut}"
+            self._results[recall_name] = {"ar": phys_recall["ar"], "recall": phys_recall["recalls"][-1]}
+            phys_recall = _evaluate_box_proposals(prediction_cut, self._coco_api, limit=100)
+            recall_name = f"own_recall_100_{physical_cut}"
             self._results[recall_name] = {"ar": phys_recall["ar"], "recall": phys_recall["recalls"][-1]}
         self._logger.info("Evaluating predictions ...")
         for task in sorted(tasks):
