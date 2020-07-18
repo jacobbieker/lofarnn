@@ -189,7 +189,7 @@ class SourceEvaluator(DatasetEvaluator):
 
         # Calculate the recall based on general recall and precision, not COCO mAP, with single best prediction
         self._logger.info(f"Evaluating with non-mAR...")
-        all_recall = _evaluate_box_proposals(coco_results, self._coco_api, limit=1)
+        all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=1)
         self._results["own_recall"] = all_recall["recalls"]
         for physical_cut in self._physical_cuts.keys():
             self._logger.info(f"Evaluating with non-mAR on physical cut {physical_cut}...")
