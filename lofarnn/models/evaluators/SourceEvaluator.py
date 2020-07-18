@@ -403,10 +403,13 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
     num_pos = 0
     for prediction_dict in dataset_predictions:
         preds = prediction_dict["instances"]
+        scores = []
+        for i in preds:
+            scores.append(i["score"])
 
         # sort predictions in descending order
         # TODO maybe remove this and make it explicit in the documentation
-        inds = preds.objectness_logits.sort(descending=True)[1]
+        inds = scores.sort(reverse=True)
         preds = preds[inds]
 
         ann_ids = coco_api.getAnnIds(imgIds=prediction_dict["image_id"])
@@ -434,7 +437,7 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
         if limit is not None and len(preds) > limit:
             preds = preds[:limit]
 
-        overlaps = pairwise_iou(preds.proposal_boxes, gt_boxes)
+        overlaps = pairwise_iou(preds["bbox"], gt_boxes)
 
         _gt_overlaps = torch.zeros(len(gt_boxes))
         for j in range(min(len(preds), len(gt_boxes))):
