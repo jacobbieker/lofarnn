@@ -189,13 +189,13 @@ class SourceEvaluator(DatasetEvaluator):
 
         # Calculate the recall based on general recall and precision, not COCO mAP, with single best prediction
         self._logger.info(f"Evaluating with non-mAR...")
-        all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=1)
+        all_recall = _evaluate_box_proposals(coco_results, self._coco_api, limit=1)
         self._results["own_recall"] = all_recall["recalls"]
         for physical_cut in self._physical_cuts.keys():
             self._logger.info(f"Evaluating with non-mAR on physical cut {physical_cut}...")
             prediction_cut = self._get_physical_cut_predictions(physical_cut, predictions)
-            #physical_coco_results = list(itertools.chain(*[x["instances"] for x in prediction_cut]))
-            phys_recall = _evaluate_box_proposals(prediction_cut, self._coco_api, limit=1)
+            physical_coco_results = list(itertools.chain(*[x["instances"] for x in prediction_cut]))
+            phys_recall = _evaluate_box_proposals(physical_coco_results, self._coco_api, limit=1)
             recall_name = f"own_recall_{physical_cut}"
             self._results[recall_name] = phys_recall["recalls"]
         self._logger.info("Evaluating predictions ...")
@@ -403,7 +403,7 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
     num_pos = 0
 
     for prediction_dict in dataset_predictions:
-        predictions = prediction_dict["proposals"]
+        predictions = prediction_dict["instances"]
 
         # sort predictions in descending order
         # TODO maybe remove this and make it explicit in the documentation
