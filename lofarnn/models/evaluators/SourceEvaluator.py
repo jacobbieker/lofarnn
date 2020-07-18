@@ -402,14 +402,14 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
     gt_overlaps = []
     num_pos = 0
     for prediction_dict in dataset_predictions:
-        preds = prediction_dict["instances"]
+        preds = np.asarray(prediction_dict["instances"])
         scores = []
         for i in preds:
             scores.append(i["score"])
 
         # sort predictions in descending order
         # TODO maybe remove this and make it explicit in the documentation
-        inds = scores.sort(reverse=True)
+        inds = (-1*np.asarray(scores)).argsort()
         preds = preds[inds]
 
         ann_ids = coco_api.getAnnIds(imgIds=prediction_dict["image_id"])
@@ -437,7 +437,12 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
         if limit is not None and len(preds) > limit:
             preds = preds[:limit]
 
-        overlaps = pairwise_iou(preds["bbox"], gt_boxes)
+        pred_boxes = []
+        for i in preds:
+            pred_boxes.append(BoxMode.convert(i["bbox"], BoxMode.XYWH_ABS, BoxMode.XYXY_ABS))
+        pred_boxes = torch.as_tensor(pred_boxes).reshape(-1, 4)  # guard against no boxes
+        pred_boxes = Boxes(pred_boxes)
+        overlaps = pairwise_iou(pred_boxes, gt_boxes)
 
         _gt_overlaps = torch.zeros(len(gt_boxes))
         for j in range(min(len(preds), len(gt_boxes))):
