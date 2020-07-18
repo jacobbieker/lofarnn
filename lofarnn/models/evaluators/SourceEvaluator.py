@@ -403,7 +403,8 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
     num_pos = 0
 
     for prediction_dict in dataset_predictions:
-        predictions = prediction_dict["instances"]
+        print(prediction_dict)
+        predictions = prediction_dict["proposals"]
 
         # sort predictions in descending order
         # TODO maybe remove this and make it explicit in the documentation
