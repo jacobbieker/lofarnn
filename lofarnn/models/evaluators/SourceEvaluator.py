@@ -402,12 +402,12 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
     gt_overlaps = []
     num_pos = 0
     for prediction_dict in dataset_predictions:
-        predictions = prediction_dict["instances"]
+        preds = prediction_dict["instances"]
 
         # sort predictions in descending order
         # TODO maybe remove this and make it explicit in the documentation
-        inds = predictions.objectness_logits.sort(descending=True)[1]
-        predictions = predictions[inds]
+        inds = preds.objectness_logits.sort(descending=True)[1]
+        preds = preds[inds]
 
         ann_ids = coco_api.getAnnIds(imgIds=prediction_dict["image_id"])
         anno = coco_api.loadAnns(ann_ids)
@@ -420,7 +420,7 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
         gt_boxes = Boxes(gt_boxes)
         gt_areas = torch.as_tensor([obj["area"] for obj in anno if obj["iscrowd"] == 0])
 
-        if len(gt_boxes) == 0 or len(predictions) == 0:
+        if len(gt_boxes) == 0 or len(preds) == 0:
             continue
 
         valid_gt_inds = (gt_areas >= area_range[0]) & (gt_areas <= area_range[1])
@@ -431,13 +431,13 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
         if len(gt_boxes) == 0:
             continue
 
-        if limit is not None and len(predictions) > limit:
-            predictions = predictions[:limit]
+        if limit is not None and len(preds) > limit:
+            preds = preds[:limit]
 
-        overlaps = pairwise_iou(predictions.proposal_boxes, gt_boxes)
+        overlaps = pairwise_iou(preds.proposal_boxes, gt_boxes)
 
         _gt_overlaps = torch.zeros(len(gt_boxes))
-        for j in range(min(len(predictions), len(gt_boxes))):
+        for j in range(min(len(preds), len(gt_boxes))):
             # find which proposal box maximally covers each gt box
             # and get the iou amount of coverage for each gt box
             max_overlaps, argmax_overlaps = overlaps.max(dim=0)
