@@ -1,6 +1,11 @@
 import numpy as np
 from skimage.transform import rotate
-from astropy.visualization import MinMaxInterval, SqrtStretch, ManualInterval, ImageNormalize
+from astropy.visualization import (
+    MinMaxInterval,
+    SqrtStretch,
+    ManualInterval,
+    ImageNormalize,
+)
 import cv2
 import imgaug.augmenters as iaa
 import imgaug as ia
@@ -8,9 +13,15 @@ from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 from imgaug.augmentables.segmaps import SegmentationMapOnImage, SegmentationMapsOnImage
 
 
-
-def convert_to_valid_color(image_color, clip=False, lower_clip=0.0, upper_clip=1.0, normalize=False, scaling=None,
-                           simple_norm=False):
+def convert_to_valid_color(
+    image_color,
+    clip=False,
+    lower_clip=0.0,
+    upper_clip=1.0,
+    normalize=False,
+    scaling=None,
+    simple_norm=False,
+):
     """
     Convert the channel to a valid 0-1 range for RGB images
     """
@@ -37,9 +48,17 @@ def convert_to_valid_color(image_color, clip=False, lower_clip=0.0, upper_clip=1
 
 
 def rotate_image_stacks(image_stack, rotation_angle=0):
-    image_stack = rotate(image_stack, -rotation_angle, resize=True, center=None,
-                         order=1, mode='constant', cval=0, clip=True,
-                         preserve_range=True)
+    image_stack = rotate(
+        image_stack,
+        -rotation_angle,
+        resize=True,
+        center=None,
+        order=1,
+        mode="constant",
+        cval=0,
+        clip=True,
+        preserve_range=True,
+    )
     return image_stack
 
 
@@ -61,16 +80,41 @@ def make_bounding_box(source_location):
 
 import matplotlib.pyplot as plt
 
-def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, segmentation_proposals, angle, new_size, verbose=False):
+
+def augment_image_and_bboxes(
+    image,
+    cutouts,
+    proposal_boxes,
+    segmentation_maps,
+    segmentation_proposals,
+    angle,
+    new_size=None,
+    crop_size=None,
+    verbose=False,
+):
     bounding_boxes = []
     prop_boxes = []
     seg_boxes = []
+    seq = iaa.Sequential(
+        [
+            iaa.Affine(rotate=angle),
+            iaa.CropToFixedSize(width=crop_size, height=crop_size, position="center"),
+        ]
+    )
     for cutout in cutouts:
-        bounding_boxes.append(BoundingBox(cutout[1]+0.5, cutout[0]+0.5, cutout[3]+0.5, cutout[2]+0.5))
+        bounding_boxes.append(
+            BoundingBox(
+                cutout[1] + 0.5, cutout[0] + 0.5, cutout[3] + 0.5, cutout[2] + 0.5
+            )
+        )
     for pbox in proposal_boxes:
-        prop_boxes.append(BoundingBox(pbox[1]+0.5, pbox[0]+0.5, pbox[3]+0.5, pbox[2]+0.5))
+        prop_boxes.append(
+            BoundingBox(pbox[1] + 0.5, pbox[0] + 0.5, pbox[3] + 0.5, pbox[2] + 0.5)
+        )
     for i, sbox in enumerate(segmentation_proposals):
-        seg_boxes.append(BoundingBox(float(sbox[0]), float(sbox[1]), float(sbox[2]),float(sbox[3])))
+        seg_boxes.append(
+            BoundingBox(float(sbox[0]), float(sbox[1]), float(sbox[2]), float(sbox[3]))
+        )
 
     bbs = BoundingBoxesOnImage(bounding_boxes, shape=image.shape)
     pbbs = BoundingBoxesOnImage(prop_boxes, shape=image.shape)
@@ -82,18 +126,29 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, 
     if type(new_size) == int or type(new_size):
         image_rescaled = ia.imresize_single_image(image, (new_size, new_size))
     else:
-        image_rescaled = ia.imresize_single_image(image, (image.shape[0], image.shape[1]))
+        image_rescaled = ia.imresize_single_image(
+            image, (image.shape[0], image.shape[1])
+        )
     bbs_rescaled = bbs.on(image_rescaled)
     pbbs_rescaled = pbbs.on(image_rescaled)
     if seg_boxes:
         sbbs_rescaled = sbbs.on(image_rescaled)
-        _, sbbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=sbbs_rescaled)
-        sbbs_rescaled = sbbs_rescaled.remove_out_of_image(partly=False).clip_out_of_image()
+        _, sbbs_rescaled = seq(image=image_rescaled, bounding_boxes=sbbs_rescaled)
+    _, bbs_rescaled = seq(image=image_rescaled, bounding_boxes=bbs_rescaled)
+    image_rescaled, pbbs_rescaled = seq(
+        image=image_rescaled, bounding_boxes=pbbs_rescaled
+    )
+    if seg_boxes:
+        sbbs_rescaled = sbbs_rescaled.remove_out_of_image(
+            partly=False
+        ).clip_out_of_image()
     if segmentation_maps.any():
-        segmaps_rescaled = segmaps.resize((image_rescaled.shape[0],image_rescaled.shape[1]))
-        _, segmaps_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, segmentation_maps=segmaps_rescaled)
-    _, bbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=bbs_rescaled)
-    image_rescaled, pbbs_rescaled = iaa.Affine(rotate=angle)(image=image_rescaled, bounding_boxes=pbbs_rescaled)
+        segmaps_rescaled = segmaps.resize(
+            (image_rescaled.shape[0], image_rescaled.shape[1])
+        )
+        _, segmaps_rescaled = seq(
+            image=image_rescaled, segmentation_maps=segmaps_rescaled
+        )
     # Remove bounding boxes that go out of bounds
     pbbs_rescaled = pbbs_rescaled.remove_out_of_image(partly=False).clip_out_of_image()
     # But only clip source bounding boxes that are partly out of frame, so that no sources are lost
@@ -101,13 +156,17 @@ def augment_image_and_bboxes(image, cutouts, proposal_boxes, segmentation_maps, 
     # Also remove those and clip of segmentation maps
     # Draw image before/after rescaling and with rescaled bounding boxes
     if verbose:
-        image = image[:,:,:3]
-        image_rescaled = image_rescaled[:,:,:3]
+        image = image[:, :, :3]
+        image_rescaled = image_rescaled[:, :, :3]
         image_bbs = bbs.draw_on_image(image, size=1, alpha=1)
         image_bbs = sbbs.draw_on_image(image_bbs, size=1, alpha=1)
         image_bbs = segmaps.draw_on_image(image_bbs)[0]
-        image_rescaled_bbs = bbs_rescaled.draw_on_image(image_rescaled, size=1, alpha=1, color=(255,255,255))
-        image_rescaled_bbs = sbbs_rescaled.draw_on_image(image_rescaled_bbs, size=1, alpha=1, color=(0,255,255))
+        image_rescaled_bbs = bbs_rescaled.draw_on_image(
+            image_rescaled, size=1, alpha=1, color=(255, 255, 255)
+        )
+        image_rescaled_bbs = sbbs_rescaled.draw_on_image(
+            image_rescaled_bbs, size=1, alpha=1, color=(0, 255, 255)
+        )
         image_rescaled_bbs = segmaps_rescaled.draw_on_image(image_rescaled_bbs)[0]
         plt.imshow(image_bbs)
         plt.title("Before")

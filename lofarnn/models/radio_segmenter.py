@@ -16,8 +16,14 @@ import os
 
 os.environ["LOFARNN_ARCH"] = "XPS"
 environment = os.environ["LOFARNN_ARCH"]
-from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup, launch, DefaultPredictor
-from detectron2.evaluation import COCOEvaluator,inference_on_dataset
+from detectron2.engine import (
+    DefaultTrainer,
+    default_argument_parser,
+    default_setup,
+    launch,
+    DefaultPredictor,
+)
+from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 from detectron2.data import (
     MetadataCatalog,
     build_detection_test_loader,
@@ -26,6 +32,7 @@ from detectron2.data import (
 
 from lofarnn.models.dataloaders.SourceMapper import SourceMapper
 from sys import argv
+
 
 class Trainer(DefaultTrainer):
     @classmethod
@@ -54,7 +61,10 @@ class Trainer(DefaultTrainer):
         It now calls :func:`detectron2.data.build_detection_test_loader`.
         Overwrite it if you'd like a different data loader.
         """
-        return build_detection_test_loader(cfg, dataset_name, mapper=SourceMapper(cfg, False))
+        return build_detection_test_loader(
+            cfg, dataset_name, mapper=SourceMapper(cfg, False)
+        )
+
 
 import pickle
 
@@ -72,8 +82,11 @@ cfg = get_cfg()
 print("Load configuration file")
 assert len(argv) > 1, "Insert path of configuration file when executing this script"
 cfg.merge_from_file(argv[1])
-EXPERIMENT_NAME= argv[2] + f'_size{cfg.INPUT.MIN_SIZE_TRAIN[0]}_prop{cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE}_depth{cfg.MODEL.RESNETS.DEPTH}_batchSize{cfg.SOLVER.IMS_PER_BATCH}_anchorSize{cfg.MODEL.ANCHOR_GENERATOR.SIZES}'
-DATASET_PATH= argv[3]
+EXPERIMENT_NAME = (
+    argv[2]
+    + f"_size{cfg.INPUT.MIN_SIZE_TRAIN[0]}_prop{cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE}_depth{cfg.MODEL.RESNETS.DEPTH}_batchSize{cfg.SOLVER.IMS_PER_BATCH}_anchorSize{cfg.MODEL.ANCHOR_GENERATOR.SIZES}"
+)
+DATASET_PATH = argv[3]
 cfg.OUTPUT_DIR = os.path.join("/home/jacob/", "reports", EXPERIMENT_NAME)
 print(f"Experiment: {EXPERIMENT_NAME}")
 print(f"Output path: {cfg.OUTPUT_DIR}")
@@ -84,9 +97,18 @@ precompute = True
 semseg = True
 norm = True
 for d in ["train", "val", "test"]:
-    DatasetCatalog.register(f"{argv[2]}_" + d,
-                            lambda d=d: get_lofar_dicts(os.path.join(DATASET_PATH, f"json_{d}_prop{precompute}_all{all_channel}_multi{multi}_seg{semseg}_norm{norm}.pkl")))
-    MetadataCatalog.get(f"{argv[2]}_" + d).set(thing_classes=["Optical source", "Radio Component"])
+    DatasetCatalog.register(
+        f"{argv[2]}_" + d,
+        lambda d=d: get_lofar_dicts(
+            os.path.join(
+                DATASET_PATH,
+                f"json_{d}_prop{precompute}_all{all_channel}_multi{multi}_seg{semseg}_norm{norm}.pkl",
+            )
+        ),
+    )
+    MetadataCatalog.get(f"{argv[2]}_" + d).set(
+        thing_classes=["Optical source", "Radio Component"]
+    )
 lofar_metadata = MetadataCatalog.get("train")
 
 cfg.DATASETS.TRAIN = (f"{argv[2]}_train",)
@@ -101,4 +123,4 @@ trainer.resume_or_load(resume=True)
 
 trainer.train()
 
-print('Done training')
+print("Done training")

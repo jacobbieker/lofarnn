@@ -30,6 +30,8 @@ def bbox_stats(image_paths):
         num_bounding_boxes.append(len(bboxes))
         num_i_band_sources.append(np.count_nonzero(cutout[:, :, 1]))
         num_w_one_band_sources.append(np.count_nonzero(cutout[:, :, 2]))
-    return {"num_bbox": num_bounding_boxes,
-            "num_i_band_sources": num_i_band_sources,
-            "num_w1_band_sources": num_w_one_band_sources}
+    return {
+        "num_bbox": num_bounding_boxes,
+        "num_i_band_sources": num_i_band_sources,
+        "num_w1_band_sources": num_w_one_band_sources,
+    }

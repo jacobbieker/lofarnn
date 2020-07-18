@@ -34,7 +34,9 @@ class SourceEvaluator(DatasetEvaluator):
 
     """
 
-    def __init__(self, dataset_name, cfg, distributed, output_dir=None, physical_cut_dict=None):
+    def __init__(
+        self, dataset_name, cfg, distributed, output_dir=None, physical_cut_dict=None
+    ):
         """
         Args:
             dataset_name (str): name of the dataset to be evaluated.
@@ -112,15 +114,20 @@ class SourceEvaluator(DatasetEvaluator):
         """
         for input, output in zip(inputs, outputs):
             if ".npy" in input["file_name"]:
-                source_name = input['file_name'].split("/")[-1].split(".npy")[0]
+                source_name = input["file_name"].split("/")[-1].split(".npy")[0]
             else:
-                source_name = input['file_name'].split("/")[-1].split(".png")[0]
-            prediction = {"image_id": input["image_id"], "source_name": source_name}  # Add Name to get component later
+                source_name = input["file_name"].split("/")[-1].split(".png")[0]
+            prediction = {
+                "image_id": input["image_id"],
+                "source_name": source_name,
+            }  # Add Name to get component later
 
             # TODO this is ugly
             if "instances" in output:
                 instances = output["instances"].to(self._cpu_device)
-                prediction["instances"] = instances_to_coco_json(instances, input["image_id"])
+                prediction["instances"] = instances_to_coco_json(
+                    instances, input["image_id"]
+                )
             if "proposals" in output:
                 prediction["proposals"] = output["proposals"].to(self._cpu_device)
             self._predictions.append(prediction)
@@ -165,12 +172,13 @@ class SourceEvaluator(DatasetEvaluator):
         # unmap the category ids for COCO
         if hasattr(self._metadata, "thing_dataset_id_to_contiguous_id"):
             reverse_id_mapping = {
-                v: k for k, v in self._metadata.thing_dataset_id_to_contiguous_id.items()
+                v: k
+                for k, v in self._metadata.thing_dataset_id_to_contiguous_id.items()
             }
             for result in coco_results:
                 category_id = result["category_id"]
                 assert (
-                        category_id in reverse_id_mapping
+                    category_id in reverse_id_mapping
                 ), "A prediction has category_id={}, which is not available in the dataset.".format(
                     category_id
                 )
@@ -190,24 +198,47 @@ class SourceEvaluator(DatasetEvaluator):
         # Calculate the recall based on general recall and precision, not COCO mAP, with single best prediction
         self._logger.info(f"Evaluating with non-mAR...")
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=1)
-        self._results["own_recall"] = {"ar": all_recall["ar"], "recall": all_recall["recalls"][-1]}
+        self._results["own_recall"] = {
+            "ar": all_recall["ar"],
+            "recall": all_recall["recalls"][-1],
+        }
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=100)
-        self._results["own_recall_100"] = {"ar": all_recall["ar"], "recall": all_recall["recalls"][-1]}
+        self._results["own_recall_100"] = {
+            "ar": all_recall["ar"],
+            "recall": all_recall["recalls"][-1],
+        }
         for physical_cut in self._physical_cuts.keys():
-            self._logger.info(f"Evaluating with non-mAR on physical cut {physical_cut}...")
-            prediction_cut = self._get_physical_cut_predictions(physical_cut, predictions)
-            #physical_coco_results = list(itertools.chain(*[x["instances"] for x in prediction_cut]))
-            phys_recall = _evaluate_box_proposals(prediction_cut, self._coco_api, limit=1)
+            self._logger.info(
+                f"Evaluating with non-mAR on physical cut {physical_cut}..."
+            )
+            prediction_cut = self._get_physical_cut_predictions(
+                physical_cut, predictions
+            )
+            # physical_coco_results = list(itertools.chain(*[x["instances"] for x in prediction_cut]))
+            phys_recall = _evaluate_box_proposals(
+                prediction_cut, self._coco_api, limit=1
+            )
             recall_name = f"own_recall_{physical_cut}"
-            self._results[recall_name] = {"ar": phys_recall["ar"], "recall": phys_recall["recalls"][-1]}
-            phys_recall = _evaluate_box_proposals(prediction_cut, self._coco_api, limit=100)
+            self._results[recall_name] = {
+                "ar": phys_recall["ar"],
+                "recall": phys_recall["recalls"][-1],
+            }
+            phys_recall = _evaluate_box_proposals(
+                prediction_cut, self._coco_api, limit=100
+            )
             recall_name = f"own_recall_100_{physical_cut}"
-            self._results[recall_name] = {"ar": phys_recall["ar"], "recall": phys_recall["recalls"][-1]}
+            self._results[recall_name] = {
+                "ar": phys_recall["ar"],
+                "recall": phys_recall["recalls"][-1],
+            }
         self._logger.info("Evaluating predictions ...")
         for task in sorted(tasks):
             coco_eval = (
                 _evaluate_predictions_on_coco(
-                    self._coco_api, coco_results, task, kpt_oks_sigmas=self._kpt_oks_sigmas
+                    self._coco_api,
+                    coco_results,
+                    task,
+                    kpt_oks_sigmas=self._kpt_oks_sigmas,
                 )
                 if len(coco_results) > 0
                 else None  # cocoapi does not handle empty results very well
@@ -218,12 +249,19 @@ class SourceEvaluator(DatasetEvaluator):
             self._results[task] = res
         for physical_cut in self._physical_cuts.keys():
             self._logger.info(f"Evaluating on physical cut {physical_cut}...")
-            prediction_cut = self._get_physical_cut_predictions(physical_cut, predictions)
-            physical_coco_results = list(itertools.chain(*[x["instances"] for x in prediction_cut]))
+            prediction_cut = self._get_physical_cut_predictions(
+                physical_cut, predictions
+            )
+            physical_coco_results = list(
+                itertools.chain(*[x["instances"] for x in prediction_cut])
+            )
             for task in sorted(tasks):
                 coco_eval = (
                     _evaluate_predictions_on_coco(
-                        self._coco_api, physical_coco_results, task, kpt_oks_sigmas=self._kpt_oks_sigmas
+                        self._coco_api,
+                        physical_coco_results,
+                        task,
+                        kpt_oks_sigmas=self._kpt_oks_sigmas,
                     )
                     if len(physical_coco_results) > 0
                     else None  # cocoapi does not handle empty results very well
@@ -256,8 +294,34 @@ class SourceEvaluator(DatasetEvaluator):
         """
 
         metrics = {
-            "bbox": ["AP", "AP50", "AP75", "APs", "APm", "APl", "AR", "AR50", "AR75", "ARs", "ARm", "ARl"],
-            "segm": ["AP", "AP50", "AP75", "APs", "APm", "APl", "AR", "AR50", "AR75", "ARs", "ARm", "ARl"],
+            "bbox": [
+                "AP",
+                "AP50",
+                "AP75",
+                "APs",
+                "APm",
+                "APl",
+                "AR",
+                "AR50",
+                "AR75",
+                "ARs",
+                "ARm",
+                "ARl",
+            ],
+            "segm": [
+                "AP",
+                "AP50",
+                "AP75",
+                "APs",
+                "APm",
+                "APl",
+                "AR",
+                "AR50",
+                "AR75",
+                "ARs",
+                "ARm",
+                "ARl",
+            ],
             "keypoints": ["AP", "AP50", "AP75", "APm", "APl"],
         }[iou_type]
 
@@ -267,11 +331,14 @@ class SourceEvaluator(DatasetEvaluator):
 
         # the standard metrics
         results = {
-            metric: float(coco_eval.stats[idx] * 100 if coco_eval.stats[idx] >= 0 else "nan")
+            metric: float(
+                coco_eval.stats[idx] * 100 if coco_eval.stats[idx] >= 0 else "nan"
+            )
             for idx, metric in enumerate(metrics)
         }
         self._logger.info(
-            "Evaluation results for {}: \n".format(iou_type) + create_small_table(results)
+            "Evaluation results for {}: \n".format(iou_type)
+            + create_small_table(results)
         )
         if not np.isfinite(sum(results.values())):
             self._logger.info("Note that some metrics cannot be computed.")
@@ -296,7 +363,9 @@ class SourceEvaluator(DatasetEvaluator):
         # tabulate it
         N_COLS = min(6, len(results_per_category) * 2)
         results_flatten = list(itertools.chain(*results_per_category))
-        results_2d = itertools.zip_longest(*[results_flatten[i::N_COLS] for i in range(N_COLS)])
+        results_2d = itertools.zip_longest(
+            *[results_flatten[i::N_COLS] for i in range(N_COLS)]
+        )
         table = tabulate(
             results_2d,
             tablefmt="pipe",
@@ -374,7 +443,9 @@ def instances_to_coco_json(instances, img_id):
 
 # inspired from Detectron:
 # https://github.com/facebookresearch/Detectron/blob/a6a835f5b8208c45d0dce217ce9bbda915f44df7/detectron/datasets/json_dataset_evaluator.py#L255 # noqa
-def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area="all", limit=None):
+def _evaluate_box_proposals(
+    dataset_predictions, coco_api, thresholds=None, area="all", limit=None
+):
     """
     Evaluate detection proposal recall metrics. This function is a much
     faster alternative to the official COCO API recall evaluation code. However,
@@ -414,7 +485,7 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
 
         # sort predictions in descending order
         # TODO maybe remove this and make it explicit in the documentation
-        inds = (-1*np.asarray(scores)).argsort()
+        inds = (-1 * np.asarray(scores)).argsort()
         preds = preds[inds]
 
         ann_ids = coco_api.getAnnIds(imgIds=prediction_dict["image_id"])
@@ -434,7 +505,7 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
         valid_gt_inds = (gt_areas >= area_range[0]) & (gt_areas <= area_range[1])
         gt_boxes = gt_boxes[valid_gt_inds]
 
-        num_pos += len(gt_boxes)
+        num_pos += len(gt_boxes)  # 1 GT from each image
 
         if len(gt_boxes) == 0:
             continue
@@ -444,8 +515,12 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
 
         pred_boxes = []
         for i in preds:
-            pred_boxes.append(BoxMode.convert(i["bbox"], BoxMode.XYWH_ABS, BoxMode.XYXY_ABS))
-        pred_boxes = torch.as_tensor(pred_boxes).reshape(-1, 4)  # guard against no boxes
+            pred_boxes.append(
+                BoxMode.convert(i["bbox"], BoxMode.XYWH_ABS, BoxMode.XYXY_ABS)
+            )
+        pred_boxes = torch.as_tensor(pred_boxes).reshape(
+            -1, 4
+        )  # guard against no boxes
         pred_boxes = Boxes(pred_boxes)
         overlaps = pairwise_iou(pred_boxes, gt_boxes)
 
@@ -470,7 +545,9 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
         # append recorded iou coverage level
         gt_overlaps.append(_gt_overlaps)
     gt_overlaps = (
-        torch.cat(gt_overlaps, dim=0) if len(gt_overlaps) else torch.zeros(0, dtype=torch.float32)
+        torch.cat(gt_overlaps, dim=0)
+        if len(gt_overlaps)
+        else torch.zeros(0, dtype=torch.float32)
     )
     gt_overlaps, _ = torch.sort(gt_overlaps)
 
@@ -480,7 +557,9 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
     recalls = torch.zeros_like(thresholds)
     # compute recall for each iou threshold
     for i, t in enumerate(thresholds):
-        recalls[i] = (gt_overlaps >= t).float().sum() / float(num_pos)
+        recalls[i] = (gt_overlaps >= t).float().sum() / float(
+            num_pos
+        )  # TP/(Num GT Labels) with GT being Num Imagse as 1 GT per image
     # ar = 2 * np.trapz(recalls, thresholds)
     ar = recalls.mean()
     return {

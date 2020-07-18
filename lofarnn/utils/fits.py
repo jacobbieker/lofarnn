@@ -10,9 +10,9 @@ def flatten(f, x, y, size, hduid=0, channel=0, freqaxis=3, verbose=True):
     This version also makes a sub-image of specified size.
     """
 
-    naxis = f[hduid].header['NAXIS']
+    naxis = f[hduid].header["NAXIS"]
     if naxis < 2:
-        raise RuntimeError('Can\'t make map from this')
+        raise RuntimeError("Can't make map from this")
 
     if verbose:
         print(f[hduid].data.shape)
@@ -34,7 +34,7 @@ def flatten(f, x, y, size, hduid=0, channel=0, freqaxis=3, verbose=True):
     if ymax <= ymin or xmax <= xmin:
         # this can only happen if the required position is not on the map
         print(xmin, xmax, ymin, ymax)
-        raise RuntimeError('Failed to make subimage! Required position not on the map.')
+        raise RuntimeError("Failed to make subimage! Required position not on the map.")
 
     w = WCS(f[hduid].header)
     wn = WCS(naxis=2)
@@ -67,27 +67,29 @@ def flatten(f, x, y, size, hduid=0, channel=0, freqaxis=3, verbose=True):
         print(slice)
 
     hdu = fits.PrimaryHDU(f[hduid].data[tuple(slice)], header)
-    copy = ('EQUINOX', 'EPOCH', 'BMAJ', 'BMIN', 'BPA')
+    copy = ("EQUINOX", "EPOCH", "BMAJ", "BMIN", "BPA")
     for k in copy:
         r = f[hduid].header.get(k)
         if r:
             hdu.header[k] = r
-    if 'TAN' in hdu.header['CTYPE1']:
-        hdu.header['LATPOLE'] = f[hduid].header['CRVAL2']
+    if "TAN" in hdu.header["CTYPE1"]:
+        hdu.header["LATPOLE"] = f[hduid].header["CRVAL2"]
     hdulist = fits.HDUList([hdu])
     return hdulist
 
 
 def extract_subimage(filename, ra, dec, size, hduid=0, verbose=True):
     if verbose:
-        print('Opening', filename)
+        print("Opening", filename)
     orighdu = fits.open(filename)
-    psize = int(size / orighdu[hduid].header['CDELT2'])  # size in pixels
+    psize = int(
+        np.sqrt(2) * (size / orighdu[hduid].header["CDELT2"])
+    )  # size in pixels, root(2) so we can rotate in next part
     if verbose:
         print(f"Size in Pixels: {psize}")
         print(f"Size in Arcseconds: {size}")
 
-    ndims = orighdu[hduid].header['NAXIS']
+    ndims = orighdu[hduid].header["NAXIS"]
     pvect = np.zeros((1, ndims))
     lwcs = WCS(orighdu[hduid].header)
     pvect[0][0] = ra

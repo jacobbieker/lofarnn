@@ -41,35 +41,57 @@ def setup(args):
     cfg.merge_from_list(args.opts)
     cfg.SOLVER.BASE_LR = args.lr
     cfg.SOLVER.IMS_PER_BATCH = args.batch
-    experiment_name = args.experiment + f'_size{cfg.INPUT.MIN_SIZE_TRAIN[0]}' \
-                                        f'_prop{cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE}' \
-                                        f'_depth{cfg.MODEL.RESNETS.DEPTH}' \
-                                        f'_batchSize{cfg.SOLVER.IMS_PER_BATCH}' \
-                                        f'_lr{cfg.SOLVER.BASE_LR}' \
-                                        f'_frac{args.fraction_train}'
+    experiment_name = (
+        args.experiment + f"_size{cfg.INPUT.MIN_SIZE_TRAIN[0]}"
+        f"_prop{cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE}"
+        f"_depth{cfg.MODEL.RESNETS.DEPTH}"
+        f"_batchSize{cfg.SOLVER.IMS_PER_BATCH}"
+        f"_lr{cfg.SOLVER.BASE_LR}"
+        f"_frac{args.fraction_train}"
+    )
     if environment == "XPS":
         cfg.OUTPUT_DIR = os.path.join("/home/jacob/", "reports", experiment_name)
     else:
-        cfg.OUTPUT_DIR = os.path.join("/home/s2153246/data/", "reports", experiment_name)
+        cfg.OUTPUT_DIR = os.path.join(
+            "/home/s2153246/data/", "reports", experiment_name
+        )
     # Register train set with fraction
     for d in ["train"]:
-        DatasetCatalog.register(f"{args.experiment}_" + d,
-                                lambda d=d: get_lofar_dicts(os.path.join(args.dataset,
-                                                                         f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl"),
-                                                            fraction=args.fraction_train))
-        MetadataCatalog.get(f"{args.experiment}_" + d).set(thing_classes=["Optical source"])
+        DatasetCatalog.register(
+            f"{args.experiment}_" + d,
+            lambda d=d: get_lofar_dicts(
+                os.path.join(
+                    args.dataset,
+                    f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
+                ),
+                fraction=args.fraction_train,
+            ),
+        )
+        MetadataCatalog.get(f"{args.experiment}_" + d).set(
+            thing_classes=["Optical source"]
+        )
     # Keep val and test set the same so that its always testing on the same stuff
     for d in ["val", "test"]:
-        DatasetCatalog.register(f"{args.experiment}_" + d,
-                                lambda d=d: get_lofar_dicts(os.path.join(args.dataset,
-                                                                         f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl"),
-                                                            fraction=1))
-        MetadataCatalog.get(f"{args.experiment}_" + d).set(thing_classes=["Optical source"])
+        DatasetCatalog.register(
+            f"{args.experiment}_" + d,
+            lambda d=d: get_lofar_dicts(
+                os.path.join(
+                    args.dataset,
+                    f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
+                ),
+                fraction=1,
+            ),
+        )
+        MetadataCatalog.get(f"{args.experiment}_" + d).set(
+            thing_classes=["Optical source"]
+        )
 
     cfg.DATASETS.TRAIN = (f"{args.experiment}_train",)
     cfg.DATASETS.VAL = (f"{args.experiment}_test",)
-    cfg.DATASETS.TEST = (f"{args.experiment}_val",
-                         f"{args.experiment}_train",)  # Swapped because TEST is used for eval, and val is not, but can be used later
+    cfg.DATASETS.TEST = (
+        f"{args.experiment}_val",
+        f"{args.experiment}_train",
+    )  # Swapped because TEST is used for eval, and val is not, but can be used later
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     cfg.freeze()
     default_setup(cfg, args)
@@ -86,8 +108,13 @@ def main(args):
     if ".npy" in args.vac_file:
         physical_dict = np.load(args.vac_file, allow_pickle=True)
     else:
-        physical_dict = make_physical_dict(args.vac_file, size_cut=args.size_cut, flux_cut=args.flux_cut, multi=True,
-                                           lgz=True)
+        physical_dict = make_physical_dict(
+            args.vac_file,
+            size_cut=args.size_cut,
+            flux_cut=args.flux_cut,
+            multi=True,
+            lgz=True,
+        )
     trainer = SourceTrainer(cfg, physical_dict=physical_dict)
     trainer.resume_or_load(resume=args.resume)
     return trainer.train()

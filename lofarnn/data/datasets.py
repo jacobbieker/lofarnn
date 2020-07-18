@@ -17,6 +17,7 @@ from lofarnn.visualization.cutouts import plot_three_channel_debug
 from lofarnn.utils.fits import extract_subimage
 from lofarnn.models.dataloaders.utils import get_lotss_objects
 
+
 def pad_with(vector, pad_width, iaxis, kwargs):
     """
     Taken from Numpy documentation, will pad with zeros to make lofar image same size as other image
@@ -26,9 +27,9 @@ def pad_with(vector, pad_width, iaxis, kwargs):
     :param kwargs:
     :return:
     """
-    pad_value = kwargs.get('padder', 0)
-    vector[:pad_width[0]] = pad_value
-    vector[-pad_width[1]:] = pad_value
+    pad_value = kwargs.get("padder", 0)
+    vector[: pad_width[0]] = pad_value
+    vector[-pad_width[1] :] = pad_value
     return vector
 
 
@@ -51,7 +52,9 @@ def make_layer(value, value_error, size, non_uniform=False):
         return np.full(shape=size, fill_value=value)
 
 
-def determine_visible_catalogue_sources(ra, dec, wcs, size, catalogue, l_objects, verbose=False):
+def determine_visible_catalogue_sources(
+    ra, dec, wcs, size, catalogue, l_objects, verbose=False
+):
     """
     Find the sources in the catalogue that are visible in the cutout, and returns a smaller catalogue for that
     :param ra: Radio RA
@@ -64,15 +67,15 @@ def determine_visible_catalogue_sources(ra, dec, wcs, size, catalogue, l_objects
     SkyCoord of their world coordinates
     """
     try:
-        ra_array = np.array(catalogue['ra'], dtype=float)
-        dec_array = np.array(catalogue['dec'], dtype=float)
+        ra_array = np.array(catalogue["ra"], dtype=float)
+        dec_array = np.array(catalogue["dec"], dtype=float)
     except:
-        ra_array = np.array(catalogue['ID_ra'], dtype=float)
-        dec_array = np.array(catalogue['ID_dec'], dtype=float)
-    sky_coords = SkyCoord(ra_array, dec_array, unit='deg')
+        ra_array = np.array(catalogue["ID_ra"], dtype=float)
+        dec_array = np.array(catalogue["ID_dec"], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
 
-    source_coord = SkyCoord(ra, dec, unit='deg')
-    other_source = SkyCoord(l_objects['ID_ra'], l_objects['ID_dec'], unit="deg")
+    source_coord = SkyCoord(ra, dec, unit="deg")
+    other_source = SkyCoord(l_objects["ID_ra"], l_objects["ID_dec"], unit="deg")
     search_radius = size * u.deg
     d2d = source_coord.separation(sky_coords)
     catalogmask = d2d < search_radius
@@ -88,7 +91,9 @@ def determine_visible_catalogue_sources(ra, dec, wcs, size, catalogue, l_objects
     return objects
 
 
-def make_catalogue_layer(column_name, wcs, shape, catalogue, gaussian=None, verbose=False):
+def make_catalogue_layer(
+    column_name, wcs, shape, catalogue, gaussian=None, verbose=False
+):
     """
     Create a layer based off the data in
     :param column_name: Name in catalogue of data to include
@@ -99,18 +104,22 @@ def make_catalogue_layer(column_name, wcs, shape, catalogue, gaussian=None, verb
     :return: A Numpy array that holds the information in the correct location
     """
 
-    ra_array = np.array(catalogue['ra'], dtype=float)
-    dec_array = np.array(catalogue['dec'], dtype=float)
-    sky_coords = SkyCoord(ra_array, dec_array, unit='deg')
+    ra_array = np.array(catalogue["ra"], dtype=float)
+    dec_array = np.array(catalogue["dec"], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
 
     # Now have the objects, need to convert those RA and Decs to pixel coordinates
     layer = np.zeros(shape=shape)
     coords = skycoord_to_pixel(sky_coords, wcs, 0)
     for index, x in enumerate(coords[0]):
         try:
-            if ~np.isnan(catalogue[index][column_name]) and catalogue[index][
-                column_name] > 0.0:  # Make sure not putting in NaNs
-                layer[int(np.floor(coords[0][index]))][int(np.floor(coords[1][index]))] = catalogue[index][column_name]
+            if (
+                ~np.isnan(catalogue[index][column_name])
+                and catalogue[index][column_name] > 0.0
+            ):  # Make sure not putting in NaNs
+                layer[int(np.floor(coords[0][index]))][
+                    int(np.floor(coords[1][index]))
+                ] = catalogue[index][column_name]
         except Exception as e:
             if verbose:
                 print(f"Failed: {e}")
@@ -132,17 +141,24 @@ def make_proposal_boxes(wcs, shape, catalogue, gaussian=None):
    :return: A Numpy array that holds the information in the correct location
    """
 
-    ra_array = np.array(catalogue['ra'], dtype=float)
-    dec_array = np.array(catalogue['dec'], dtype=float)
-    sky_coords = SkyCoord(ra_array, dec_array, unit='deg')
+    ra_array = np.array(catalogue["ra"], dtype=float)
+    dec_array = np.array(catalogue["dec"], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
 
     # Now have the objects, need to convert those RA and Decs to pixel coordinates
     proposals = []
     coords = skycoord_to_pixel(sky_coords, wcs, 0)
     for index, x in enumerate(coords[0]):
         try:
-            proposals.append(make_bounding_box(ra_array[index], dec_array[index], wcs=wcs, class_name="Proposal Box",
-                                               gaussian=gaussian))
+            proposals.append(
+                make_bounding_box(
+                    ra_array[index],
+                    dec_array[index],
+                    wcs=wcs,
+                    class_name="Proposal Box",
+                    gaussian=gaussian,
+                )
+            )
         except Exception as e:
             print(f"Failed Proposal: {e}")
     return proposals
@@ -160,7 +176,7 @@ def make_bounding_box(ra, dec, wcs, class_name="Optical source", gaussian=None):
     be the width of the Gaussian
     :return: Bounding box coordinates for COCO style annotation
     """
-    source_skycoord = SkyCoord(ra, dec, unit='deg')
+    source_skycoord = SkyCoord(ra, dec, unit="deg")
     box_center = skycoord_to_pixel(source_skycoord, wcs, 0)
     if gaussian is None:
         # Now create box, which will be accomplished by taking int to get xmin, ymin, and int + 1 for xmax, ymax
@@ -177,7 +193,9 @@ def make_bounding_box(ra, dec, wcs, class_name="Optical source", gaussian=None):
     return xmin, ymin, xmax, ymax, class_name, box_center
 
 
-def make_segmentation_map(ra, dec, wcs, shape, class_name="Optical source", gaussian=None, verbose=False):
+def make_segmentation_map(
+    ra, dec, wcs, shape, class_name="Optical source", gaussian=None, verbose=False
+):
     """
     Creates segmentation map for the source
     :param ra:
@@ -189,7 +207,7 @@ def make_segmentation_map(ra, dec, wcs, shape, class_name="Optical source", gaus
     :param verbose:
     :return:
     """
-    source_skycoord = SkyCoord(ra, dec, unit='deg')
+    source_skycoord = SkyCoord(ra, dec, unit="deg")
     coords = skycoord_to_pixel(source_skycoord, wcs, 0)
     layer = np.zeros(shape=shape)
     for index, x in enumerate(coords[0]):
@@ -204,7 +222,18 @@ def make_segmentation_map(ra, dec, wcs, shape, class_name="Optical source", gaus
     return layer
 
 
-def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, component_ra, component_dec, n_components, sigma=5., verbose=False):
+def make_component_segmentation_map(
+    ra,
+    dec,
+    wcs,
+    radio_field,
+    rms_field,
+    component_ra,
+    component_dec,
+    n_components,
+    sigma=5.0,
+    verbose=False,
+):
     """
     Creates binary mask for radio source, and mask for all detected components that are not part of the current source
     Also returns a minimum bounding box around the segmentation, and returns it in the same format as for other bounding boxes
@@ -226,8 +255,8 @@ def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, compon
     threshold = sigma * rms_field
     segmentation_map = detect_sources(radio_field, threshold, 1)
     if segmentation_map is not None:
-        source_skycoord = SkyCoord(ra, dec, unit='deg')
-        component_skycoord = SkyCoord(component_ra, component_dec, unit='deg')
+        source_skycoord = SkyCoord(ra, dec, unit="deg")
+        component_skycoord = SkyCoord(component_ra, component_dec, unit="deg")
         coords = skycoord_to_pixel(source_skycoord, wcs, 0)
         component_coords = skycoord_to_pixel(component_skycoord, wcs, 0)
 
@@ -241,13 +270,16 @@ def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, compon
         # 3: collect segmentation labels for these xs,ys
 
         try:
-            labels = [segmentation_map.data[int(round(y)), int(round(x))] for x, y in
-                      zip(pixel_xs, pixel_ys)]
+            labels = [
+                segmentation_map.data[int(round(y)), int(round(x))]
+                for x, y in zip(pixel_xs, pixel_ys)
+            ]
         except:
-            print(f'\nSegment and data shapes disagree?. Shape data {radio_field.shape}, shape segment'
-                  f' {segmentation_map.data}. Source flagged!\n')
-            print([[x, y] for x, y in
-                   zip(pixel_xs, pixel_ys)])
+            print(
+                f"\nSegment and data shapes disagree?. Shape data {radio_field.shape}, shape segment"
+                f" {segmentation_map.data}. Source flagged!\n"
+            )
+            print([[x, y] for x, y in zip(pixel_xs, pixel_ys)])
             return False
         labels = [l for l in labels if not l == 0]
 
@@ -255,7 +287,9 @@ def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, compon
         non_source_component_mask = segmentation_map.copy()
         non_source_component_mask.remove_labels(component_ids)
         segmentation_map.keep_labels(component_ids)
-        segmentation_map.reassign_labels(component_ids, new_label=1)# Creates binary mask
+        segmentation_map.reassign_labels(
+            component_ids, new_label=1
+        )  # Creates binary mask
         print(segmentation_map.slices)
         if segmentation_map.slices:
             segm_labels = np.array(segmentation_map.slices)
@@ -263,17 +297,42 @@ def make_component_segmentation_map(ra, dec, wcs, radio_field, rms_field, compon
             ymin = segm_labels[0][1].start
             xmax = segm_labels[0][0].stop
             ymax = segm_labels[0][1].stop
-            return segmentation_map.data, non_source_component_mask.data, [xmin, ymin,xmax,ymax, "Radio Component"]
-        else: # Still empty map if no slices
+            return (
+                segmentation_map.data,
+                non_source_component_mask.data,
+                [xmin, ymin, xmax, ymax, "Radio Component"],
+            )
+        else:  # Still empty map if no slices
             print("Empty Segmentation Map Bounding Box")
-            return segmentation_map.data, non_source_component_mask.data, [-1,-1,-1,-1,"No Component"]
-    else: # photutils returned None, so no sources are found, return empty masks
+            return (
+                segmentation_map.data,
+                non_source_component_mask.data,
+                [-1, -1, -1, -1, "No Component"],
+            )
+    else:  # photutils returned None, so no sources are found, return empty masks
         print("Empty Segmentation Map")
-        return np.zeros(radio_field.shape), np.zeros(radio_field.shape), [-1,-1,-1,-1,"No Component"]
+        return (
+            np.zeros(radio_field.shape),
+            np.zeros(radio_field.shape),
+            [-1, -1, -1, -1, "No Component"],
+        )
+
 
 import pickle
-def make_kde_stuff(mosaic, value_added_catalog, pan_wise_catalog, component_catalog, mosaic_location,
-                   save_cutout_directory, gaussian=None, all_channels=False, source_size=None, verbose=False):
+
+
+def make_kde_stuff(
+    mosaic,
+    value_added_catalog,
+    pan_wise_catalog,
+    component_catalog,
+    mosaic_location,
+    save_cutout_directory,
+    gaussian=None,
+    all_channels=False,
+    source_size=None,
+    verbose=False,
+):
     lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
     lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
     # Load the data once, then do multiple cutouts
@@ -286,8 +345,12 @@ def make_kde_stuff(mosaic, value_added_catalog, pan_wise_catalog, component_cata
 
     mosaic_cutouts = value_added_catalog[value_added_catalog["Mosaic_ID"] == mosaic]
     # Go through each cutout for that mosaic
-    jelle = np.loadtxt("/home/jacob/Development/lofarnn/Ridgeline_predictions_no_ground_truth.csv", delimiter=",",
-                       dtype=str, skiprows=1)
+    jelle = np.loadtxt(
+        "/home/jacob/Development/lofarnn/Ridgeline_predictions_no_ground_truth.csv",
+        delimiter=",",
+        dtype=str,
+        skiprows=1,
+    )
     for line in jelle:
         print(line)
         pred = (str(line[2]), float(line[5]), float(line[6]))
@@ -299,25 +362,55 @@ def make_kde_stuff(mosaic, value_added_catalog, pan_wise_catalog, component_cata
                 source_dec = source["DEC"]
                 # Get the size of the cutout needed
                 if source_size is None or source_size is False:
-                    source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
+                    source_size = (
+                        source["LGZ_Size"] * 1.5
+                    ) / 3600.0  # in arcseconds converted to archours
                 try:
-                    lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=verbose)
+                    lhdu = extract_subimage(
+                        lofar_data_location,
+                        source_ra,
+                        source_dec,
+                        source_size,
+                        verbose=verbose,
+                    )
                 except:
                     if verbose:
-                        print(f"Failed to make data cutout for source: {source['Source_Name']}")
+                        print(
+                            f"Failed to make data cutout for source: {source['Source_Name']}"
+                        )
                     continue
                 header = lhdu[0].header
                 wcs = WCS(header)
                 print(pred)
                 print(f"Source RA, DEC: {source['ID_ra']}, {source['ID_dec']}")
-                jelle_skycoord = SkyCoord(pred[1], pred[2], unit='deg')
-                #j_skycoord_opt = SkyCoord(jelle[3], jelle[4], unit='deg')
+                jelle_skycoord = SkyCoord(pred[1], pred[2], unit="deg")
+                # j_skycoord_opt = SkyCoord(jelle[3], jelle[4], unit='deg')
                 j_pix_coord = skycoord_to_pixel(jelle_skycoord, wcs, 0)
                 print(j_pix_coord[0])
-                pickle.dump([j_pix_coord[0], j_pix_coord[1]], open(os.path.join(save_cutout_directory, f"{source['Source_Name']}.pkl"), "wb"))
+                pickle.dump(
+                    [j_pix_coord[0], j_pix_coord[1]],
+                    open(
+                        os.path.join(
+                            save_cutout_directory, f"{source['Source_Name']}.pkl"
+                        ),
+                        "wb",
+                    ),
+                )
     return
+
+
 import matplotlib.pyplot as plt
-def check_radio_sizes(mosaic, value_added_catalog, mosaic_location, save_cutout_directory, kde_directory, source_size=None, verbose=False):
+
+
+def check_radio_sizes(
+    mosaic,
+    value_added_catalog,
+    mosaic_location,
+    save_cutout_directory,
+    kde_directory,
+    source_size=None,
+    verbose=False,
+):
     lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
     lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
     # Load the data once, then do multiple cutouts
@@ -337,20 +430,26 @@ def check_radio_sizes(mosaic, value_added_catalog, mosaic_location, save_cutout_
         source_dec = source["DEC"]
         # Get the size of the cutout needed
         if source_size is None or source_size is False:
-            source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
+            source_size = (
+                source["LGZ_Size"] * 1.5
+            ) / 3600.0  # in arcseconds converted to archours
         try:
-            lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=verbose)
+            lhdu = extract_subimage(
+                lofar_data_location, source_ra, source_dec, source_size, verbose=verbose
+            )
         except:
             if verbose:
                 print(f"Failed to make data cutout for source: {source['Source_Name']}")
             continue
         try:
-            lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=verbose)
+            lrms = extract_subimage(
+                lofar_rms_location, source_ra, source_dec, source_size, verbose=verbose
+            )
         except:
             if verbose:
                 print(f"Failed to make rms cutout for source: {source['Source_Name']}")
             continue
-        img = lhdu[0].data/lrms[0].data
+        img = lhdu[0].data / lrms[0].data
         img_array.append(img)
     print(f"Radio Divided hist")
     img_array = np.asarray(img_array)
@@ -361,8 +460,19 @@ def check_radio_sizes(mosaic, value_added_catalog, mosaic_location, save_cutout_
     print(np.std(img_array))
     return
 
-def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_catalog, mosaic_location,
-                   save_cutout_directory, gaussian=None, all_channels=False, source_size=None, verbose=False):
+
+def create_cutouts(
+    mosaic,
+    value_added_catalog,
+    pan_wise_catalog,
+    component_catalog,
+    mosaic_location,
+    save_cutout_directory,
+    gaussian=None,
+    all_channels=False,
+    source_size=None,
+    verbose=False,
+):
     """
     Create cutouts of all sources in a field
 
@@ -405,30 +515,52 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
     mosaic_cutouts = value_added_catalog[value_added_catalog["Mosaic_ID"] == mosaic]
     # Go through each cutout for that mosaic
     for l, source in enumerate(mosaic_cutouts):
-        if not os.path.exists(os.path.join(save_cutout_directory, f"{source['Source_Name']}.npy")):
+        if not os.path.exists(
+            os.path.join(save_cutout_directory, f"{source['Source_Name']}.npy")
+        ):
             img_array = []
             # Get the ra and dec of the radio source
             source_ra = source["RA"]
             source_dec = source["DEC"]
             # Get the size of the cutout needed
             if source_size is None or source_size is False:
-                source_size = (source["LGZ_Size"] * 1.5) / 3600.  # in arcseconds converted to archours
+                source_size = (
+                    source["LGZ_Size"] * 1.5
+                ) / 3600.0  # in arcseconds converted to archours
             try:
-                lhdu = extract_subimage(lofar_data_location, source_ra, source_dec, source_size, verbose=verbose)
+                lhdu = extract_subimage(
+                    lofar_data_location,
+                    source_ra,
+                    source_dec,
+                    source_size,
+                    verbose=verbose,
+                )
             except:
                 if verbose:
-                    print(f"Failed to make data cutout for source: {source['Source_Name']}")
+                    print(
+                        f"Failed to make data cutout for source: {source['Source_Name']}"
+                    )
                 continue
             try:
-                lrms = extract_subimage(lofar_rms_location, source_ra, source_dec, source_size, verbose=verbose)
+                lrms = extract_subimage(
+                    lofar_rms_location,
+                    source_ra,
+                    source_dec,
+                    source_size,
+                    verbose=verbose,
+                )
             except:
                 if verbose:
-                    print(f"Failed to make rms cutout for source: {source['Source_Name']}")
+                    print(
+                        f"Failed to make rms cutout for source: {source['Source_Name']}"
+                    )
                 continue
             img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
             header = lhdu[0].header
             wcs = WCS(header)
-            #exit()
+            # Now change source_size to size of cutout, or root(2)*source_size so all possible sources are included
+            source_size *= np.sqrt(2)
+            # exit()
 
             # Now time to get the data from the catalogue and add that in their own channels
             if verbose:
@@ -436,21 +568,39 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
             # Should now be in Radio/RMS, i, W1 format, else we skip it
             # Need from catalog ra, dec, iFApMag, w1Mag, also have a z_best, which might or might not be available for all
             if all_channels:
-                layers = ["iFApMag", "w1Mag", "gFApMag", "rFApMag", "zFApMag", "yFApMag", "w2Mag", "w3Mag", "w4Mag"]
+                layers = [
+                    "iFApMag",
+                    "w1Mag",
+                    "gFApMag",
+                    "rFApMag",
+                    "zFApMag",
+                    "yFApMag",
+                    "w2Mag",
+                    "w3Mag",
+                    "w4Mag",
+                ]
             else:
                 layers = ["iFApMag", "w1Mag"]
             # Get the catalog sources once, to speed things up
             # cuts size in two to only get sources that fall within the cutout, instead of ones that go twice as large
-            cutout_catalog = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size / 2,
-                                                                 pan_wise_catalog, source)
+            cutout_catalog = determine_visible_catalogue_sources(
+                source_ra, source_dec, wcs, source_size / 2, pan_wise_catalog, source
+            )
             # Now determine if there are other sources in the area
-            other_visible_sources = determine_visible_catalogue_sources(source_ra, source_dec, wcs, source_size / 2,
-                                                                        mosaic_cutouts, source)
+            other_visible_sources = determine_visible_catalogue_sources(
+                source_ra, source_dec, wcs, source_size / 2, mosaic_cutouts, source
+            )
 
             # Now make proposal boxes
-            proposal_boxes = np.asarray(make_proposal_boxes(wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian))
+            proposal_boxes = np.asarray(
+                make_proposal_boxes(
+                    wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian
+                )
+            )
             for layer in layers:
-                tmp = make_catalogue_layer(layer, wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian)
+                tmp = make_catalogue_layer(
+                    layer, wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian
+                )
                 img_array.append(tmp)
 
             img_array = np.array(img_array)
@@ -460,7 +610,9 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
             # Include another array giving the bounding box for the source
             bounding_boxes = []
             try:
-                source_bbox = make_bounding_box(source['ID_ra'], source['ID_dec'], wcs, gaussian=gaussian)
+                source_bbox = make_bounding_box(
+                    source["ID_ra"], source["ID_dec"], wcs, gaussian=gaussian
+                )
                 assert source_bbox[1] >= 0
                 assert source_bbox[0] >= 0
                 assert source_bbox[3] < img_array.shape[0]
@@ -471,44 +623,109 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
                 print("Source not in bounds")
                 continue
             if verbose:
-                plot_three_channel_debug(img_array, bounding_boxes, 1, bounding_boxes[0][5])
+                plot_three_channel_debug(
+                    img_array, bounding_boxes, 1, bounding_boxes[0][5]
+                )
             # Now segmentation map
-            source_components = component_catalog[component_catalog["Source_Name"] == source["Source_Name"]]
-            component_seg, non_component_seg_five, seg_box_five = make_component_segmentation_map(source['ID_ra'], source['ID_dec'], wcs=wcs,
-                                                                               radio_field=lhdu[0].data, rms_field=lrms[0].data,
-                                                                               component_ra=source_components['RA'], component_dec=source_components['DEC'],
-                                                                               sigma=5., n_components=len(source_components), verbose=False)
+            source_components = component_catalog[
+                component_catalog["Source_Name"] == source["Source_Name"]
+            ]
+            (
+                component_seg,
+                non_component_seg_five,
+                seg_box_five,
+            ) = make_component_segmentation_map(
+                source["ID_ra"],
+                source["ID_dec"],
+                wcs=wcs,
+                radio_field=lhdu[0].data,
+                rms_field=lrms[0].data,
+                component_ra=source_components["RA"],
+                component_dec=source_components["DEC"],
+                sigma=5.0,
+                n_components=len(source_components),
+                verbose=False,
+            )
             sem_seg_five = [component_seg]
             sem_seg_prop_five = [seg_box_five]
-            component_seg, non_component_seg_three, seg_box_three = make_component_segmentation_map(source['ID_ra'], source['ID_dec'], wcs=wcs,
-                                                                               radio_field=lhdu[0].data, rms_field=lrms[0].data,
-                                                                               component_ra=source_components['RA'], component_dec=source_components['DEC'],
-                                                                               sigma=3., n_components=len(source_components), verbose=False)
+            (
+                component_seg,
+                non_component_seg_three,
+                seg_box_three,
+            ) = make_component_segmentation_map(
+                source["ID_ra"],
+                source["ID_dec"],
+                wcs=wcs,
+                radio_field=lhdu[0].data,
+                rms_field=lrms[0].data,
+                component_ra=source_components["RA"],
+                component_dec=source_components["DEC"],
+                sigma=3.0,
+                n_components=len(source_components),
+                verbose=False,
+            )
             sem_seg_three = [component_seg]
             sem_seg_prop_three = [seg_box_three]
             # Now go through and for any other sources in the field of view, add those
             for other_source in other_visible_sources:
-                other_components = component_catalog[component_catalog["Source_Name"] == other_source["Source_Name"]]
-                other_component_masks, _, other_seg_box = make_component_segmentation_map(other_source['ID_ra'], other_source['ID_dec'], wcs=wcs,
-                                                                                   radio_field=lhdu[0].data, rms_field=lrms[0].data,
-                                                                                   component_ra=other_components['RA'], component_dec=other_components['DEC'],
-                                                                                   sigma=5., n_components=len(other_components), verbose=False)
+                other_components = component_catalog[
+                    component_catalog["Source_Name"] == other_source["Source_Name"]
+                ]
+                (
+                    other_component_masks,
+                    _,
+                    other_seg_box,
+                ) = make_component_segmentation_map(
+                    other_source["ID_ra"],
+                    other_source["ID_dec"],
+                    wcs=wcs,
+                    radio_field=lhdu[0].data,
+                    rms_field=lrms[0].data,
+                    component_ra=other_components["RA"],
+                    component_dec=other_components["DEC"],
+                    sigma=5.0,
+                    n_components=len(other_components),
+                    verbose=False,
+                )
                 sem_seg_five.append(other_component_masks)
                 sem_seg_prop_five.append(other_seg_box)
-                other_component_masks, _, other_seg_box = make_component_segmentation_map(other_source['ID_ra'], other_source['ID_dec'], wcs=wcs,
-                                                                        radio_field=lhdu[0].data, rms_field=lrms[0].data,
-                                                                        component_ra=other_components['RA'], component_dec=other_components['DEC'],
-                                                                        sigma=3., n_components=len(other_components), verbose=False)
+                (
+                    other_component_masks,
+                    _,
+                    other_seg_box,
+                ) = make_component_segmentation_map(
+                    other_source["ID_ra"],
+                    other_source["ID_dec"],
+                    wcs=wcs,
+                    radio_field=lhdu[0].data,
+                    rms_field=lrms[0].data,
+                    component_ra=other_components["RA"],
+                    component_dec=other_components["DEC"],
+                    sigma=3.0,
+                    n_components=len(other_components),
+                    verbose=False,
+                )
                 sem_seg_three.append(other_component_masks)
                 sem_seg_prop_three.append(other_seg_box)
-                other_bbox = make_bounding_box(other_source['ID_ra'], other_source['ID_dec'],
-                                               wcs, class_name="Other Optical Source", gaussian=gaussian)
-                if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(other_bbox[1], bounding_boxes[0][
-                    1]):  # Make sure not same one
-                    if other_bbox[1] >= 0 and other_bbox[0] >= 0 and other_bbox[3] < img_array.shape[0] and other_bbox[
-                        2] < img_array.shape[1]:
+                other_bbox = make_bounding_box(
+                    other_source["ID_ra"],
+                    other_source["ID_dec"],
+                    wcs,
+                    class_name="Other Optical Source",
+                    gaussian=gaussian,
+                )
+                if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(
+                    other_bbox[1], bounding_boxes[0][1]
+                ):  # Make sure not same one
+                    if (
+                        other_bbox[1] >= 0
+                        and other_bbox[0] >= 0
+                        and other_bbox[3] < img_array.shape[0]
+                        and other_bbox[2] < img_array.shape[1]
+                    ):
                         bounding_boxes.append(
-                            list(other_bbox))  # Only add the bounding box if it is within the image shape
+                            list(other_bbox)
+                        )  # Only add the bounding box if it is within the image shape
 
             # Now save out the combined file
             bounding_boxes = np.array(bounding_boxes)
@@ -520,9 +737,20 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
             sem_seg_prop_five = np.array(sem_seg_prop_five)
             if verbose:
                 print(bounding_boxes)
-            combined_array = [img_array, bounding_boxes, proposal_boxes, sem_seg_five, sem_seg_prop_five, sem_seg_three, sem_seg_prop_three]
+            combined_array = [
+                img_array,
+                bounding_boxes,
+                proposal_boxes,
+                sem_seg_five,
+                sem_seg_prop_five,
+                sem_seg_three,
+                sem_seg_prop_three,
+            ]
             try:
-                np.save(os.path.join(save_cutout_directory, source['Source_Name']), combined_array)
+                np.save(
+                    os.path.join(save_cutout_directory, source["Source_Name"]),
+                    combined_array,
+                )
             except Exception as e:
                 if verbose:
                     print(f"Failed to save: {e}")
@@ -530,12 +758,23 @@ def create_cutouts(mosaic, value_added_catalog, pan_wise_catalog, component_cata
             print(f"Skipped: {l}")
 
 
-def create_variable_source_dataset(cutout_directory, pan_wise_location,
-                                   value_added_catalog_location, component_catalog_location,
-                                   dr_two_location, gaussian=None, all_channels=False,
-                                   fixed_size=None, filter_lgz=True,
-                                   verbose=False, use_multiprocessing=False, strict_filter=False, filter_optical=True, no_source=False,
-                                   num_threads=os.cpu_count()):
+def create_variable_source_dataset(
+    cutout_directory,
+    pan_wise_location,
+    value_added_catalog_location,
+    component_catalog_location,
+    dr_two_location,
+    gaussian=None,
+    all_channels=False,
+    fixed_size=None,
+    filter_lgz=True,
+    verbose=False,
+    use_multiprocessing=False,
+    strict_filter=False,
+    filter_optical=True,
+    no_source=False,
+    num_threads=os.cpu_count(),
+):
     """
     Create variable sized cutouts (hardcoded to 1.5 times the LGZ_Size) for each of the cutouts
 
@@ -554,7 +793,7 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
     l_objects = get_lotss_objects(value_added_catalog_location, False)
     print(len(l_objects))
     if filter_lgz:
-        l_objects = l_objects[~np.isnan(l_objects['LGZ_Size'])]
+        l_objects = l_objects[~np.isnan(l_objects["LGZ_Size"])]
         print(len(l_objects))
     if filter_optical:
         if no_source:
@@ -569,8 +808,8 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
         l_objects = l_objects[np.isnan(l_objects["ID_dec"])]
         print(len(l_objects))
     if strict_filter:
-        l_objects = l_objects[l_objects["LGZ_Size"] > 15.]
-        l_objects = l_objects[l_objects["Total_flux"] > 10.]
+        l_objects = l_objects[l_objects["LGZ_Size"] > 15.0]
+        l_objects = l_objects[l_objects["Total_flux"] > 10.0]
         print(len(l_objects))
     mosaic_names = set(l_objects["Mosaic_ID"])
 
@@ -578,8 +817,13 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
 
     # Go through each object, creating the cutout and saving to a directory
     # Create a directory structure identical for detectron2
-    all_directory, train_directory, val_directory, test_directory, annotations_directory \
-        = create_coco_style_directory_structure(cutout_directory)
+    (
+        all_directory,
+        train_directory,
+        val_directory,
+        test_directory,
+        annotations_directory,
+    ) = create_coco_style_directory_structure(cutout_directory)
 
     # Now go through each source in l_objects and create a cutout of the fits file
     # Open the Panstarrs and WISE catalogue
@@ -588,26 +832,52 @@ def create_variable_source_dataset(cutout_directory, pan_wise_location,
 
     if use_multiprocessing:
         pool = multiprocessing.Pool(num_threads)
-        pool.starmap(make_kde_stuff, zip(mosaic_names, repeat(l_objects), repeat(pan_wise_location), repeat(comp_catalog),
-                                         repeat(dr_two_location), repeat(all_directory), repeat(gaussian),
-                                         repeat(all_channels), repeat(fixed_size),
-                                         repeat(verbose)))
+        pool.starmap(
+            make_kde_stuff,
+            zip(
+                mosaic_names,
+                repeat(l_objects),
+                repeat(pan_wise_location),
+                repeat(comp_catalog),
+                repeat(dr_two_location),
+                repeat(all_directory),
+                repeat(gaussian),
+                repeat(all_channels),
+                repeat(fixed_size),
+                repeat(verbose),
+            ),
+        )
     else:
-        #pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
-        #pan_wise_catalogue = pan_wise_catalogue[1].data
+        # pan_wise_catalogue = fits.open(pan_wise_location, memmap=True)
+        # pan_wise_catalogue = pan_wise_catalogue[1].data
         print("Loaded")
-        mags = ["iFApMag", "w1Mag", "gFApMag", "rFApMag", "zFApMag", "yFApMag", "w2Mag", "w3Mag", "w4Mag"]
-        #import matplotlib.pyplot as plt
-        #for mag in mags:
+        mags = [
+            "iFApMag",
+            "w1Mag",
+            "gFApMag",
+            "rFApMag",
+            "zFApMag",
+            "yFApMag",
+            "w2Mag",
+            "w3Mag",
+            "w4Mag",
+        ]
+        # import matplotlib.pyplot as plt
+        # for mag in mags:
         #    plt.hist(pan_wise_catalogue, bins=50)
         #    plt.title(mag)
         #    plt.show()
-        #exit()
+        # exit()
         for mosaic in mosaic_names:
-            make_kde_stuff(mosaic=mosaic, value_added_catalog=l_objects, pan_wise_catalog=pan_wise_location, component_catalog=comp_catalog,
-                           mosaic_location=dr_two_location,
-                           save_cutout_directory=all_directory,
-                           gaussian=gaussian,
-                           all_channels=all_channels,
-                           source_size=fixed_size,
-                           verbose=verbose)
+            make_kde_stuff(
+                mosaic=mosaic,
+                value_added_catalog=l_objects,
+                pan_wise_catalog=pan_wise_location,
+                component_catalog=comp_catalog,
+                mosaic_location=dr_two_location,
+                save_cutout_directory=all_directory,
+                gaussian=gaussian,
+                all_channels=all_channels,
+                source_size=fixed_size,
+                verbose=verbose,
+            )
