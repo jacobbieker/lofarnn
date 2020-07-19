@@ -528,6 +528,7 @@ def create_cutouts(
                     source["LGZ_Size"] * 1.5
                 ) / 3600.0  # in arcseconds converted to archours
             source_size = source_size * np.sqrt(2)
+            print(source_size)
             try:
                 lhdu = extract_subimage(
                     lofar_data_location,
