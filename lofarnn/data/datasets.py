@@ -527,6 +527,7 @@ def create_cutouts(
                 source_size = (
                     source["LGZ_Size"] * 1.5
                 ) / 3600.0  # in arcseconds converted to archours
+            source_size = source_size * np.sqrt(2)
             try:
                 lhdu = extract_subimage(
                     lofar_data_location,
@@ -559,7 +560,6 @@ def create_cutouts(
             header = lhdu[0].header
             wcs = WCS(header)
             # Now change source_size to size of cutout, or root(2)*source_size so all possible sources are included
-            source_size *= np.sqrt(2)
             # exit()
 
             # Now time to get the data from the catalogue and add that in their own channels
@@ -833,7 +833,7 @@ def create_variable_source_dataset(
     if use_multiprocessing:
         pool = multiprocessing.Pool(num_threads)
         pool.starmap(
-            make_kde_stuff,
+            create_cutouts,
             zip(
                 mosaic_names,
                 repeat(l_objects),
