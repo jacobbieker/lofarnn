@@ -82,9 +82,8 @@ def extract_subimage(filename, ra, dec, size, hduid=0, verbose=True):
     if verbose:
         print("Opening", filename)
     orighdu = fits.open(filename)
-    psize = int(
-        np.sqrt(2) * (size / orighdu[hduid].header["CDELT2"])
-    )  # size in pixels, root(2) so we can rotate in next part
+    psize = int((size / orighdu[hduid].header["CDELT2"])
+    )
     if verbose:
         print(f"Size in Pixels: {psize}")
         print(f"Size in Arcseconds: {size}")
