@@ -29,6 +29,8 @@ else:
     multi_process = True
 
 rotation = 180
+size = (300./3600.)*np.sqrt(2)
+print(size)
 create_variable_source_dataset(
     cutout_directory=cutout_directory,
     pan_wise_location=pan_wise_location,
@@ -38,7 +40,7 @@ create_variable_source_dataset(
     use_multiprocessing=multi_process,
     all_channels=True,
     filter_lgz=True,
-    fixed_size=(300./3600.)*np.sqrt(2),
+    fixed_size=size,
     no_source=False,
     filter_optical=True,
     strict_filter=False,
