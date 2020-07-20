@@ -16,8 +16,8 @@ if environment == "ALICE":
         "/home/s2153246/data/data/LoTSS_DR2/lofar-surveys.org/downloads/DR2/mosaics/"
     )
     vac = "/home/s2153246/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
-    com_cat = "/home/s2153246/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
-    cutout_directory = "/home/s2153246/data/processed/variable_lgz_fluxlimit/"
+    comp_cat = "/home/s2153246/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
+    cutout_directory = "/home/s2153246/data/processed/variable_lgz_rotated/"
     pan_wise_location = "/home/s2153246/data/catalogues/pan_allwise.fits"
     multi_process = True
 else:
@@ -25,7 +25,7 @@ else:
     dr_two = "/mnt/LargeSSD/mosaics/"
     comp_cat = "/mnt/LargeSSD/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
     vac = "/mnt/LargeSSD/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
-    cutout_directory = "/mnt/HDD/fixed_lgz_rotated/"
+    cutout_directory = "/mnt/HDD/variable_lgz_rotated/"
     multi_process = True
 
 rotation = 180
@@ -40,7 +40,7 @@ create_variable_source_dataset(
     use_multiprocessing=multi_process,
     all_channels=True,
     filter_lgz=True,
-    fixed_size=size,
+    fixed_size=None,
     no_source=False,
     filter_optical=True,
     strict_filter=False,
