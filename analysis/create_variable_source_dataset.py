@@ -25,7 +25,7 @@ else:
     dr_two = "/mnt/LargeSSD/mosaics/"
     comp_cat = "/mnt/LargeSSD/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
     vac = "/mnt/LargeSSD/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
-    cutout_directory = "/mnt/HDD/variable_lgz_rotated/"
+    cutout_directory = "/mnt/HDD/fixed_lgz_rotated/"
     multi_process = True
 
 rotation = 180
@@ -40,7 +40,7 @@ create_variable_source_dataset(
     use_multiprocessing=multi_process,
     all_channels=True,
     filter_lgz=True,
-    fixed_size=None,
+    fixed_size=size,
     no_source=False,
     filter_optical=True,
     strict_filter=False,

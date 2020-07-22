@@ -454,7 +454,7 @@ def create_coco_annotations(
             num_copies = 10
     else:
         num_copies = 1
-    if rotation_names:
+    if rotation_names is not None:
         # Rotate these specific sources ~ 2.5 times more (generally multicomponent ones)
         extra_rotates = []
         for i, name in enumerate(image_names):

@@ -559,7 +559,7 @@ def _evaluate_box_proposals(
     for i, t in enumerate(thresholds):
         recalls[i] = (gt_overlaps >= t).float().sum() / float(
             num_pos
-        )  # TP/(Num GT Labels) with GT being Num Imagse as 1 GT per image
+        )  # TP/(Num GT Labels) with GT being Num Images as 1 GT per image
     # ar = 2 * np.trapz(recalls, thresholds)
     ar = recalls.mean()
     return {
