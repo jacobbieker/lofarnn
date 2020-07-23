@@ -458,7 +458,7 @@ def create_coco_annotations(
         # Rotate these specific sources ~ 2.5 times more (generally multicomponent ones)
         extra_rotates = []
         for i, name in enumerate(image_names):
-            if name in rotation_names:
+            if name.stem in rotation_names:
                 extra_rotates.append(i)
         extra_rotates = np.asarray(extra_rotates)
         extra_names = np.asarray(image_names)[extra_rotates]
@@ -500,7 +500,13 @@ def create_coco_annotations(
         ]
         pool.close()
         pool.join()
+        print(len(L))
+        for element in L:
+            dataset_dicts.append(element)
         # Now do the same for the extra copies, but with more rotations, ~2.5 to equal out multi and single comp sources
+        manager = Manager()
+        pool = Pool(processes=os.cpu_count())
+        L = manager.list()
         num_copies = int(num_copies * 2.5)
         rotation = np.linspace(0, 180, num_copies)
         [
@@ -530,10 +536,6 @@ def create_coco_annotations(
         pool.close()
         pool.join()
         print(len(L))
-        print(np.mean(bbox_size))
-        print(np.std(bbox_size))
-        print(np.max(bbox_size))
-        print(np.min(bbox_size))
         for element in L:
             dataset_dicts.append(element)
         # Write all image dictionaries to file as one json

@@ -277,6 +277,9 @@ class SourceEvaluator(DatasetEvaluator):
         for prediction in predictions:
             if prediction["source_name"] in self._physical_cuts[cut_key]:
                 prediction_cut.append(prediction)
+            elif prediction["source_name"].rpartition(".")[0] in self._physical_cuts[cut_key]:
+                # Handles the rotation, where there is an extra '.rot' after the source name
+                prediction_cut.append(prediction)
         return prediction_cut
 
     def _derive_coco_results(self, coco_eval, iou_type, class_names=None):
