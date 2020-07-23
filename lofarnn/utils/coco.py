@@ -498,11 +498,11 @@ def create_coco_annotations(
             )
             for m in range(num_copies)
         ]
-        pool.close()
         pool.join()
         print(len(L))
         for element in L:
             dataset_dicts.append(element)
+        pool.close()
         # Now do the same for the extra copies, but with more rotations, ~2.5 to equal out multi and single comp sources
         manager = Manager()
         pool = Pool(processes=os.cpu_count())
@@ -533,11 +533,11 @@ def create_coco_annotations(
             )
             for m in range(num_copies)
         ]
-        pool.close()
         pool.join()
         print(len(L))
         for element in L:
             dataset_dicts.append(element)
+        pool.close()
         # Write all image dictionaries to file as one json
         json_path = os.path.join(json_dir, json_name)
         with open(json_path, "wb") as outfile:
