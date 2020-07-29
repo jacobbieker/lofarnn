@@ -189,7 +189,8 @@ def augment_image_and_bboxes(
         for index, bbox in enumerate(sbbs_rescaled):
             sbs.append(np.asarray((bbox.x1, bbox.y1, bbox.x2, bbox.y2)))
     except:
-        print("Empty sbbs_rescaled")
+        if verbose:
+            print("Empty sbbs_rescaled")
     sbs = np.asarray(sbs)
     if segmentation_maps.any():
         return image_rescaled, cutouts, pbs, segmaps_rescaled.get_arr(), sbs

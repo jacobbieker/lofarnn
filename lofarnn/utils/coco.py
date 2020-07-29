@@ -136,7 +136,7 @@ def make_single_coco_annotation_set(
                 image_destination_dir, image_name.stem + f".{m}.png"
             )
         else:
-            if rotation is not None and rotation > 0:
+            if rotation is not None and rotation.any() > 0:
                 image_dest_filename = os.path.join(
                     image_destination_dir, image_name.stem + f".{m}.npy"
                 )
@@ -145,13 +145,23 @@ def make_single_coco_annotation_set(
                     image_destination_dir, image_name.stem + f".npy"
                 )
         if multiple_bboxes:
-            segmap_dest_filename = os.path.join(
-                image_destination_dir, image_name.stem + f".semseg.multi.png"
-            )
+            if rotation is not None and rotation.any() > 0:
+                segmap_dest_filename = os.path.join(
+                    image_destination_dir, image_name.stem + f".semseg.multi.{m}.png"
+                )
+            else:
+                segmap_dest_filename = os.path.join(
+                    image_destination_dir, image_name.stem + f".semseg.multi.png"
+                )
         else:
-            segmap_dest_filename = os.path.join(
-                image_destination_dir, image_name.stem + f".semseg.png"
-            )
+            if rotation is not None and rotation.any() > 0:
+                segmap_dest_filename = os.path.join(
+                    image_destination_dir, image_name.stem + f".semseg.{m}.png"
+                )
+            else:
+                segmap_dest_filename = os.path.join(
+                    image_destination_dir, image_name.stem + f".semseg.png"
+                )
         (
             image,
             cutouts,
@@ -404,7 +414,8 @@ def make_single_coco_annotation_set(
             ground_truth_mask = Image.fromarray(ground_truth_mask)
             ground_truth_mask.save(segmap_dest_filename)
             record["sem_seg_file_name"] = segmap_dest_filename
-            print("Made GT Segmentation")
+            if verbose:
+                print("Made GT Segmentation")
         if box_seg and len(segmentation_proposals) > 0:
             L.append(record)
         if (
@@ -451,7 +462,7 @@ def create_coco_annotations(
         if type(rotation) == tuple:
             num_copies = len(rotation)
         else:
-            num_copies = 10
+            num_copies = 5
     else:
         num_copies = 1
     if rotation_names is not None:
@@ -472,7 +483,6 @@ def create_coco_annotations(
         manager = Manager()
         pool = Pool(processes=os.cpu_count())
         L = manager.list()
-        bbox_size = manager.list()
         rotation = np.linspace(0,180,num_copies)
         [
             pool.apply_async(
@@ -491,24 +501,17 @@ def create_coco_annotations(
                     segmentation,
                     normalize,
                     False,
-                    bbox_size,
+                    [],
                     cut_size,
                     verbose,
                 ],
             )
             for m in range(num_copies)
         ]
-        pool.join()
         print(len(L))
-        for element in L:
-            dataset_dicts.append(element)
-        pool.close()
         # Now do the same for the extra copies, but with more rotations, ~2.5 to equal out multi and single comp sources
-        manager = Manager()
-        pool = Pool(processes=os.cpu_count())
-        L = manager.list()
-        num_copies = int(num_copies * 2.5)
-        rotation = np.linspace(0, 180, num_copies)
+        num_multi_copies = int(num_copies * 2.5)
+        multi_rotation = np.linspace(0, 180, num_multi_copies)
         [
             pool.apply_async(
                 make_single_coco_annotation_set,
@@ -519,25 +522,27 @@ def create_coco_annotations(
                     image_destination_dir,
                     multiple_bboxes,
                     resize,
-                    rotation,
+                    multi_rotation,
                     convert,
                     all_channels,
                     precomputed_proposals,
                     segmentation,
                     normalize,
                     False,
-                    bbox_size,
+                    [],
                     cut_size,
                     verbose,
                 ],
             )
-            for m in range(num_copies)
+            for m in range(num_multi_copies)
         ]
+        pool.close()
         pool.join()
         print(len(L))
+        print(f"Length of L: {len(L)}")
         for element in L:
             dataset_dicts.append(element)
-        pool.close()
+        print(f"Length of Dataset Dict: {len(dataset_dicts)}")
         # Write all image dictionaries to file as one json
         json_path = os.path.join(json_dir, json_name)
         with open(json_path, "wb") as outfile:
@@ -568,12 +573,6 @@ def create_coco_annotations(
             verbose,
         )
     # Write all image dictionaries to file as one json
-    # print(np.mean(bbox_size))
-    # print(np.std(bbox_size))
-    # print(np.max(bbox_size))
-    # print(np.min(bbox_size))
-    # plt.hist(bbox_size, bins=50)
-    # plt.show()
     json_path = os.path.join(json_dir, json_name)
     with open(json_path, "wb") as outfile:
         pickle.dump(dataset_dicts, outfile)
