@@ -510,7 +510,7 @@ def create_coco_annotations(
         ]
         print(len(L))
         # Now do the same for the extra copies, but with more rotations, ~2.5 to equal out multi and single comp sources
-        num_multi_copies = int(num_copies * 2.5)
+        num_multi_copies = int(np.ceil(num_copies * (len(single_names)/len(extra_names))))
         multi_rotation = np.linspace(0, 180, num_multi_copies)
         [
             pool.apply_async(
@@ -658,14 +658,14 @@ def create_coco_dataset(
             json_name=f"json_val_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}_norm{normalize}.pkl",
             multiple_bboxes=multiple_bboxes,
             resize=resize,
-            rotation=rotation,
+            rotation=None,
             convert=convert,
             segmentation=segmentation,
             normalize=normalize,
             all_channels=all_channels,
             precomputed_proposals=precomputed_proposals,
             cut_size=200,
-            rotation_names=multi_names,
+            rotation_names=None,
             verbose=verbose,
         )
     create_coco_annotations(
@@ -675,7 +675,7 @@ def create_coco_dataset(
         json_name=f"json_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}_norm{normalize}.pkl",
         multiple_bboxes=multiple_bboxes,
         resize=resize,
-        rotation=rotation,
+        rotation=None,
         convert=convert,
         segmentation=segmentation,
         normalize=normalize,
