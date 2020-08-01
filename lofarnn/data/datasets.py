@@ -5,7 +5,6 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from astropy.table import Table
 from astropy.wcs import WCS
 from astropy.wcs.utils import skycoord_to_pixel
 from itertools import repeat
@@ -399,9 +398,6 @@ def make_kde_stuff(
     return
 
 
-import matplotlib.pyplot as plt
-
-
 def check_radio_sizes(
     mosaic,
     value_added_catalog,
@@ -453,9 +449,9 @@ def check_radio_sizes(
         img_array.append(img)
     print(f"Radio Divided hist")
     img_array = np.asarray(img_array)
-    plt.hist(img_array, bins=100, density=True)
-    plt.title("Radio Image Range")
-    plt.show()
+    #plt.hist(img_array, bins=100, density=True)
+    #plt.title("Radio Image Range")
+    #plt.show()
     print(np.mean(img_array))
     print(np.std(img_array))
     return

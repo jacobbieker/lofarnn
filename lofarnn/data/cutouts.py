@@ -6,7 +6,6 @@ from astropy.visualization import (
     ManualInterval,
     ImageNormalize,
 )
-import cv2
 import imgaug.augmenters as iaa
 import imgaug as ia
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
@@ -76,10 +75,6 @@ def make_bounding_box(source_location):
     xmax = xmin + 2
 
     return xmin, ymin, xmax, ymax, source_location[4], source_location[5]
-
-
-import matplotlib.pyplot as plt
-
 
 def augment_image_and_bboxes(
     image,
@@ -168,12 +163,12 @@ def augment_image_and_bboxes(
             image_rescaled_bbs, size=1, alpha=1, color=(0, 255, 255)
         )
         image_rescaled_bbs = segmaps_rescaled.draw_on_image(image_rescaled_bbs)[0]
-        plt.imshow(image_bbs)
-        plt.title("Before")
-        plt.show()
-        plt.imshow(image_rescaled_bbs)
-        plt.title("After")
-        plt.show()
+        #plt.imshow(image_bbs)
+        #plt.title("Before")
+        #plt.show()
+        #plt.imshow(image_rescaled_bbs)
+        #plt.title("After")
+        #plt.show()
     for index, bbox in enumerate(bbs_rescaled):
         cutouts[index][0] = bbox.x1
         cutouts[index][1] = bbox.y1

@@ -5,14 +5,11 @@ from pathlib import Path
 from zlib import crc32
 
 import numpy as np
-import cv2
 from PIL import Image
 from detectron2.structures import BoxMode
-import matplotlib.pyplot as plt
 from pycocotools import mask
 
 from lofarnn.data.cutouts import convert_to_valid_color, augment_image_and_bboxes
-from lofarnn.visualization.cutouts import plot_three_channel_debug
 from imgaug.augmentables.bbs import BoundingBox
 from multiprocessing import Pool, Process, Manager, Queue
 from lofarnn.models.dataloaders.utils import get_lotss_objects
