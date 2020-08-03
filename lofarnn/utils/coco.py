@@ -275,7 +275,7 @@ def make_single_coco_annotation_set(
                 normalize=normalize,
                 scaling=None,
             )
-        if not not os.path.exists(os.path.join(image_dest_filename)):
+        if not os.path.exists(os.path.join(image_dest_filename)):
             if convert:
                 image = np.nan_to_num(image)
                 image = (255.0 * image).astype(np.uint8)
