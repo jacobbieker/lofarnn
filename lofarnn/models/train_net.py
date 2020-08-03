@@ -71,7 +71,7 @@ def setup(args):
             thing_classes=["Optical source"]
         )
     # Keep val and test set the same so that its always testing on the same stuff
-    for d in ["val", "test"]:
+    for d in ["val", "test", "train_test"]:
         DatasetCatalog.register(
             f"{args.experiment}_" + d,
             lambda d=d: get_lofar_dicts(
@@ -90,7 +90,7 @@ def setup(args):
     cfg.DATASETS.VAL = (f"{args.experiment}_test",)
     cfg.DATASETS.TEST = (
         f"{args.experiment}_val",
-        f"{args.experiment}_train",
+        f"{args.experiment}_train_test",
     )  # Swapped because TEST is used for eval, and val is not, but can be used later
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     cfg.freeze()

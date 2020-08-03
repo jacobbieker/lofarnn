@@ -6,7 +6,7 @@ from zlib import crc32
 
 import numpy as np
 from PIL import Image
-from detectron2.structures import BoxMode
+#from detectron2.structures import BoxMode
 from pycocotools import mask
 
 from lofarnn.data.cutouts import convert_to_valid_color, augment_image_and_bboxes
@@ -335,7 +335,7 @@ def make_single_coco_annotation_set(
                             float(bbox[2]),
                             float(bbox[3]),
                         ],
-                        "bbox_mode": BoxMode.XYXY_ABS,
+                        "bbox_mode": 0,#BoxMode.XYXY_ABS,
                         "category_id": category_id,  # For Optical Source
                         "iscrowd": 0,
                     }
@@ -362,7 +362,7 @@ def make_single_coco_annotation_set(
                             float(bbox[2]),
                             float(bbox[3]),
                         ],
-                        "bbox_mode": BoxMode.XYXY_ABS,
+                        "bbox_mode": 0,#BoxMode.XYXY_ABS,
                         "category_id": 1,  # For Radio Component
                         "segmentation": mask.encode(
                             np.asarray(segmentation_maps[source_num], order="F")
@@ -382,7 +382,7 @@ def make_single_coco_annotation_set(
             record["proposal_objectness_logits"] = np.ones(
                 len(proposal_boxes)
             )  # TODO Not sure this is right
-            record["proposal_bbox_mode"] = BoxMode.XYXY_ABS
+            record["proposal_bbox_mode"] = 0#BoxMode.XYXY_ABS
         record["annotations"] = objs
         if segmentation and segmentation_maps.any():
             # Now save out the ground truth semantic segmentation mask
@@ -645,6 +645,23 @@ def create_coco_dataset(
         precomputed_proposals=precomputed_proposals,
         cut_size=200,
         rotation_names=multi_names,
+        verbose=verbose,
+    )
+    create_coco_annotations(
+        data_split["train"],
+        json_dir=annotations_directory,
+        image_destination_dir=train_directory,
+        json_name=f"json_train_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}_norm{normalize}.pkl",
+        multiple_bboxes=multiple_bboxes,
+        resize=resize,
+        rotation=None,
+        convert=convert,
+        segmentation=segmentation,
+        normalize=normalize,
+        all_channels=all_channels,
+        precomputed_proposals=precomputed_proposals,
+        cut_size=200,
+        rotation_names=None,
         verbose=verbose,
     )
     if len(data_split["val"]) > 0:
