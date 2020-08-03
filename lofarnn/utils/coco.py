@@ -275,15 +275,16 @@ def make_single_coco_annotation_set(
                 normalize=normalize,
                 scaling=None,
             )
-        if convert:
-            image = np.nan_to_num(image)
-            image = (255.0 * image).astype(np.uint8)
-            # If converting, only take the first three layers, generally Radio, i band, W1 band
-            pil_im = Image.fromarray(image[:, :, :3], "RGB")
-            pil_im.save(image_dest_filename)
-        else:
-            image = np.nan_to_num(image)
-            np.save(image_dest_filename, image)  # Save to the final destination
+        if not not os.path.exists(os.path.join(image_dest_filename)):
+            if convert:
+                image = np.nan_to_num(image)
+                image = (255.0 * image).astype(np.uint8)
+                # If converting, only take the first three layers, generally Radio, i band, W1 band
+                pil_im = Image.fromarray(image[:, :, :3], "RGB")
+                pil_im.save(image_dest_filename)
+            else:
+                image = np.nan_to_num(image)
+                np.save(image_dest_filename, image)  # Save to the final destination
         if all_channels:
             rec_depth = 10
         else:
