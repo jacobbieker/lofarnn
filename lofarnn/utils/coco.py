@@ -460,21 +460,34 @@ def create_coco_annotations(
         if type(rotation) == tuple:
             num_copies = len(rotation)
         else:
-            num_copies = 5
+            num_copies = 3
     else:
         num_copies = 1
     if rotation_names is not None:
         # Rotate these specific sources ~ 2.5 times more (generally multicomponent ones)
         extra_rotates = []
+        t = []
         for i, name in enumerate(image_names):
+            print(name.stem)
+            print(rotation_names)
             if name.stem in rotation_names:
                 extra_rotates.append(i)
+                t.append(rotation_names)
+        print(f"Matched Names: {t}")
+        print(f"Indicies: {extra_rotates} out of {image_names}")
         extra_rotates = np.asarray(extra_rotates)
-        extra_names = np.asarray(image_names)[extra_rotates]
-        single_names = np.asarray(image_names)[~extra_rotates]
+        image_names = np.asarray(image_names)
+        extra_names = image_names[extra_rotates]
+        mask = np.ones(len(image_names), np.bool)
+        mask[extra_rotates] = 0
+        single_names = image_names[mask]
     else:
         single_names = image_names
         extra_names = []
+    print(f"Extra Names: {len(extra_names)}")
+    print(f"Single Names: {len(single_names)}")
+    print(f"Extra Names: {extra_names}")
+    print(f"Single Names: {single_names}")
     # List to store single dict for each image
     dataset_dicts = []
     if num_copies > 1:
@@ -508,7 +521,8 @@ def create_coco_annotations(
         ]
         print(len(L))
         # Now do the same for the extra copies, but with more rotations, ~2.5 to equal out multi and single comp sources
-        num_multi_copies = int(np.ceil(num_copies * (len(single_names)/len(extra_names))))
+        num_multi_copies = int(np.ceil(num_copies * 2.5))
+        print(f"Num Multi Copies: {num_multi_copies}")
         multi_rotation = np.linspace(0, 180, num_multi_copies)
         [
             pool.apply_async(
