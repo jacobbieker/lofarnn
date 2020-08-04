@@ -75,7 +75,7 @@ def make_bounding_box(source_location):
     xmax = xmin + 2
 
     return xmin, ymin, xmax, ymax, source_location[4], source_location[5]
-
+import matplotlib.pyplot as plt
 def augment_image_and_bboxes(
     image,
     cutouts,
@@ -87,13 +87,15 @@ def augment_image_and_bboxes(
     crop_size=None,
     verbose=False,
 ):
+    print(f"Original Image Size: {image.shape}")
     bounding_boxes = []
     prop_boxes = []
     seg_boxes = []
+    new_crop = int(np.ceil(image.shape[0]/np.sqrt(2))) # Is 200 for 282, which is what is wanted, and works for others
     seq = iaa.Sequential(
         [
             iaa.Affine(rotate=angle),
-            iaa.CropToFixedSize(width=crop_size, height=crop_size, position="center"),
+            iaa.CropToFixedSize(width=new_crop, height=new_crop, position="center"),
         ]
     )
     for cutout in cutouts:
@@ -154,21 +156,27 @@ def augment_image_and_bboxes(
         image = image[:, :, :3]
         image_rescaled = image_rescaled[:, :, :3]
         image_bbs = bbs.draw_on_image(image, size=1, alpha=1)
-        image_bbs = sbbs.draw_on_image(image_bbs, size=1, alpha=1)
-        image_bbs = segmaps.draw_on_image(image_bbs)[0]
+        #image_bbs = sbbs.draw_on_image(image_bbs, size=1, alpha=1)
+        #image_bbs = segmaps.draw_on_image(image_bbs)[0]
         image_rescaled_bbs = bbs_rescaled.draw_on_image(
             image_rescaled, size=1, alpha=1, color=(255, 255, 255)
         )
-        image_rescaled_bbs = sbbs_rescaled.draw_on_image(
-            image_rescaled_bbs, size=1, alpha=1, color=(0, 255, 255)
-        )
-        image_rescaled_bbs = segmaps_rescaled.draw_on_image(image_rescaled_bbs)[0]
-        #plt.imshow(image_bbs)
-        #plt.title("Before")
-        #plt.show()
-        #plt.imshow(image_rescaled_bbs)
-        #plt.title("After")
-        #plt.show()
+        #image_rescaled_bbs = sbbs_rescaled.draw_on_image(
+        #    image_rescaled_bbs, size=1, alpha=1, color=(0, 255, 255)
+        #)
+        #image_rescaled_bbs = segmaps_rescaled.draw_on_image(image_rescaled_bbs)[0]
+        plt.imshow(image_bbs)
+        plt.title("Before")
+        plt.show()
+        #plt.savefig("before_rot.png")
+        #plt.cla()
+        #plt.clf()
+        plt.imshow(image_rescaled_bbs)
+        plt.title("After")
+        #plt.savefig("after_rot.png")
+        #plt.cla()
+        #plt.clf()
+        plt.show()
     for index, bbox in enumerate(bbs_rescaled):
         cutouts[index][0] = bbox.x1
         cutouts[index][1] = bbox.y1

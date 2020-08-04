@@ -200,11 +200,36 @@ class SourceEvaluator(DatasetEvaluator):
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=1)
         self._results["own_recall"] = {
             "ar": all_recall["ar"],
+            "ap": all_recall["ap"],
+            "precision": all_recall["precisions"][-1],
+            "recall": all_recall["recalls"][-1],
+        }
+        all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=2)
+        self._results["own_recall_2"] = {
+            "ar": all_recall["ar"],
+            "ap": all_recall["ap"],
+            "precision": all_recall["precisions"][-1],
+            "recall": all_recall["recalls"][-1],
+        }
+        all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=5)
+        self._results["own_recall_5"] = {
+            "ar": all_recall["ar"],
+            "ap": all_recall["ap"],
+            "precision": all_recall["precisions"][-1],
+            "recall": all_recall["recalls"][-1],
+        }
+        all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=10)
+        self._results["own_recall_10"] = {
+            "ar": all_recall["ar"],
+            "ap": all_recall["ap"],
+            "precision": all_recall["precisions"][-1],
             "recall": all_recall["recalls"][-1],
         }
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=100)
         self._results["own_recall_100"] = {
             "ar": all_recall["ar"],
+            "ap": all_recall["ap"],
+            "precision": all_recall["precisions"][-1],
             "recall": all_recall["recalls"][-1],
         }
         for physical_cut in self._physical_cuts.keys():
@@ -221,6 +246,38 @@ class SourceEvaluator(DatasetEvaluator):
             recall_name = f"own_recall_{physical_cut}"
             self._results[recall_name] = {
                 "ar": phys_recall["ar"],
+                "ap": phys_recall["ap"],
+                "precision": phys_recall["precisions"][-1],
+                "recall": phys_recall["recalls"][-1],
+            }
+            phys_recall = _evaluate_box_proposals(
+                prediction_cut, self._coco_api, limit=2
+            )
+            recall_name = f"own_recall_2_{physical_cut}"
+            self._results[recall_name] = {
+                "ar": phys_recall["ar"],
+                "ap": phys_recall["ap"],
+                "precision": phys_recall["precisions"][-1],
+                "recall": phys_recall["recalls"][-1],
+            }
+            phys_recall = _evaluate_box_proposals(
+                prediction_cut, self._coco_api, limit=5
+            )
+            recall_name = f"own_recall_5_{physical_cut}"
+            self._results[recall_name] = {
+                "ar": phys_recall["ar"],
+                "ap": phys_recall["ap"],
+                "precision": phys_recall["precisions"][-1],
+                "recall": phys_recall["recalls"][-1],
+            }
+            phys_recall = _evaluate_box_proposals(
+                prediction_cut, self._coco_api, limit=10
+            )
+            recall_name = f"own_recall_10_{physical_cut}"
+            self._results[recall_name] = {
+                "ar": phys_recall["ar"],
+                "ap": phys_recall["ap"],
+                "precision": phys_recall["precisions"][-1],
                 "recall": phys_recall["recalls"][-1],
             }
             phys_recall = _evaluate_box_proposals(
@@ -229,6 +286,8 @@ class SourceEvaluator(DatasetEvaluator):
             recall_name = f"own_recall_100_{physical_cut}"
             self._results[recall_name] = {
                 "ar": phys_recall["ar"],
+                "ap": phys_recall["ap"],
+                "precision": phys_recall["precisions"][-1],
                 "recall": phys_recall["recalls"][-1],
             }
         self._logger.info("Evaluating predictions ...")
@@ -558,16 +617,24 @@ def _evaluate_box_proposals(
         step = 0.05
         thresholds = torch.arange(0.5, 0.95 + 1e-5, step, dtype=torch.float32)
     recalls = torch.zeros_like(thresholds)
+    precisions = torch.zeros_like(thresholds)
     # compute recall for each iou threshold
     for i, t in enumerate(thresholds):
         recalls[i] = (gt_overlaps >= t).float().sum() / float(
             num_pos
         )  # TP/(Num GT Labels) with GT being Num Images as 1 GT per image
+    for i, t in enumerate(thresholds):
+        precisions[i] = (gt_overlaps >= t).float().sum() / float(
+            limit
+        ) # TP/(Num of boxes kept)
     # ar = 2 * np.trapz(recalls, thresholds)
     ar = recalls.mean()
+    ap = precisions.mean()
     return {
         "ar": ar,
+        "ap": ap,
         "recalls": recalls,
+        "precisions": precisions,
         "thresholds": thresholds,
         "gt_overlaps": gt_overlaps,
         "num_pos": num_pos,
