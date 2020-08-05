@@ -539,6 +539,7 @@ def _evaluate_box_proposals(
     area_range = area_ranges[areas[area]]
     gt_overlaps = []
     num_pos = 0
+    num_boxes = 0
     for prediction_dict in dataset_predictions:
         preds = np.asarray(prediction_dict["instances"])
         scores = []
@@ -568,6 +569,7 @@ def _evaluate_box_proposals(
         gt_boxes = gt_boxes[valid_gt_inds]
 
         num_pos += len(gt_boxes)  # 1 GT from each image
+        num_boxes += limit # N number of proposals kept
 
         if len(gt_boxes) == 0:
             continue
@@ -625,7 +627,7 @@ def _evaluate_box_proposals(
         )  # TP/(Num GT Labels) with GT being Num Images as 1 GT per image
     for i, t in enumerate(thresholds):
         precisions[i] = (gt_overlaps >= t).float().sum() / float(
-            limit
+            num_boxes
         ) # TP/(Num of boxes kept)
     # ar = 2 * np.trapz(recalls, thresholds)
     ar = recalls.mean()
