@@ -67,6 +67,7 @@ class SourceEvaluator(DatasetEvaluator):
 
         self._cpu_device = torch.device("cpu")
         self._logger = logging.getLogger(__name__)
+        self._dataset_name = dataset_name
 
         self._metadata = MetadataCatalog.get(dataset_name)
         if not hasattr(self._metadata, "json_file"):
@@ -198,6 +199,7 @@ class SourceEvaluator(DatasetEvaluator):
         # Calculate the recall based on general recall and precision, not COCO mAP, with single best prediction
         self._logger.info(f"Evaluating with non-mAR...")
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=1)
+        pickle.dump(all_recall["per_source"], file=open(os.path.join(self._output_dir, f"{self._dataset_name}_recall_limit1.pkl"), "wb"))
         self._results["own_recall"] = {
             "ar": all_recall["ar"],
             "ap": all_recall["ap"],
@@ -205,6 +207,7 @@ class SourceEvaluator(DatasetEvaluator):
             "recall": all_recall["recalls"][-1],
         }
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=2)
+        pickle.dump(all_recall["per_source"], file=open(os.path.join(self._output_dir, f"{self._dataset_name}_recall_limit2.pkl"), "wb"))
         self._results["own_recall_2"] = {
             "ar": all_recall["ar"],
             "ap": all_recall["ap"],
@@ -212,6 +215,7 @@ class SourceEvaluator(DatasetEvaluator):
             "recall": all_recall["recalls"][-1],
         }
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=5)
+        pickle.dump(all_recall["per_source"], file=open(os.path.join(self._output_dir, f"{self._dataset_name}_recall_limit5.pkl"), "wb"))
         self._results["own_recall_5"] = {
             "ar": all_recall["ar"],
             "ap": all_recall["ap"],
@@ -219,6 +223,7 @@ class SourceEvaluator(DatasetEvaluator):
             "recall": all_recall["recalls"][-1],
         }
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=10)
+        pickle.dump(all_recall["per_source"], file=open(os.path.join(self._output_dir, f"{self._dataset_name}_recall_limit10.pkl"), "wb"))
         self._results["own_recall_10"] = {
             "ar": all_recall["ar"],
             "ap": all_recall["ap"],
@@ -226,6 +231,7 @@ class SourceEvaluator(DatasetEvaluator):
             "recall": all_recall["recalls"][-1],
         }
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=100)
+        pickle.dump(all_recall["per_source"], file=open(os.path.join(self._output_dir, f"{self._dataset_name}_recall_limit100.pkl"), "wb"))
         self._results["own_recall_100"] = {
             "ar": all_recall["ar"],
             "ap": all_recall["ap"],
@@ -540,6 +546,7 @@ def _evaluate_box_proposals(
     gt_overlaps = []
     num_pos = 0
     num_boxes = 0
+    source_outcomes = {}
     for prediction_dict in dataset_predictions:
         preds = np.asarray(prediction_dict["instances"])
         scores = []
@@ -605,6 +612,7 @@ def _evaluate_box_proposals(
             # mark the proposal box and the gt box as used
             overlaps[box_ind, :] = -1
             overlaps[:, gt_ind] = -1
+            source_outcomes[preds["source_name"]] = gt_ovr # Save overlap, so can be used for determining outcome
 
         # append recorded iou coverage level
         gt_overlaps.append(_gt_overlaps)
@@ -635,6 +643,7 @@ def _evaluate_box_proposals(
     return {
         "ar": ar,
         "ap": ap,
+        "per_source": source_outcomes,
         "recalls": recalls,
         "precisions": precisions,
         "thresholds": thresholds,
