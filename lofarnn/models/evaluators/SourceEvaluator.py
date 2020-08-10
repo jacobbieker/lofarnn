@@ -612,7 +612,7 @@ def _evaluate_box_proposals(
             # mark the proposal box and the gt box as used
             overlaps[box_ind, :] = -1
             overlaps[:, gt_ind] = -1
-            source_outcomes[preds["source_name"]] = gt_ovr.item() # Save overlap, so can be used for determining outcome
+            source_outcomes[preds[gt_ind]["source_name"]] = gt_ovr.item() # Save overlap, so can be used for determining outcome
 
         # append recorded iou coverage level
         gt_overlaps.append(_gt_overlaps)
