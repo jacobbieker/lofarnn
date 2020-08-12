@@ -1,7 +1,17 @@
 import numpy as np
 import pickle
+import json
+import os
 import matplotlib.pyplot as plt
 from lofarnn.models.dataloaders.utils import get_lotss_objects
+
+
+def load_json_arr(json_path):
+    lines = []
+    with open(json_path, 'r') as f:
+        for line in f:
+            lines.append(json.loads(line))
+    return lines
 
 
 def plot_axis_recall(recall_path, vac_catalog, bins=10):
@@ -104,3 +114,155 @@ def plot_axis_recall(recall_path, vac_catalog, bins=10):
     ax.set_title(f'Recall for radio size vs axis ratio')
     plt.show()
     plt.close()
+
+
+def plot_plots(metrics_files, experiment_name, experiment_dir, cuts, labels, title, output_dir, colors):
+    """
+    Plot a variety of different metrics, including recall, precision, loss, etc.
+    :param metrics_files:
+    :param experiment_name:
+    :param labels:
+    :param output_dir:
+    :return:
+    """
+    metrics_data = []
+    for f in metrics_files:
+        metrics_data.append(load_json_arr(os.path.join(experiment_dir, f +".json")))
+
+    # Now extract the useful information: own recall and precision are the important ones since COCO seems off
+    recall = {}
+    val_recall = {}
+    precision = {}
+    val_precision = {}
+    iteration = {}
+    loss = {}
+    val_loss = {}
+
+    for i, metric in enumerate(metrics_data):
+        for cut in cuts:
+            for j in [1,2,5,10,100]:
+                recall[f"{experiment_name}_train_test/own_recall_{j}_{cut}/recall"] = []
+                val_recall[f"{experiment_name}_val/own_recall_{j}_{cut}/recall"] = []
+                precision[f"{experiment_name}_train_test/own_recall_{j}_{cut}/precision"] = []
+                val_precision[f"{experiment_name}_val/own_recall_{j}_{cut}/precision"] = []
+                recall[f"{experiment_name}_train_test/own_recall_{j}/recall"] = []
+                val_recall[f"{experiment_name}_val/own_recall_{j}/recall"] = []
+                precision[f"{experiment_name}_train_test/own_recall_{j}/precision"] = []
+                val_precision[f"{experiment_name}_val/own_recall_{j}/precision"] = []
+                iteration[metrics_files[i]] = []
+                loss[metrics_files[i]] = []
+                val_loss[metrics_files[i]] = []
+                for line in metric:
+                    try:
+                        val_recall[f"{experiment_name}_val/own_recall_{j}_{cut}/recall"].append(line[f"{experiment_name}_val/own_recall_{j}_{cut}/recall"])
+                        val_precision[f"{experiment_name}_val/own_recall_{j}_{cut}/precision"].append(
+                            line[f"{experiment_name}_val/own_recall_{j}_{cut}/precision"])
+                        precision[f"{experiment_name}_train_test/own_recall_{j}_{cut}/precision"].append(
+                            line[f"{experiment_name}_train_test/own_recall_{j}_{cut}/precision"])
+                        recall[f"{experiment_name}_train_test/own_recall_{j}_{cut}/recall"].append(
+                            line[f"{experiment_name}_train_test/own_recall_{j}_{cut}/recall"])
+                        val_recall[f"{experiment_name}_val/own_recall_{j}/recall"].append(line[f"{experiment_name}_val/own_recall_{j}/recall"])
+                        val_precision[f"{experiment_name}_val/own_recall_{j}/precision"].append(
+                            line[f"{experiment_name}_val/own_recall_{j}/precision"])
+                        precision[f"{experiment_name}_train_test/own_recall_{j}/precision"].append(
+                            line[f"{experiment_name}_train_test/own_recall_{j}/precision"])
+                        recall[f"{experiment_name}_train_test/own_recall_{j}/recall"].append(
+                            line[f"{experiment_name}_train_test/own_recall_{j}/recall"])
+                        val_loss[metrics_files[i]].append(line["validation_loss"])
+                        loss[metrics_files[i]].append(line["total_loss"])
+                        iteration[metrics_files[i]].append(line["iteration"])
+                    except:
+                        continue
+
+    # Plot the iteration vs loss for the models
+    for i, metric in enumerate(metrics_data):
+        plt.plot(iteration[metrics_files[i]], loss[metrics_files[i]], label=f"{labels[i]} Train", color=colors[i])
+        plt.plot(iteration[metrics_files[i]], val_loss[metrics_files[i]], linestyle='dashed', label=f"{labels[i]} Val", color=colors[i])
+
+    plt.legend(loc='upper right')
+    plt.title(f"Total Training Loss {title}")
+    plt.xlabel("Iteration")
+    plt.ylabel("Total Loss")
+    plt.yscale("log")
+    plt.savefig(os.path.join(output_dir, f"Total_Training_Loss_{title}.png"), dpi=300)
+    plt.clf()
+    plt.cla()
+
+    # Plot recall for the different cuts for the same models
+    for i, metric in enumerate(metrics_data):
+        for j in [1,2,5,10,100]:
+            for cut in cuts:
+                plt.plot(iteration[metrics_files[i]], recall[f"{experiment_name}_train_test/own_recall_{j}_{cut}/recall"], label=f"{labels[i]} Train", color=colors[i])
+                plt.plot(iteration[metrics_files[i]], recall[f"{experiment_name}_val/own_recall_{j}_{cut}/recall"],
+                         label=f"{labels[i]} Val", linestyle="dashed", color=colors[i])
+
+            plt.legend(loc='upper right')
+            plt.title(f"Recall for limit {j}: {title}, {metrics_files[i]}")
+            plt.xlabel("Iteration")
+            plt.ylabel("Recall")
+            #plt.yscale("log")
+            plt.savefig(os.path.join(output_dir, f"Recall_limit{j}_{title}_{metrics_files[i]}.png"), dpi=300)
+            plt.clf()
+            plt.cla()
+
+
+    # Plot precision for different cuts for same models
+    for i, metric in enumerate(metrics_data):
+        for j in [1,2,5,10,100]:
+            for cut in cuts:
+                plt.plot(iteration[metrics_files[i]], recall[f"{experiment_name}_train_test/own_recall_{j}_{cut}/precision"], label=f"{labels[i]} Train", color=colors[i])
+                plt.plot(iteration[metrics_files[i]], recall[f"{experiment_name}_val/own_recall_{j}_{cut}/precision"],
+                         label=f"{labels[i]} Val", linestyle="dashed", color=colors[i])
+
+            plt.legend(loc='upper right')
+            plt.title(f"Precision for limit {j}: {title}, {metrics_files[i]}")
+            plt.xlabel("Iteration")
+            plt.ylabel("Precision")
+            #plt.yscale("log")
+            plt.savefig(os.path.join(output_dir, f"Precision_limit{j}_{title}_{metrics_files[i]}.png"), dpi=300)
+            plt.clf()
+            plt.cla()
+
+    # Plot recall and precision based on different limits
+    # Plot recall for the different cuts for the same models
+    for i, metric in enumerate(metrics_data):
+        for cut in cuts:
+            for j in [1, 2, 5, 10, 100]:
+                plt.plot(iteration[metrics_files[i]],
+                         recall[f"{experiment_name}_train_test/own_recall_{j}_{cut}/recall"],
+                         label=f"{labels[i]} Train", color=colors[i])
+                plt.plot(iteration[metrics_files[i]], recall[f"{experiment_name}_val/own_recall_{j}_{cut}/recall"],
+                         label=f"{labels[i]} Val", linestyle="dashed", color=colors[i])
+
+            plt.legend(loc='upper right')
+            plt.title(f"Recall for limit {j}: {title}, {metrics_files[i]}")
+            plt.xlabel("Iteration")
+            plt.ylabel("Recall")
+            # plt.yscale("log")
+            plt.savefig(os.path.join(output_dir, f"Recall_cut{cut}_{title}_{metrics_files[i]}.png"), dpi=300)
+            plt.clf()
+            plt.cla()
+
+    # Plot precision for different cuts for same models
+    for i, metric in enumerate(metrics_data):
+        for cut in cuts:
+            for j in [1, 2, 5, 10, 100]:
+                plt.plot(iteration[metrics_files[i]],
+                         recall[f"{experiment_name}_train_test/own_recall_{j}_{cut}/precision"],
+                         label=f"{labels[i]} Train", color=colors[i])
+                plt.plot(iteration[metrics_files[i]], recall[f"{experiment_name}_val/own_recall_{j}_{cut}/precision"],
+                         label=f"{labels[i]} Val", linestyle="dashed", color=colors[i])
+
+            plt.legend(loc='upper right')
+            plt.title(f"Precision for limit {j}: {title}, {metrics_files[i]}")
+            plt.xlabel("Iteration")
+            plt.ylabel("Precision")
+            # plt.yscale("log")
+            plt.savefig(os.path.join(output_dir, f"Precision_cut{cut}_{title}_{metrics_files[i]}.png"), dpi=300)
+            plt.clf()
+            plt.cla()
+
+    # Plot recall for different models
+
+    # Plot precision for different models
+
