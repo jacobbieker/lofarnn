@@ -449,9 +449,9 @@ def check_radio_sizes(
         img_array.append(img)
     print(f"Radio Divided hist")
     img_array = np.asarray(img_array)
-    #plt.hist(img_array, bins=100, density=True)
-    #plt.title("Radio Image Range")
-    #plt.show()
+    # plt.hist(img_array, bins=100, density=True)
+    # plt.title("Radio Image Range")
+    # plt.show()
     print(np.mean(img_array))
     print(np.std(img_array))
     return

@@ -199,7 +199,15 @@ class SourceEvaluator(DatasetEvaluator):
         # Calculate the recall based on general recall and precision, not COCO mAP, with single best prediction
         self._logger.info(f"Evaluating with non-mAR...")
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=1)
-        pickle.dump(all_recall["per_source"], file=open(os.path.join(self._output_dir, f"{self._dataset_name}_recall_limit1.pkl"), "wb"))
+        pickle.dump(
+            all_recall["per_source"],
+            file=open(
+                os.path.join(
+                    self._output_dir, f"{self._dataset_name}_recall_limit1.pkl"
+                ),
+                "wb",
+            ),
+        )
         self._results["own_recall"] = {
             "ar": all_recall["ar"],
             "ap": all_recall["ap"],
@@ -207,7 +215,15 @@ class SourceEvaluator(DatasetEvaluator):
             "recall": all_recall["recalls"][-1],
         }
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=2)
-        pickle.dump(all_recall["per_source"], file=open(os.path.join(self._output_dir, f"{self._dataset_name}_recall_limit2.pkl"), "wb"))
+        pickle.dump(
+            all_recall["per_source"],
+            file=open(
+                os.path.join(
+                    self._output_dir, f"{self._dataset_name}_recall_limit2.pkl"
+                ),
+                "wb",
+            ),
+        )
         self._results["own_recall_2"] = {
             "ar": all_recall["ar"],
             "ap": all_recall["ap"],
@@ -215,7 +231,15 @@ class SourceEvaluator(DatasetEvaluator):
             "recall": all_recall["recalls"][-1],
         }
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=5)
-        pickle.dump(all_recall["per_source"], file=open(os.path.join(self._output_dir, f"{self._dataset_name}_recall_limit5.pkl"), "wb"))
+        pickle.dump(
+            all_recall["per_source"],
+            file=open(
+                os.path.join(
+                    self._output_dir, f"{self._dataset_name}_recall_limit5.pkl"
+                ),
+                "wb",
+            ),
+        )
         self._results["own_recall_5"] = {
             "ar": all_recall["ar"],
             "ap": all_recall["ap"],
@@ -223,7 +247,15 @@ class SourceEvaluator(DatasetEvaluator):
             "recall": all_recall["recalls"][-1],
         }
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=10)
-        pickle.dump(all_recall["per_source"], file=open(os.path.join(self._output_dir, f"{self._dataset_name}_recall_limit10.pkl"), "wb"))
+        pickle.dump(
+            all_recall["per_source"],
+            file=open(
+                os.path.join(
+                    self._output_dir, f"{self._dataset_name}_recall_limit10.pkl"
+                ),
+                "wb",
+            ),
+        )
         self._results["own_recall_10"] = {
             "ar": all_recall["ar"],
             "ap": all_recall["ap"],
@@ -231,7 +263,15 @@ class SourceEvaluator(DatasetEvaluator):
             "recall": all_recall["recalls"][-1],
         }
         all_recall = _evaluate_box_proposals(predictions, self._coco_api, limit=100)
-        pickle.dump(all_recall["per_source"], file=open(os.path.join(self._output_dir, f"{self._dataset_name}_recall_limit100.pkl"), "wb"))
+        pickle.dump(
+            all_recall["per_source"],
+            file=open(
+                os.path.join(
+                    self._output_dir, f"{self._dataset_name}_recall_limit100.pkl"
+                ),
+                "wb",
+            ),
+        )
         self._results["own_recall_100"] = {
             "ar": all_recall["ar"],
             "ap": all_recall["ap"],
@@ -342,7 +382,10 @@ class SourceEvaluator(DatasetEvaluator):
         for prediction in predictions:
             if prediction["source_name"] in self._physical_cuts[cut_key]:
                 prediction_cut.append(prediction)
-            elif prediction["source_name"].rpartition(".")[0] in self._physical_cuts[cut_key]:
+            elif (
+                prediction["source_name"].rpartition(".")[0]
+                in self._physical_cuts[cut_key]
+            ):
                 # Handles the rotation, where there is an extra '.rot' after the source name
                 prediction_cut.append(prediction)
         return prediction_cut
@@ -576,7 +619,7 @@ def _evaluate_box_proposals(
         gt_boxes = gt_boxes[valid_gt_inds]
 
         num_pos += len(gt_boxes)  # 1 GT from each image
-        num_boxes += limit # N number of proposals kept
+        num_boxes += limit  # N number of proposals kept
 
         if len(gt_boxes) == 0:
             continue
@@ -613,7 +656,9 @@ def _evaluate_box_proposals(
             overlaps[box_ind, :] = -1
             overlaps[:, gt_ind] = -1
             print(preds[gt_ind])
-            source_outcomes[prediction_dict["source_name"]] = gt_ovr.item() # Save overlap, so can be used for determining outcome
+            source_outcomes[
+                prediction_dict["source_name"]
+            ] = gt_ovr.item()  # Save overlap, so can be used for determining outcome
 
         # append recorded iou coverage level
         gt_overlaps.append(_gt_overlaps)
@@ -637,7 +682,7 @@ def _evaluate_box_proposals(
     for i, t in enumerate(thresholds):
         precisions[i] = (gt_overlaps >= t).float().sum() / float(
             num_boxes
-        ) # TP/(Num of boxes kept)
+        )  # TP/(Num of boxes kept)
     # ar = 2 * np.trapz(recalls, thresholds)
     ar = recalls.mean()
     ap = precisions.mean()

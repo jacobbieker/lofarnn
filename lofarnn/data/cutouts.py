@@ -75,7 +75,11 @@ def make_bounding_box(source_location):
     xmax = xmin + 2
 
     return xmin, ymin, xmax, ymax, source_location[4], source_location[5]
+
+
 import matplotlib.pyplot as plt
+
+
 def augment_image_and_bboxes(
     image,
     cutouts,
@@ -91,7 +95,9 @@ def augment_image_and_bboxes(
     bounding_boxes = []
     prop_boxes = []
     seg_boxes = []
-    new_crop = int(np.ceil(image.shape[0]/np.sqrt(2))) # Is 200 for 282, which is what is wanted, and works for others
+    new_crop = int(
+        np.ceil(image.shape[0] / np.sqrt(2))
+    )  # Is 200 for 282, which is what is wanted, and works for others
     seq = iaa.Sequential(
         [
             iaa.Affine(rotate=angle),
@@ -120,13 +126,9 @@ def augment_image_and_bboxes(
         _, sbbs = seq(image=image, bounding_boxes=sbbs)
     if segmentation_maps.any():
         segmaps = SegmentationMapsOnImage(segmentation_maps, shape=image.shape)
-        _, segmaps_rescaled = seq(
-            image=image, segmentation_maps=segmaps
-        )
+        _, segmaps_rescaled = seq(image=image, segmentation_maps=segmaps)
     _, bbs = seq(image=image, bounding_boxes=bbs)
-    image, pbbs = seq(
-        image=image, bounding_boxes=pbbs
-    )
+    image, pbbs = seq(image=image, bounding_boxes=pbbs)
     # Rescale image and bounding boxes
     if type(new_size) == int or type(new_size):
         image_rescaled = ia.imresize_single_image(image, (new_size, new_size))
@@ -156,26 +158,26 @@ def augment_image_and_bboxes(
         image = image[:, :, :3]
         image_rescaled = image_rescaled[:, :, :3]
         image_bbs = bbs.draw_on_image(image, size=1, alpha=1)
-        #image_bbs = sbbs.draw_on_image(image_bbs, size=1, alpha=1)
-        #image_bbs = segmaps.draw_on_image(image_bbs)[0]
+        # image_bbs = sbbs.draw_on_image(image_bbs, size=1, alpha=1)
+        # image_bbs = segmaps.draw_on_image(image_bbs)[0]
         image_rescaled_bbs = bbs_rescaled.draw_on_image(
             image_rescaled, size=1, alpha=1, color=(255, 255, 255)
         )
-        #image_rescaled_bbs = sbbs_rescaled.draw_on_image(
+        # image_rescaled_bbs = sbbs_rescaled.draw_on_image(
         #    image_rescaled_bbs, size=1, alpha=1, color=(0, 255, 255)
-        #)
-        #image_rescaled_bbs = segmaps_rescaled.draw_on_image(image_rescaled_bbs)[0]
+        # )
+        # image_rescaled_bbs = segmaps_rescaled.draw_on_image(image_rescaled_bbs)[0]
         plt.imshow(image_bbs)
         plt.title("Before")
         plt.show()
-        #plt.savefig("before_rot.png")
-        #plt.cla()
-        #plt.clf()
+        # plt.savefig("before_rot.png")
+        # plt.cla()
+        # plt.clf()
         plt.imshow(image_rescaled_bbs)
         plt.title("After")
-        #plt.savefig("after_rot.png")
-        #plt.cla()
-        #plt.clf()
+        # plt.savefig("after_rot.png")
+        # plt.cla()
+        # plt.clf()
         plt.show()
     for index, bbox in enumerate(bbs_rescaled):
         cutouts[index][0] = bbox.x1

@@ -196,7 +196,7 @@ def make_single_coco_annotation_set(
         # Change order to H,W,C for imgaug
         segmentation_maps = np.moveaxis(segmentation_maps, 0, -1)
         if rotation is not None:
-            if isinstance(rotation, (list,tuple,np.ndarray)):
+            if isinstance(rotation, (list, tuple, np.ndarray)):
                 (
                     image,
                     cutouts,
@@ -494,7 +494,7 @@ def create_coco_annotations(
         manager = Manager()
         pool = Pool(processes=os.cpu_count())
         L = manager.list()
-        rotation = np.linspace(0,180,num_copies)
+        rotation = np.linspace(0, 180, num_copies)
         [
             pool.apply_async(
                 make_single_coco_annotation_set,

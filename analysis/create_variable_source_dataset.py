@@ -29,7 +29,7 @@ else:
     multi_process = True
 
 rotation = 180
-size = (300./3600.)*np.sqrt(2)
+size = (300.0 / 3600.0) * np.sqrt(2)
 print(size)
 create_variable_source_dataset(
     cutout_directory=cutout_directory,
