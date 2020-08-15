@@ -279,14 +279,14 @@ def plot_plots(
                     iteration[metrics_files[i]],
                     recall[f"{experiment_name}_train_test/own_recall_{j}_{cut}/recall"],
                     label=f"{labels[i]} Train",
-                    #color=colors[i],
+                    # color=colors[i],
                 )
                 plt.plot(
                     iteration[metrics_files[i]],
                     recall[f"{experiment_name}_val/own_recall_{j}_{cut}/recall"],
                     label=f"{labels[i]} Val",
                     linestyle="dashed",
-                    #color=colors[i],
+                    # color=colors[i],
                 )
 
             plt.legend(loc="upper right")
@@ -313,14 +313,14 @@ def plot_plots(
                         f"{experiment_name}_train_test/own_recall_{j}_{cut}/precision"
                     ],
                     label=f"{cut} Train",
-                    #color=colors[i],
+                    # color=colors[i],
                 )
                 plt.plot(
                     iteration[metrics_files[i]],
                     recall[f"{experiment_name}_val/own_recall_{j}_{cut}/precision"],
                     label=f"{cut} Val",
                     linestyle="dashed",
-                    #color=colors[i],
+                    # color=colors[i],
                 )
 
             plt.legend(loc="upper right")
@@ -346,14 +346,14 @@ def plot_plots(
                     iteration[metrics_files[i]],
                     recall[f"{experiment_name}_train_test/own_recall_{j}_{cut}/recall"],
                     label=f"{j} Train",
-                    #color=colors[i],
+                    # color=colors[i],
                 )
                 plt.plot(
                     iteration[metrics_files[i]],
                     recall[f"{experiment_name}_val/own_recall_{j}_{cut}/recall"],
                     label=f"{j} Val",
                     linestyle="dashed",
-                    #color=colors[i],
+                    # color=colors[i],
                 )
 
             plt.legend(loc="upper right")
@@ -380,14 +380,14 @@ def plot_plots(
                         f"{experiment_name}_train_test/own_recall_{j}_{cut}/precision"
                     ],
                     label=f"{j} Train",
-                    #color=colors[i],
+                    # color=colors[i],
                 )
                 plt.plot(
                     iteration[metrics_files[i]],
                     recall[f"{experiment_name}_val/own_recall_{j}_{cut}/precision"],
                     label=f"{j} Val",
                     linestyle="dashed",
-                    #color=colors[i],
+                    # color=colors[i],
                 )
 
             plt.legend(loc="upper right")
