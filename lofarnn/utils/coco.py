@@ -222,7 +222,7 @@ def make_single_cnn_set(
             continue
 
         # First R (Radio) channel
-        image = image[:,:,0]
+        image = image[:, :, 0]
         image = convert_to_valid_color(
             image,
             clip=True,
@@ -247,7 +247,7 @@ def make_single_cnn_set(
             "image_id": i,
             "height": height,
             "width": width,
-            "depth": 1,
+            "depth": image.shape[2],
         }
 
         # Get all sources within 300 arcseconds of the source, or root(2) value
@@ -263,6 +263,10 @@ def make_single_cnn_set(
         objects, distances = determine_visible_catalogue_source_and_separation(
             source["RA"], source["DEC"], 150.0 / 3600, pan_wise_catalog
         )
+        # Sort from closest to farthest distance
+        idx = np.argsort(distances)
+        objects = objects[idx]
+        distances = distances[idx]
         layers = [
             "iFApMag",
             "w1Mag",
@@ -278,22 +282,24 @@ def make_single_cnn_set(
         optical_labels = []
         for j, obj in enumerate(objects):
             optical_sources.append([])
-            if np.isclose(source['ID_ra'], obj['ra']) and np.isclose(source['ID_dec'], obj['dec']):
-                optical_labels.append(1) # Optical Source
+            if np.isclose(source["ID_ra"], obj["ra"]) and np.isclose(
+                source["ID_dec"], obj["dec"]
+            ):
+                optical_labels.append(1)  # Optical Source
             else:
                 optical_labels.append(0)
             optical_sources[-1].append(distances[j])
             for layer in layers:
                 value = np.nan_to_num(obj[layer])
-                if normalize: # Scale to between 0 and 1 for 10 to 28 magnitude
+                if normalize:  # Scale to between 0 and 1 for 10 to 28 magnitude
                     try:
                         value = np.clip(value, 10.0, 28.0)
-                        value = (value - 10.0)/(28.0 - 10.0)
+                        value = (value - 10.0) / (28.0 - 10.0)
                     except Exception as e:
                         print(f"Error: {e}")
                 optical_sources[-1].append(value)
         record["optical_sources"] = optical_sources
-        record['optical_labels'] = optical_labels
+        record["optical_labels"] = optical_labels
         # Now add the labels, so need to know which optical source is the true one
         L.append(record)
 
@@ -802,6 +808,7 @@ def create_coco_annotations(
     if verbose:
         print(f"COCO annotation file created in '{json_dir}'.\n")
 
+
 def create_cnn_annotations(
     image_names,
     image_destination_dir=None,
@@ -868,7 +875,7 @@ def create_cnn_annotations(
         L = manager.list()
         rotation = np.linspace(0, 170, num_copies)
         [
-            pool.apply_async(
+            pool.apply(
                 make_single_cnn_set,
                 args=[
                     single_names,
@@ -896,7 +903,7 @@ def create_cnn_annotations(
         print(f"Num Multi Copies: {num_multi_copies}")
         multi_rotation = np.linspace(0, 170, num_multi_copies)
         [
-            pool.apply_async(
+            pool.apply(
                 make_single_cnn_set,
                 args=[
                     extra_names,
@@ -959,6 +966,7 @@ def create_cnn_annotations(
         pickle.dump(dataset_dicts, outfile)
     if verbose:
         print(f"CNN annotation file created in '{json_dir}'.\n")
+
 
 def create_cnn_dataset(
     root_directory,
@@ -1026,7 +1034,6 @@ def create_cnn_dataset(
         normalize=normalize,
         all_channels=all_channels,
         vac_catalog_location=vac_catalog,
-        cut_size=200,
         rotation_names=multi_names,
         verbose=verbose,
     )
@@ -1043,7 +1050,6 @@ def create_cnn_dataset(
         normalize=normalize,
         all_channels=all_channels,
         vac_catalog_location=vac_catalog,
-        cut_size=200,
         rotation_names=multi_names,
         verbose=verbose,
     )
@@ -1061,7 +1067,6 @@ def create_cnn_dataset(
             normalize=normalize,
             all_channels=all_channels,
             vac_catalog_location=vac_catalog,
-            cut_size=200,
             rotation_names=multi_names,
             verbose=verbose,
         )
@@ -1078,10 +1083,10 @@ def create_cnn_dataset(
         normalize=normalize,
         all_channels=all_channels,
         vac_catalog_location=vac_catalog,
-        cut_size=200,
         rotation_names=multi_names,
         verbose=verbose,
     )
+
 
 def create_coco_dataset(
     root_directory,

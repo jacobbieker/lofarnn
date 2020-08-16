@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import argparse
-from lofarnn.models.dataloaders.utils import get_lofar_dicts
+from lofarnn.models.dataloaders.datasets import RadioSourceDataset
 
 try:
     environment = os.environ["LOFARNN_ARCH"]
@@ -39,14 +39,18 @@ def default_argument_parser():
     parser.add_argument(
         "--norm",
         action="store_true",
-        help="whether to normalize point locations, default False",
+        help="whether to normalize magnitudes or not, default False",
+    )
+    parser.add_argument(
+        "--single",
+        action="store_true",
+        help="whether to use single source or multiple, default False",
     )
     parser.add_argument(
         "--num-sources", type=int, default=40, help="max number of sources to include",
     )
-    parser.add_argument("--dataset", type=str, default="", help="path to dataset file")
     parser.add_argument(
-        "--test-dataset", type=str, default="", help="path to test dataset file"
+        "--dataset", type=str, default="", help="path to dataset annotations files"
     )
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
     parser.add_argument("--batch", type=int, default=32, help="batch size")
@@ -61,9 +65,12 @@ def default_argument_parser():
     return parser
 
 
-def test(args, model, device, test_loader):
+def test(args, model, device, test_loader, name="test"):
     save_test_loss = []
     save_correct = []
+    save_recalls = []
+    recall = 0
+    precision = 0
 
     model.eval()
     test_loss = 0
@@ -71,25 +78,39 @@ def test(args, model, device, test_loader):
     with torch.no_grad():
         for data in test_loader:
             data = data.to(device)
-            output = model(data)
+            output = model(data["image"], data["sources"])
             # sum up batch loss
-            test_loss += F.nll_loss(output, data.y, reduction="sum").item()
+            test_loss += F.nll_loss(output, data["labels"], reduction="sum").item()
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
-            correct += pred.eq(data.y.view_as(pred)).sum().item()
+            correct += pred.eq(data["labels"].view_as(pred)).sum().item()
 
             save_test_loss.append(test_loss)
             save_correct.append(correct)
+            if (
+                1 in data["labels"]
+                and pred.eq(data["labels"].view_as(pred)).sum().item()
+            ):
+                recall += 1
 
+    recall /= len(test_loader.dataset.annotations)  # One source per annotation
+    save_recalls.append(recall)
     test_loss /= len(test_loader)
 
     print(
-        "\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n".format(
-            test_loss, correct, len(test_loader), 100.0 * correct / len(test_loader)
+        "\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%) Recall: {:.2f}%\n".format(
+            test_loss,
+            correct,
+            len(test_loader),
+            100.0 * correct / len(test_loader),
+            recall,
         )
     )
     a = np.asarray(save_test_loss)
-    with open(os.path.join(args.output_dir, "test_loss.csv"), "ab") as f:
+    with open(os.path.join(args.output_dir, f"{name}_loss.csv"), "ab") as f:
+        np.savetxt(f, a, delimiter=",")
+    a = np.asarray(save_recalls)
+    with open(os.path.join(args.output_dir, f"{name}_recall.csv"), "ab") as f:
         np.savetxt(f, a, delimiter=",")
 
 
@@ -111,7 +132,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
         if batch_idx % args.log_interval == 0:
             print(
                 "Train Epoch: {}\tLoss: {:.6f} \t Average loss {:.6f}".format(
-                    epoch, loss.item(), total_loss / (batch_idx + 1)
+                    epoch, loss.item(), np.mean(save_loss[-args.log_interval :])
                 )
             )
     a = np.asarray(save_loss)
@@ -123,18 +144,34 @@ def setup(args):
     """
     Setup dataset and dataloaders for these new datasets
     """
-    train_dataset = dataset.TensorDataset()
-    test_dataset = dataset.TensorDataset()
-    return train_dataset, test_dataset
+    train_dataset = RadioSourceDataset(
+        os.path.join(args.dataset, f"cnn_train_norm{args.norm}.pkl"),
+        single_source_per_img=args.single,
+    )
+    train_test_dataset = RadioSourceDataset(
+        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
+        single_source_per_img=args.single,
+    )
+    val_dataset = RadioSourceDataset(
+        os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
+        single_source_per_img=args.single,
+    )
+    return train_dataset, train_test_dataset, val_dataset
 
 
 def main(args):
-    train_dataset, test_dataset = setup(args)
+    train_dataset, train_test_dataset, val_dataset = setup(args)
     train_loader = dataloader.DataLoader(
         train_dataset, batch_size=args.batch, shuffle=True, num_workers=os.cpu_count()
     )
+    train_test_loader = dataloader.DataLoader(
+        train_test_dataset,
+        batch_size=args.batch,
+        shuffle=True,
+        num_workers=os.cpu_count(),
+    )
     test_loader = dataloader.DataLoader(
-        test_dataset, batch_size=args.batch, shuffle=False, num_workers=os.cpu_count()
+        val_dataset, batch_size=args.batch, shuffle=False, num_workers=os.cpu_count()
     )
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = RadioSingleSourceModel(args.classes, 10).to(device)
@@ -142,6 +179,7 @@ def main(args):
     print("Model created")
     for epoch in range(args.epochs):
         train(args, model, device, train_loader, optimizer, epoch)
+        test(args, model, device, train_test_loader, "train_test")
         test(args, model, device, test_loader)
 
 
