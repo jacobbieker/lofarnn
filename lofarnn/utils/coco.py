@@ -6,7 +6,7 @@ from zlib import crc32
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS
-from lofarnn.data.datasets import determine_visible_catalogue_source_and_separation
+from lofarnn.utils.fits import determine_visible_catalogue_source_and_separation
 
 import numpy as np
 from PIL import Image

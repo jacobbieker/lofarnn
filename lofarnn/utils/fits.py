@@ -1,4 +1,6 @@
 import numpy as np
+from astropy import units as u
+from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.wcs import WCS
 
@@ -97,3 +99,74 @@ def extract_subimage(filename, ra, dec, size, hduid=0, verbose=True):
     y = imc[0][1]
     hdu = flatten(orighdu, x, y, psize, hduid=hduid, verbose=verbose)
     return hdu
+
+
+def determine_visible_catalogue_source_and_separation(
+    ra, dec, size, catalogue, verbose=False
+):
+    """
+    Find the sources in the catalogue that are visible in the cutout, and returns a smaller catalogue for that
+    :param ra: Radio RA
+    :param dec: Radio DEC
+    :param wcs: WCS of Radio FITS files
+    :param size: Size of cutout in degrees
+    :param catalogue: Pan-AllWISE catalogue
+    :param l_objects: LOFAR Value Added Catalogue objects
+    :return: Subcatalog of catalogue that only contains sources near the radio source in the cutout size, as well as
+    SkyCoord of their world coordinates
+    """
+    try:
+        ra_array = np.array(catalogue["ra"], dtype=float)
+        dec_array = np.array(catalogue["dec"], dtype=float)
+    except:
+        ra_array = np.array(catalogue["ID_ra"], dtype=float)
+        dec_array = np.array(catalogue["ID_dec"], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
+
+    source_coord = SkyCoord(ra, dec, unit="deg")
+    search_radius = size * u.deg
+    d2d = source_coord.separation(sky_coords)
+    catalogmask = d2d < search_radius
+    idxcatalog = np.where(catalogmask)[0]
+    objects = catalogue[idxcatalog]
+
+    try:
+        ra_array = np.array(catalogue["ra"], dtype=float)
+        dec_array = np.array(catalogue["dec"], dtype=float)
+    except:
+        ra_array = np.array(catalogue["ID_ra"], dtype=float)
+        dec_array = np.array(catalogue["ID_dec"], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
+    d2d = source_coord.separation(sky_coords)
+
+    return objects, d2d
+
+
+def determine_visible_catalogue_sources(ra, dec, size, catalogue, verbose=False):
+    """
+    Find the sources in the catalogue that are visible in the cutout, and returns a smaller catalogue for that
+    :param ra: Radio RA
+    :param dec: Radio DEC
+    :param wcs: WCS of Radio FITS files
+    :param size: Size of cutout in degrees
+    :param catalogue: Pan-AllWISE catalogue
+    :param l_objects: LOFAR Value Added Catalogue objects
+    :return: Subcatalog of catalogue that only contains sources near the radio source in the cutout size, as well as
+    SkyCoord of their world coordinates
+    """
+    try:
+        ra_array = np.array(catalogue["ra"], dtype=float)
+        dec_array = np.array(catalogue["dec"], dtype=float)
+    except:
+        ra_array = np.array(catalogue["ID_ra"], dtype=float)
+        dec_array = np.array(catalogue["ID_dec"], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
+
+    source_coord = SkyCoord(ra, dec, unit="deg")
+    search_radius = size * u.deg
+    d2d = source_coord.separation(sky_coords)
+    catalogmask = d2d < search_radius
+    idxcatalog = np.where(catalogmask)[0]
+    objects = catalogue[idxcatalog]
+
+    return objects
