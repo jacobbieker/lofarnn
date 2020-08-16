@@ -275,16 +275,26 @@ def make_single_cnn_set(
             "w4Mag",
         ]
         optical_sources = []
+        optical_labels = []
         for j, obj in enumerate(objects):
             optical_sources.append([])
+            if np.isclose(source['ID_ra'], obj['ra']) and np.isclose(source['ID_dec'], obj['dec']):
+                optical_labels.append(1) # Optical Source
+            else:
+                optical_labels.append(0)
             optical_sources[-1].append(distances[j])
             for layer in layers:
-                value = np.nan_to_num(source[layer])
+                value = np.nan_to_num(obj[layer])
                 if normalize: # Scale to between 0 and 1 for 10 to 28 magnitude
-                    value = np.clip(value, 10.0, 28.0)
-                    value = (value - 10.0)/(28.0 - 10.0)
+                    try:
+                        value = np.clip(value, 10.0, 28.0)
+                        value = (value - 10.0)/(28.0 - 10.0)
+                    except Exception as e:
+                        print(f"Error: {e}")
                 optical_sources[-1].append(value)
         record["optical_sources"] = optical_sources
+        record['optical_labels'] = optical_labels
+        # Now add the labels, so need to know which optical source is the true one
         L.append(record)
 
 
@@ -838,13 +848,9 @@ def create_cnn_annotations(
         extra_rotates = []
         t = []
         for i, name in enumerate(image_names):
-            print(name.stem)
-            print(rotation_names)
             if name.stem in rotation_names:
                 extra_rotates.append(i)
                 t.append(rotation_names)
-        print(f"Matched Names: {t}")
-        print(f"Indicies: {extra_rotates} out of {image_names}")
         extra_rotates = np.asarray(extra_rotates)
         image_names = np.asarray(image_names)
         extra_names = image_names[extra_rotates]

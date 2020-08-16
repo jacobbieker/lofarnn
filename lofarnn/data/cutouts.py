@@ -91,7 +91,6 @@ def augment_image_and_bboxes(
     crop_size=None,
     verbose=False,
 ):
-    print(f"Original Image Size: {image.shape}")
     bounding_boxes = []
     prop_boxes = []
     seg_boxes = []
@@ -130,7 +129,7 @@ def augment_image_and_bboxes(
     _, bbs = seq(image=image, bounding_boxes=bbs)
     image, pbbs = seq(image=image, bounding_boxes=pbbs)
     # Rescale image and bounding boxes
-    if type(new_size) == int or type(new_size):
+    if type(new_size) == int:
         image_rescaled = ia.imresize_single_image(image, (new_size, new_size))
     else:
         image_rescaled = ia.imresize_single_image(
