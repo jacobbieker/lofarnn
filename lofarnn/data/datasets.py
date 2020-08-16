@@ -51,8 +51,38 @@ def make_layer(value, value_error, size, non_uniform=False):
         return np.full(shape=size, fill_value=value)
 
 
-def determine_visible_catalogue_sources(
-    ra, dec, wcs, size, catalogue, l_objects, verbose=False
+def determine_visible_catalogue_sources(ra, dec, size, catalogue, verbose=False):
+    """
+    Find the sources in the catalogue that are visible in the cutout, and returns a smaller catalogue for that
+    :param ra: Radio RA
+    :param dec: Radio DEC
+    :param wcs: WCS of Radio FITS files
+    :param size: Size of cutout in degrees
+    :param catalogue: Pan-AllWISE catalogue
+    :param l_objects: LOFAR Value Added Catalogue objects
+    :return: Subcatalog of catalogue that only contains sources near the radio source in the cutout size, as well as
+    SkyCoord of their world coordinates
+    """
+    try:
+        ra_array = np.array(catalogue["ra"], dtype=float)
+        dec_array = np.array(catalogue["dec"], dtype=float)
+    except:
+        ra_array = np.array(catalogue["ID_ra"], dtype=float)
+        dec_array = np.array(catalogue["ID_dec"], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
+
+    source_coord = SkyCoord(ra, dec, unit="deg")
+    search_radius = size * u.deg
+    d2d = source_coord.separation(sky_coords)
+    catalogmask = d2d < search_radius
+    idxcatalog = np.where(catalogmask)[0]
+    objects = catalogue[idxcatalog]
+
+    return objects
+
+
+def determine_visible_catalogue_source_and_separation(
+    ra, dec, size, catalogue, verbose=False
 ):
     """
     Find the sources in the catalogue that are visible in the cutout, and returns a smaller catalogue for that
@@ -74,20 +104,22 @@ def determine_visible_catalogue_sources(
     sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
 
     source_coord = SkyCoord(ra, dec, unit="deg")
-    other_source = SkyCoord(l_objects["ID_ra"], l_objects["ID_dec"], unit="deg")
     search_radius = size * u.deg
     d2d = source_coord.separation(sky_coords)
     catalogmask = d2d < search_radius
     idxcatalog = np.where(catalogmask)[0]
     objects = catalogue[idxcatalog]
 
-    if verbose:
-        print(source_coord)
-        print(other_source)
-        print(skycoord_to_pixel(source_coord, wcs, 0))
-        print(skycoord_to_pixel(other_source, wcs, 0))
+    try:
+        ra_array = np.array(catalogue["ra"], dtype=float)
+        dec_array = np.array(catalogue["dec"], dtype=float)
+    except:
+        ra_array = np.array(catalogue["ID_ra"], dtype=float)
+        dec_array = np.array(catalogue["ID_dec"], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
+    d2d = source_coord.separation(sky_coords)
 
-    return objects
+    return objects, d2d
 
 
 def make_catalogue_layer(
@@ -581,11 +613,11 @@ def create_cutouts(
             # Get the catalog sources once, to speed things up
             # cuts size in two to only get sources that fall within the cutout, instead of ones that go twice as large
             cutout_catalog = determine_visible_catalogue_sources(
-                source_ra, source_dec, wcs, source_size / 2, pan_wise_catalog, source
+                source_ra, source_dec, source_size / 2, pan_wise_catalog
             )
             # Now determine if there are other sources in the area
             other_visible_sources = determine_visible_catalogue_sources(
-                source_ra, source_dec, wcs, source_size / 2, mosaic_cutouts, source
+                source_ra, source_dec, source_size / 2, mosaic_cutouts
             )
 
             # Now make proposal boxes

@@ -3,6 +3,10 @@ import pickle
 import random
 from pathlib import Path
 from zlib import crc32
+from astropy.coordinates import SkyCoord
+from astropy.io import fits
+from astropy.wcs import WCS
+from lofarnn.data.datasets import determine_visible_catalogue_source_and_separation
 
 import numpy as np
 from PIL import Image
@@ -85,6 +89,203 @@ def create_coco_style_directory_structure(root_directory, suffix="", verbose=Fal
         test_directory,
         annotations_directory,
     )
+
+
+def make_single_cnn_set(
+    image_names,
+    L,
+    m,
+    image_destination_dir=None,
+    pan_wise_location="",
+    resize=None,
+    rotation=None,
+    convert=True,
+    all_channels=False,
+    vac_catalog_location="",
+    segmentation=False,
+    normalize=True,
+    box_seg=True,
+    cut_size=None,
+    verbose=False,
+):
+    for i, image_name in enumerate(image_names):
+        # Get image dimensions and insert them in a python dict
+        if convert:
+            image_dest_filename = os.path.join(
+                image_destination_dir, image_name.stem + f".cnn.{m}.png"
+            )
+        else:
+            if rotation is not None and rotation.any() > 0:
+                image_dest_filename = os.path.join(
+                    image_destination_dir, image_name.stem + f".cnn.{m}.npy"
+                )
+            else:
+                image_dest_filename = os.path.join(
+                    image_destination_dir, image_name.stem + f".cnn.npy"
+                )
+        (
+            image,
+            cutouts,
+            proposal_boxes,
+            segmentation_maps_five,
+            seg_box_five,
+            segmentation_maps_three,
+            seg_box_three,
+        ) = np.load(
+            image_name, allow_pickle=True
+        )  # mmap_mode might allow faster read
+        if segmentation == 3:
+            segmentation_maps = segmentation_maps_three.astype(np.uint8)
+            segmentation_proposals = seg_box_three
+        else:
+            segmentation_maps = segmentation_maps_five.astype(np.uint8)
+            segmentation_proposals = seg_box_five
+
+        if not segmentation:
+            segmentation_maps = np.asarray([])
+            segmentation_proposals = np.asarray([])
+
+        # Clean out segmentation proposals that do not have positive bounding boxes, if we need bounding boxes around them
+        if box_seg and segmentation:
+            kept_i = []
+            for i, sbox in enumerate(segmentation_proposals):
+                if (
+                    int(sbox[0]) >= 0
+                ):  # All negative values are for invalid segmentation maps
+                    kept_i.append(i)
+            # Only keep those with positive bounding boxes
+            segmentation_maps = np.take(segmentation_maps, kept_i, axis=0)
+            segmentation_proposals = np.take(segmentation_proposals, kept_i, axis=0)
+        image = np.nan_to_num(image)
+        # Change order to H,W,C for imgaug
+        segmentation_maps = np.moveaxis(segmentation_maps, 0, -1)
+        if rotation is not None:
+            if isinstance(rotation, (list, tuple, np.ndarray)):
+                (
+                    image,
+                    cutouts,
+                    proposal_boxes,
+                    segmentation_maps,
+                    segmentation_proposals,
+                ) = augment_image_and_bboxes(
+                    image,
+                    cutouts=cutouts,
+                    proposal_boxes=proposal_boxes,
+                    segmentation_maps=segmentation_maps,
+                    segmentation_proposals=segmentation_proposals,
+                    angle=rotation[m],
+                    crop_size=cut_size,
+                    new_size=resize,
+                )
+            else:
+                (
+                    image,
+                    cutouts,
+                    proposal_boxes,
+                    segmentation_maps,
+                    segmentation_proposals,
+                ) = augment_image_and_bboxes(
+                    image,
+                    cutouts=cutouts,
+                    proposal_boxes=proposal_boxes,
+                    segmentation_maps=segmentation_maps,
+                    segmentation_proposals=segmentation_proposals,
+                    angle=np.random.uniform(-rotation, rotation),
+                    crop_size=cut_size,
+                    new_size=resize,
+                )
+        else:
+            # Need this to convert the bbox coordinates into the correct format
+            (
+                image,
+                cutouts,
+                proposal_boxes,
+                segmentation_maps,
+                segmentation_proposals,
+            ) = augment_image_and_bboxes(
+                image,
+                cutouts=cutouts,
+                proposal_boxes=proposal_boxes,
+                segmentation_maps=segmentation_maps,
+                segmentation_proposals=segmentation_proposals,
+                angle=0,
+                new_size=resize,
+                crop_size=cut_size,
+                verbose=False,
+            )
+        width, height, depth = np.shape(image)
+        # Move the segmentation maps back to original order
+        if segmentation_maps.any():
+            segmentation_maps = np.moveaxis(segmentation_maps, -1, 0)
+        # print(segmentation_maps[0].shape)
+        if all_channels and depth != 10:
+            continue
+
+        # First R (Radio) channel
+        image = image[:,:,0]
+        image = convert_to_valid_color(
+            image,
+            clip=True,
+            lower_clip=0.0,
+            upper_clip=1000,
+            normalize=normalize,
+            scaling=None,
+        )
+        if not os.path.exists(os.path.join(image_dest_filename)):
+            if convert:
+                image = np.nan_to_num(image)
+                image = (255.0 * image).astype(np.uint8)
+                # If converting, only take the first one, radio
+                pil_im = Image.fromarray(image, "RGB")
+                pil_im.save(image_dest_filename)
+            else:
+                image = np.nan_to_num(image)  # Only take radio
+                np.save(image_dest_filename, image)  # Save to the final destination
+
+        record = {
+            "file_name": image_dest_filename,
+            "image_id": i,
+            "height": height,
+            "width": width,
+            "depth": 1,
+        }
+
+        # Get all sources within 300 arcseconds of the source, or root(2) value
+        print("Trying To Open")
+        pan_wise_catalog = fits.open(pan_wise_location, memmap=True)
+        pan_wise_catalog = pan_wise_catalog[1].data
+        print("Opened Catalog")
+        # Get all sources within 300 arcseconds, can cut them down later
+        vac_catalog = get_lotss_objects(vac_catalog_location)
+        # Get source
+        source = vac_catalog[vac_catalog["Source_Name"] == image_name.stem]
+        # All optical sources in 150 arcsecond radius of the point
+        objects, distances = determine_visible_catalogue_source_and_separation(
+            source["RA"], source["DEC"], 150.0 / 3600, pan_wise_catalog
+        )
+        layers = [
+            "iFApMag",
+            "w1Mag",
+            "gFApMag",
+            "rFApMag",
+            "zFApMag",
+            "yFApMag",
+            "w2Mag",
+            "w3Mag",
+            "w4Mag",
+        ]
+        optical_sources = []
+        for j, obj in enumerate(objects):
+            optical_sources.append([])
+            optical_sources[-1].append(distances[j])
+            for layer in layers:
+                value = np.nan_to_num(source[layer])
+                if normalize: # Scale to between 0 and 1 for 10 to 28 magnitude
+                    value = np.clip(value, 10.0, 28.0)
+                    value = (value - 10.0)/(28.0 - 10.0)
+                optical_sources[-1].append(value)
+        record["optical_sources"] = optical_sources
+        L.append(record)
 
 
 def make_single_coco_annotation_set(
@@ -591,6 +792,290 @@ def create_coco_annotations(
     if verbose:
         print(f"COCO annotation file created in '{json_dir}'.\n")
 
+def create_cnn_annotations(
+    image_names,
+    image_destination_dir=None,
+    json_dir="",
+    json_name="json_data.pkl",
+    pan_wise_location="",
+    resize=None,
+    rotation=None,
+    convert=True,
+    all_channels=False,
+    vac_catalog_location="",
+    segmentation=False,
+    normalize=True,
+    cut_size=None,
+    rotation_names=None,
+    verbose=False,
+):
+    """
+    Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
+    directory
+    :param segmentation: Whether to include the segmentation maps or not
+    :param image_names: Image names, i.e., the source names
+    :param image_destination_dir: The directory the images will end up in
+    :param json_dir: The directory where to put the JSON annotation file
+    :param json_name: The name of the JSON file
+    :param multiple_bboxes: Whether to use multiple bounding boxes, or only the first, for
+    example, to only use the main source Optical source, or include others that fall within the
+    defined area
+    :param rotation: Whether to rotate the images or not, if given as a tuple, it is taken as rotate each image by that amount,
+    if a single float, then rotates images randomly between -rotation,rotation 50 times
+    :param convert: Whether to convert to PNG files (default), or leave them as NPY files
+    :return:
+    """
+
+    if rotation is not None:
+        if type(rotation) == tuple:
+            num_copies = len(rotation)
+        else:
+            num_copies = 3
+    else:
+        num_copies = 1
+    if rotation_names is not None:
+        # Rotate these specific sources ~ 2.5 times more (generally multicomponent ones)
+        extra_rotates = []
+        t = []
+        for i, name in enumerate(image_names):
+            print(name.stem)
+            print(rotation_names)
+            if name.stem in rotation_names:
+                extra_rotates.append(i)
+                t.append(rotation_names)
+        print(f"Matched Names: {t}")
+        print(f"Indicies: {extra_rotates} out of {image_names}")
+        extra_rotates = np.asarray(extra_rotates)
+        image_names = np.asarray(image_names)
+        extra_names = image_names[extra_rotates]
+        mask = np.ones(len(image_names), np.bool)
+        mask[extra_rotates] = 0
+        single_names = image_names[mask]
+    else:
+        single_names = image_names
+        extra_names = []
+    # List to store single dict for each image
+    dataset_dicts = []
+    if num_copies > 1:
+        manager = Manager()
+        pool = Pool(processes=os.cpu_count())
+        L = manager.list()
+        rotation = np.linspace(0, 170, num_copies)
+        [
+            pool.apply_async(
+                make_single_cnn_set,
+                args=[
+                    single_names,
+                    L,
+                    m,
+                    image_destination_dir,
+                    pan_wise_location,
+                    resize,
+                    rotation,
+                    convert,
+                    all_channels,
+                    vac_catalog_location,
+                    segmentation,
+                    normalize,
+                    False,
+                    cut_size,
+                    verbose,
+                ],
+            )
+            for m in range(num_copies)
+        ]
+        print(len(L))
+        # Now do the same for the extra copies, but with more rotations, ~2.5 to equal out multi and single comp sources
+        num_multi_copies = int(np.ceil(num_copies * 2.5))
+        print(f"Num Multi Copies: {num_multi_copies}")
+        multi_rotation = np.linspace(0, 170, num_multi_copies)
+        [
+            pool.apply_async(
+                make_single_cnn_set,
+                args=[
+                    extra_names,
+                    L,
+                    m,
+                    image_destination_dir,
+                    pan_wise_location,
+                    resize,
+                    multi_rotation,
+                    convert,
+                    all_channels,
+                    vac_catalog_location,
+                    segmentation,
+                    normalize,
+                    False,
+                    cut_size,
+                    verbose,
+                ],
+            )
+            for m in range(num_multi_copies)
+        ]
+        pool.close()
+        pool.join()
+        print(len(L))
+        print(f"Length of L: {len(L)}")
+        for element in L:
+            dataset_dicts.append(element)
+        print(f"Length of Dataset Dict: {len(dataset_dicts)}")
+        # Write all image dictionaries to file as one json
+        json_path = os.path.join(json_dir, json_name)
+        with open(json_path, "wb") as outfile:
+            pickle.dump(dataset_dicts, outfile)
+        if verbose:
+            print(f"CNN annotation file created in '{json_dir}'.\n")
+        return 0  # Returns to doesnt go through it again
+
+    # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
+    bbox_size = []
+    for m in range(num_copies):
+        make_single_cnn_set(
+            image_names=image_names,
+            L=dataset_dicts,
+            m=m,
+            image_destination_dir=image_destination_dir,
+            pan_wise_location=pan_wise_location,
+            resize=resize,
+            rotation=rotation,
+            convert=convert,
+            all_channels=all_channels,
+            vac_catalog_location=vac_catalog_location,
+            segmentation=segmentation,
+            normalize=normalize,
+            box_seg=False,
+            cut_size=cut_size,
+            verbose=verbose,
+        )
+    # Write all image dictionaries to file as one json
+    json_path = os.path.join(json_dir, json_name)
+    with open(json_path, "wb") as outfile:
+        pickle.dump(dataset_dicts, outfile)
+    if verbose:
+        print(f"CNN annotation file created in '{json_dir}'.\n")
+
+def create_cnn_dataset(
+    root_directory,
+    pan_wise_catalog="",
+    split_fraction=0.2,
+    resize=None,
+    rotation=None,
+    convert=True,
+    all_channels=False,
+    vac_catalog="",
+    segmentation=False,
+    normalize=True,
+    subset="",
+    multi_rotate_only=None,
+    verbose=False,
+):
+    """
+    Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
+    directories, and create the COCO annotation file to be loaded into Detectron2, or other similar models
+    :param split_fraction: Fraction of the data for the test set. the validation set is rolled into the test set.
+    :param root_directory: root directory for the COCO dataset
+    :param multiple_bboxes: Whether to include multiple bounding boxes, or only the main source
+    :param resize: Image size to resize to, or None if not resizing
+    :param convert: Whether to convert npy files to png, or to keep them in the original format, useful for SourceMapper
+    :param verbose: Whether to print more data to stdout or not
+    :param subset: Whether to limit ones to only the fluxlimit sources, if not empty, should be path to list of source filepaths to use
+    :return:
+    """
+
+    (
+        all_directory,
+        train_directory,
+        val_directory,
+        test_directory,
+        annotations_directory,
+    ) = create_coco_style_directory_structure(root_directory, verbose=verbose)
+
+    # Gather data from all_directory
+    data_split = split_data(
+        all_directory, val_split=split_fraction, test_split=split_fraction
+    )
+    if subset:
+        # Keep only those already in the subset
+        subset = np.load(subset, allow_pickle=True)
+        for d in ["train", "test", "val"]:
+            data_split[d] = data_split[d][np.isin(data_split[d], subset)]
+        annotations_directory = os.path.join(annotations_directory, "subset")
+    if multi_rotate_only:
+        l_objects = get_lotss_objects(multi_rotate_only, False)
+        # Get all multicomponent sources
+        l_objects = l_objects[l_objects["LGZ_Assoc"] > 1]
+        multi_names = l_objects["Source_Name"].data
+    else:
+        multi_names = None
+    create_cnn_annotations(
+        data_split["train"],
+        json_dir=annotations_directory,
+        image_destination_dir=train_directory,
+        json_name=f"cnn_train_norm{normalize}.pkl",
+        pan_wise_location=pan_wise_catalog,
+        resize=resize,
+        rotation=rotation,
+        convert=convert,
+        segmentation=segmentation,
+        normalize=normalize,
+        all_channels=all_channels,
+        vac_catalog_location=vac_catalog,
+        cut_size=200,
+        rotation_names=multi_names,
+        verbose=verbose,
+    )
+    create_cnn_annotations(
+        data_split["train"],
+        json_dir=annotations_directory,
+        image_destination_dir=train_directory,
+        json_name=f"cnn_train_test_norm{normalize}.pkl",
+        pan_wise_location=pan_wise_catalog,
+        resize=resize,
+        rotation=rotation,
+        convert=convert,
+        segmentation=segmentation,
+        normalize=normalize,
+        all_channels=all_channels,
+        vac_catalog_location=vac_catalog,
+        cut_size=200,
+        rotation_names=multi_names,
+        verbose=verbose,
+    )
+    if len(data_split["val"]) > 0:
+        create_cnn_annotations(
+            data_split["val"],
+            json_dir=annotations_directory,
+            image_destination_dir=val_directory,
+            json_name=f"cnn_val_norm{normalize}.pkl",
+            pan_wise_location=pan_wise_catalog,
+            resize=resize,
+            rotation=rotation,
+            convert=convert,
+            segmentation=segmentation,
+            normalize=normalize,
+            all_channels=all_channels,
+            vac_catalog_location=vac_catalog,
+            cut_size=200,
+            rotation_names=multi_names,
+            verbose=verbose,
+        )
+    create_cnn_annotations(
+        data_split["test"],
+        json_dir=annotations_directory,
+        image_destination_dir=test_directory,
+        json_name=f"cnn_test_norm{normalize}.pkl",
+        pan_wise_location=pan_wise_catalog,
+        resize=resize,
+        rotation=rotation,
+        convert=convert,
+        segmentation=segmentation,
+        normalize=normalize,
+        all_channels=all_channels,
+        vac_catalog_location=vac_catalog,
+        cut_size=200,
+        rotation_names=multi_names,
+        verbose=verbose,
+    )
 
 def create_coco_dataset(
     root_directory,
