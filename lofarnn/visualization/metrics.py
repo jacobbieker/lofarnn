@@ -52,95 +52,94 @@ def plot_axis_recall(recall_path, vac_catalog, bins=10):
 
     ###calculate recall in bins
     # set which parameters you want to have on the X and Y axis
-    xlabel = "Apparent size [arcsec]"
-    ylabel = "Axis ratio"
+    for xlabel in ["Apparent size [arcsec]"]:
+        for ylabel in ["Total flux [mJy]", "Axis ratio", "z"]:
+            X = data_dict[xlabel]
+            Y = data_dict[ylabel]
+            # get edges with maxima determined using percentiles to be robust for outliers
+            x_bin_edges = np.linspace(np.nanpercentile(X, 1), np.nanpercentile(X, 98), bins + 1)
+            y_bin_edges = np.linspace(np.nanpercentile(Y, 1), np.nanpercentile(Y, 95), bins + 1)
+            # derive bin centers
+            x_bin_width = x_bin_edges[1] - x_bin_edges[0]
+            x_bin_centers = x_bin_edges[1:] - x_bin_width / 2
+            y_bin_width = y_bin_edges[1] - y_bin_edges[0]
+            y_bin_centers = y_bin_edges[1:] - y_bin_width / 2
 
-    X = data_dict[xlabel]
-    Y = data_dict[ylabel]
-    # get edges with maxima determined using percentiles to be robust for outliers
-    x_bin_edges = np.linspace(np.nanpercentile(X, 1), np.nanpercentile(X, 98), bins + 1)
-    y_bin_edges = np.linspace(np.nanpercentile(Y, 1), np.nanpercentile(Y, 95), bins + 1)
-    # derive bin centers
-    x_bin_width = x_bin_edges[1] - x_bin_edges[0]
-    x_bin_centers = x_bin_edges[1:] - x_bin_width / 2
-    y_bin_width = y_bin_edges[1] - y_bin_edges[0]
-    y_bin_centers = y_bin_edges[1:] - y_bin_width / 2
+            recall_2D = np.zeros((x_bin_centers.shape[0], y_bin_centers.shape[0]))
+            n_sources = np.zeros((x_bin_centers.shape[0], y_bin_centers.shape[0]), dtype=int)
+            # now obtain recall
+            for i in range(len(x_bin_centers)):
+                for j in range(len(y_bin_centers)):
+                    # get the prediction errors in a bin
+                    bin_contents = pred_source_recall[
+                        (X > x_bin_edges[i])
+                        & (X < x_bin_edges[i + 1])
+                        & (Y > y_bin_edges[j])
+                        & (Y < y_bin_edges[j + 1])
+                    ]
+                    # determine recall
+                    recall_2D[i][j] = np.sum(bin_contents > 0.95) / len(bin_contents)
+                    # also determine the number of sources
+                    n_sources[i][j] = len(bin_contents)
 
-    recall_2D = np.zeros((x_bin_centers.shape[0], y_bin_centers.shape[0]))
-    n_sources = np.zeros((x_bin_centers.shape[0], y_bin_centers.shape[0]), dtype=int)
-    # now obtain recall
-    for i in range(len(x_bin_centers)):
-        for j in range(len(y_bin_centers)):
-            # get the prediction errors in a bin
-            bin_contents = pred_source_recall[
-                (X > x_bin_edges[i])
-                & (X < x_bin_edges[i + 1])
-                & (Y > y_bin_edges[j])
-                & (Y < y_bin_edges[j + 1])
-            ]
-            # determine recall
-            recall_2D[i][j] = np.sum(bin_contents > 0.95) / len(bin_contents)
-            # also determine the number of sources
-            n_sources[i][j] = len(bin_contents)
+            # now get the selection mask
+            fig, ax = plt.subplots()
 
-    # now get the selection mask
-    fig, ax = plt.subplots()
-
-    # get the desired aspect ratio such that the plot is square
-    aspectratio = (np.max(x_bin_centers) - np.min(x_bin_centers)) / (
-        np.max(y_bin_centers) - np.min(y_bin_centers)
-    )
-    im = ax.imshow(
-        recall_2D.T,
-        origin="lower",
-        cmap="viridis",
-        vmin=0,
-        vmax=1,
-        zorder=2,
-        aspect=aspectratio,
-        extent=[
-            np.min(x_bin_edges),
-            np.max(x_bin_edges),
-            np.min(y_bin_edges),
-            np.max(y_bin_edges),
-        ],
-    )
-
-    xlims = ax.get_xlim()
-    ylims = ax.get_ylim()
-
-    # reset view limits
-    ax.set_xlim(xlims)
-    ax.set_ylim(ylims)
-
-    # indicate the number of sources
-    for i in range(n_sources.shape[0]):
-        for j in range(n_sources.shape[1]):
-            ax.text(
-                x_bin_centers[i],
-                y_bin_centers[j],
-                str(n_sources[i, j]),
-                ha="center",
-                va="center",
-                color="white",
-                fontsize=5,
+            # get the desired aspect ratio such that the plot is square
+            aspectratio = (np.max(x_bin_centers) - np.min(x_bin_centers)) / (
+                np.max(y_bin_centers) - np.min(y_bin_centers)
+            )
+            im = ax.imshow(
+                recall_2D.T,
+                origin="lower",
+                cmap="viridis",
+                vmin=0,
+                vmax=1,
+                zorder=2,
+                aspect=aspectratio,
+                extent=[
+                    np.min(x_bin_edges),
+                    np.max(x_bin_edges),
+                    np.min(y_bin_edges),
+                    np.max(y_bin_edges),
+                ],
             )
 
-    cbar = plt.colorbar(im, ax=ax)
-    cbar.ax.set_ylabel("Recall")
+            xlims = ax.get_xlim()
+            ylims = ax.get_ylim()
 
-    ax.set_xticks(x_bin_centers)
-    ax.set_yticks(y_bin_centers)
+            # reset view limits
+            ax.set_xlim(xlims)
+            ax.set_ylim(ylims)
 
-    ax.tick_params(axis="x", labelrotation=40, labelsize="x-small")
-    ax.tick_params(axis="y", labelrotation=0, labelsize="x-small")
+            # indicate the number of sources
+            for i in range(n_sources.shape[0]):
+                for j in range(n_sources.shape[1]):
+                    ax.text(
+                        x_bin_centers[i],
+                        y_bin_centers[j],
+                        str(n_sources[i, j]),
+                        ha="center",
+                        va="center",
+                        color="white",
+                        fontsize=5,
+                    )
 
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+            cbar = plt.colorbar(im, ax=ax)
+            cbar.ax.set_ylabel("Recall")
 
-    ax.set_title(f"Recall for radio size vs axis ratio")
-    fig.show()
-    plt.close()
+            ax.set_xticks(x_bin_centers)
+            ax.set_yticks(y_bin_centers)
+
+            ax.tick_params(axis="x", labelrotation=40, labelsize="x-small")
+            ax.tick_params(axis="y", labelrotation=0, labelsize="x-small")
+
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
+
+            ax.set_title(f"Recall for {xlabel} vs {ylabel}")
+            fig.savefig(f'{xlabel}-{ylabel}.png', dpi = 200, bbox_inches = 'tight')
+            plt.close()
 
 
 def plot_plots(
