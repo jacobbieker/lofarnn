@@ -77,19 +77,19 @@ def test(args, model, device, test_loader, name="test"):
     correct = 0
     with torch.no_grad():
         for data in test_loader:
-            data = data.to(device)
-            output = model(data["image"], data["sources"])
+            image, source, labels = data["image"].to(device), data["sources"].to(device), data["labels"].to(device)
+            output = model(image, source)
             # sum up batch loss
-            test_loss += F.nll_loss(output, data["labels"], reduction="sum").item()
+            test_loss += F.nll_loss(output, labels, reduction="sum").item()
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
-            correct += pred.eq(data["labels"].view_as(pred)).sum().item()
+            correct += pred.eq(labels.view_as(pred)).sum().item()
 
             save_test_loss.append(test_loss)
             save_correct.append(correct)
             if (
                 1 in data["labels"]
-                and pred.eq(data["labels"].view_as(pred)).sum().item()
+                and pred.eq(labels.view_as(pred)).sum().item()
             ):
                 recall += 1
 
@@ -119,10 +119,10 @@ def train(args, model, device, train_loader, optimizer, epoch):
     total_loss = 0
     model.train()
     for batch_idx, data in enumerate(train_loader):
-        data = data.to(device)
+        image, source, labels = data["image"].to(device), data["sources"].to(device), data["labels"].to(device)
         optimizer.zero_grad()
-        output = model(data)
-        loss = F.nll_loss(F.log_softmax(output, dim=-1), data.y)
+        output = model(image, source)
+        loss = F.nll_loss(F.log_softmax(output, dim=-1), labels)
         loss.backward()
 
         save_loss.append(loss.item())

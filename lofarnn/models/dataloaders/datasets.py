@@ -42,7 +42,7 @@ class RadioSourceDataset(Dataset):
         source = anno["optical_sources"][self.mapping[idx][1]]
         label = anno["optical_labels"][self.mapping[idx][1]]
 
-        return {"image": image, "sources": source, "labels": label}
+        return {"image": torch.from_numpy(image), "sources": torch.from_numpy(source), "labels": torch.from_numpy(label)}
 
     def load_multi_source(self, idx):
         """
@@ -61,7 +61,7 @@ class RadioSourceDataset(Dataset):
         sources = sources[indicies]
         labels = labels[indicies]
 
-        return {"image": image, "sources": sources, "labels": labels}
+        return {"image": torch.from_numpy(image), "sources": torch.from_numpy(sources), "labels": torch.from_numpy(labels)}
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
