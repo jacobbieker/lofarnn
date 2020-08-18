@@ -108,6 +108,9 @@ def make_single_cnn_set(
     cut_size=None,
     verbose=False,
 ):
+    pan_wise_catalog = fits.open(pan_wise_location, memmap=True)
+    pan_wise_catalog = pan_wise_catalog[1].data
+    vac_catalog = get_lotss_objects(vac_catalog_location)
     for i, image_name in enumerate(image_names):
         # Get image dimensions and insert them in a python dict
         if convert:
@@ -217,9 +220,6 @@ def make_single_cnn_set(
         # Move the segmentation maps back to original order
         if segmentation_maps.any():
             segmentation_maps = np.moveaxis(segmentation_maps, -1, 0)
-        # print(segmentation_maps[0].shape)
-        if all_channels and depth != 10:
-            continue
 
         # First R (Radio) channel
         image = image[:, :, 0]
@@ -231,6 +231,7 @@ def make_single_cnn_set(
             normalize=normalize,
             scaling=None,
         )
+        image = np.ma.filled(image, fill_value=0.0) # convert back from masked array to normal array
         if not os.path.exists(os.path.join(image_dest_filename)):
             if convert:
                 image = np.nan_to_num(image)
@@ -247,16 +248,11 @@ def make_single_cnn_set(
             "image_id": i,
             "height": height,
             "width": width,
-            "depth": image.shape[2],
+            "depth": 1,
         }
 
         # Get all sources within 300 arcseconds of the source, or root(2) value
-        print("Trying To Open")
-        pan_wise_catalog = fits.open(pan_wise_location, memmap=True)
-        pan_wise_catalog = pan_wise_catalog[1].data
-        print("Opened Catalog")
         # Get all sources within 300 arcseconds, can cut them down later
-        vac_catalog = get_lotss_objects(vac_catalog_location)
         # Get source
         source = vac_catalog[vac_catalog["Source_Name"] == image_name.stem]
         # All optical sources in 150 arcsecond radius of the point
@@ -292,11 +288,8 @@ def make_single_cnn_set(
             for layer in layers:
                 value = np.nan_to_num(obj[layer])
                 if normalize:  # Scale to between 0 and 1 for 10 to 28 magnitude
-                    try:
-                        value = np.clip(value, 10.0, 28.0)
-                        value = (value - 10.0) / (28.0 - 10.0)
-                    except Exception as e:
-                        print(f"Error: {e}")
+                    value = np.clip(value, 10.0, 28.0)
+                    value = (value - 10.0) / (28.0 - 10.0)
                 optical_sources[-1].append(value)
         record["optical_sources"] = optical_sources
         record["optical_labels"] = optical_labels
@@ -875,7 +868,7 @@ def create_cnn_annotations(
         L = manager.list()
         rotation = np.linspace(0, 170, num_copies)
         [
-            pool.apply(
+            pool.apply_async(
                 make_single_cnn_set,
                 args=[
                     single_names,
@@ -903,7 +896,7 @@ def create_cnn_annotations(
         print(f"Num Multi Copies: {num_multi_copies}")
         multi_rotation = np.linspace(0, 170, num_multi_copies)
         [
-            pool.apply(
+            pool.apply_async(
                 make_single_cnn_set,
                 args=[
                     extra_names,
