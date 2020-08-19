@@ -3,7 +3,7 @@ from detectron2.utils.logger import setup_logger
 setup_logger()
 import os
 import numpy as np
-from lofarnn.models.dataloaders.utils import get_lofar_dicts
+from lofarnn.models.dataloaders.utils import get_lofar_dicts, get_only_mutli_dicts
 
 try:
     environment = os.environ["LOFARNN_ARCH"]
@@ -56,35 +56,96 @@ def setup(args):
             "/home/s2153246/data/", "reports", experiment_name
         )
     # Register train set with fraction
-    for d in ["train"]:
-        DatasetCatalog.register(
-            f"{args.experiment}_" + d,
-            lambda d=d: get_lofar_dicts(
-                os.path.join(
-                    args.dataset,
-                    f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
+    if "multi_only" in args.experiment:
+        for d in ["train"]:
+            DatasetCatalog.register(
+                f"{args.experiment}_" + d,
+                lambda d=d: get_only_mutli_dicts(
+                    os.path.join(
+                        args.dataset,
+                        f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
+                    ),
+                    multi=True, vac=args.vac_file,
                 ),
-                fraction=args.fraction_train,
-            ),
-        )
-        MetadataCatalog.get(f"{args.experiment}_" + d).set(
-            thing_classes=["Optical source"]
-        )
-    # Keep val and test set the same so that its always testing on the same stuff
-    for d in ["val", "test", "train_test"]:
-        DatasetCatalog.register(
-            f"{args.experiment}_" + d,
-            lambda d=d: get_lofar_dicts(
-                os.path.join(
-                    args.dataset,
-                    f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
+            )
+            MetadataCatalog.get(f"{args.experiment}_" + d).set(
+                thing_classes=["Optical source"]
+            )
+        # Keep val and test set the same so that its always testing on the same stuff
+        for d in ["val", "test", "train_test"]:
+            DatasetCatalog.register(
+                f"{args.experiment}_" + d,
+                lambda d=d: get_only_mutli_dicts(
+                    os.path.join(
+                        args.dataset,
+                        f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
+                    ),
+                    multi=True, vac=args.vac_file,
                 ),
-                fraction=1,
-            ),
-        )
-        MetadataCatalog.get(f"{args.experiment}_" + d).set(
-            thing_classes=["Optical source"]
-        )
+            )
+            MetadataCatalog.get(f"{args.experiment}_" + d).set(
+                thing_classes=["Optical source"]
+            )
+    elif "single_only" in args.experiment:
+        for d in ["train"]:
+            DatasetCatalog.register(
+                f"{args.experiment}_" + d,
+                lambda d=d: get_only_mutli_dicts(
+                    os.path.join(
+                        args.dataset,
+                        f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
+                    ),
+                    multi=False, vac=args.vac_file,
+                ),
+            )
+            MetadataCatalog.get(f"{args.experiment}_" + d).set(
+                thing_classes=["Optical source"]
+            )
+        # Keep val and test set the same so that its always testing on the same stuff
+        for d in ["val", "test", "train_test"]:
+            DatasetCatalog.register(
+                f"{args.experiment}_" + d,
+                lambda d=d: get_only_mutli_dicts(
+                    os.path.join(
+                        args.dataset,
+                        f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
+                    ),
+                    multi=False, vac=args.vac_file,
+                ),
+            )
+            MetadataCatalog.get(f"{args.experiment}_" + d).set(
+                thing_classes=["Optical source"]
+            )
+    else:
+        for d in ["train"]:
+            DatasetCatalog.register(
+                f"{args.experiment}_" + d,
+                lambda d=d: get_lofar_dicts(
+                    os.path.join(
+                        args.dataset,
+                        f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
+                    ),
+                    fraction=args.fraction_train,
+                ),
+            )
+            MetadataCatalog.get(f"{args.experiment}_" + d).set(
+                thing_classes=["Optical source"]
+            )
+        # Keep val and test set the same so that its always testing on the same stuff
+        for d in ["val", "test", "train_test"]:
+            DatasetCatalog.register(
+                f"{args.experiment}_" + d,
+                lambda d=d: get_lofar_dicts(
+                    os.path.join(
+                        args.dataset,
+                        f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
+                    ),
+                    fraction=1,
+                ),
+            )
+            MetadataCatalog.get(f"{args.experiment}_" + d).set(
+                thing_classes=["Optical source"]
+            )
 
     cfg.DATASETS.TRAIN = (f"{args.experiment}_train",)
     cfg.DATASETS.VAL = (f"{args.experiment}_test",)

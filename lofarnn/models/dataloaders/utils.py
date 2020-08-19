@@ -42,6 +42,27 @@ def get_lofar_dicts(annotation_filepath, fraction=1.0):
     return dataset_dicts
 
 
+def get_only_mutli_dicts(annotation_filepath, multi=True, vac=".."):
+    """
+    Only get the multi or single component sources, whichever is wanted
+    """
+    vac_catalog = get_lotss_objects(vac)
+    if multi:
+        vac_catalog = vac_catalog[vac_catalog["LGZ_Assoc"] > 1]
+    else:
+        vac_catalog = vac_catalog[vac_catalog["LGZ_Assoc"] == 1]
+    vac_catalog = vac_catalog["Source_Name"].data
+    with open(annotation_filepath, "rb") as f:
+        dataset_dicts = pickle.load(f)
+        new_dicts = []
+        for i in range(0, len(dataset_dicts)):
+            name = dataset_dicts[i]["file_name"].split("/")[-1].split(".npy")[0]
+            if name in vac_catalog or name.rpartition(".")[0] in vac_catalog: # Needed for both rotated and non rotated
+                new_dicts.append(dataset_dicts[i])
+        dataset_dicts = new_dicts
+    return dataset_dicts
+
+
 def make_physical_dict(vac_catalog, size_cut=0.0, flux_cut=0.0, multi=False, lgz=True):
     """
     Makes cuts in the value added catalog for the size, flux, and multi vs single component

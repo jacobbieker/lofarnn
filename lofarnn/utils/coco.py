@@ -231,7 +231,9 @@ def make_single_cnn_set(
             normalize=normalize,
             scaling=None,
         )
-        image = np.ma.filled(image, fill_value=0.0) # convert back from masked array to normal array
+        image = np.ma.filled(
+            image, fill_value=0.0
+        )  # convert back from masked array to normal array
         if not os.path.exists(os.path.join(image_dest_filename)):
             if convert:
                 image = np.nan_to_num(image)
@@ -241,6 +243,7 @@ def make_single_cnn_set(
                 pil_im.save(image_dest_filename)
             else:
                 image = np.nan_to_num(image)  # Only take radio
+                print(isinstance(image, np.ma.MaskedArray))
                 np.save(image_dest_filename, image)  # Save to the final destination
 
         record = {
