@@ -14,21 +14,26 @@ def load_json_arr(json_path):
     return lines
 
 
-def plot_axis_recall(recall_path, vac_catalog, bins=10):
+def plot_axis_recall(recall_path, vac_catalog, limit, jelle_cut=False, bins=10):
     """
     Plot recall of apparent size to axis ratio
     :param recall_path: Recall path from SourceEvaluator, which has source_name and highest overlap of the limit
     :param vac_catalog: Value-added catalog location
     :param bins: Number of bins for the histogram
+    :param limit: str, limit for the recall value for use in saving, title, etc.
     :return:
     """
     data = pickle.load(open(recall_path, "rb"), fix_imports=True)
     vac_catalog = get_lotss_objects(vac_catalog)
     pred_source_names = []
     pred_source_recall = []
+    if jelle_cut:
+        vac_catalog = vac_catalog[vac_catalog["LGZ_Size"] > 15.0]
+        vac_catalog = vac_catalog[vac_catalog["Total_flux"] > 10.0]
     for key in data.keys():
-        pred_source_names.append(key)
-        pred_source_recall.append(data[key])
+        if key in vac_catalog["Source_Name"].data:
+            pred_source_names.append(key)
+            pred_source_recall.append(data[key])
     pred_source_recall = np.asarray(pred_source_recall)
     radio_apparent_size = np.zeros(len(pred_source_names))
     radio_apparent_width = np.zeros(len(pred_source_names))
@@ -57,8 +62,12 @@ def plot_axis_recall(recall_path, vac_catalog, bins=10):
             X = data_dict[xlabel]
             Y = data_dict[ylabel]
             # get edges with maxima determined using percentiles to be robust for outliers
-            x_bin_edges = np.linspace(np.nanpercentile(X, 1), np.nanpercentile(X, 98), bins + 1)
-            y_bin_edges = np.linspace(np.nanpercentile(Y, 1), np.nanpercentile(Y, 95), bins + 1)
+            x_bin_edges = np.linspace(
+                np.nanpercentile(X, 1), np.nanpercentile(X, 98), bins + 1
+            )
+            y_bin_edges = np.linspace(
+                np.nanpercentile(Y, 1), np.nanpercentile(Y, 95), bins + 1
+            )
             # derive bin centers
             x_bin_width = x_bin_edges[1] - x_bin_edges[0]
             x_bin_centers = x_bin_edges[1:] - x_bin_width / 2
@@ -66,7 +75,9 @@ def plot_axis_recall(recall_path, vac_catalog, bins=10):
             y_bin_centers = y_bin_edges[1:] - y_bin_width / 2
 
             recall_2D = np.zeros((x_bin_centers.shape[0], y_bin_centers.shape[0]))
-            n_sources = np.zeros((x_bin_centers.shape[0], y_bin_centers.shape[0]), dtype=int)
+            n_sources = np.zeros(
+                (x_bin_centers.shape[0], y_bin_centers.shape[0]), dtype=int
+            )
             # now obtain recall
             for i in range(len(x_bin_centers)):
                 for j in range(len(y_bin_centers)):
@@ -137,8 +148,12 @@ def plot_axis_recall(recall_path, vac_catalog, bins=10):
             ax.set_xlabel(xlabel)
             ax.set_ylabel(ylabel)
 
-            ax.set_title(f"Recall for {xlabel} vs {ylabel}")
-            fig.savefig(f'{xlabel}-{ylabel}.png', dpi = 200, bbox_inches = 'tight')
+            ax.set_title(f"Recall for {xlabel} vs {ylabel}, limit: {limit}")
+            fig.savefig(
+                f"{xlabel}-{ylabel}_limit{limit}_jelle{jelle_cut}.png",
+                dpi=200,
+                bbox_inches="tight",
+            )
             plt.close()
 
 
@@ -172,7 +187,6 @@ def plot_plots(
     iteration = {}
     loss = {}
     val_loss = {}
-
     for i, metric in enumerate(metrics_data):
         for cut in cuts:
             for j in [1, 2, 5, 10, 100]:
@@ -188,9 +202,27 @@ def plot_plots(
                 val_recall[f"{experiment_name}_val/own_recall_{j}/recall"] = []
                 precision[f"{experiment_name}_train_test/own_recall_{j}/precision"] = []
                 val_precision[f"{experiment_name}_val/own_recall_{j}/precision"] = []
+
+    for i, metric in enumerate(metrics_data):
+        for cut in cuts:
+            for j in [2, 5, 10, 100]:
                 iteration[metrics_files[i]] = []
                 loss[metrics_files[i]] = []
                 val_loss[metrics_files[i]] = []
+                val_recall[f"{experiment_name}_val/own_recall_1/recall"] = []
+                val_precision[f"{experiment_name}_val/own_recall_1/precision"] = []
+                precision[f"{experiment_name}_train_test/own_recall_1/precision"] = []
+                # print(line[f"{experiment_name}_train_test/own_recall_{j}/recall"])
+                recall[f"{experiment_name}_train_test/own_recall_1/recall"] = []
+                val_recall[f"{experiment_name}_val/own_recall_1_{cut}/recall"] = []
+                val_precision[
+                    f"{experiment_name}_val/own_recall_1_{cut}/precision"
+                ] = []
+                precision[
+                    f"{experiment_name}_train_test/own_recall_1_{cut}/precision"
+                ] = []
+                # print(line[f"{experiment_name}_train_test/own_recall_{j}/recall"])
+                recall[f"{experiment_name}_train_test/own_recall_1_{cut}/recall"] = []
                 for line in metric:
                     try:
                         val_recall[
@@ -234,10 +266,51 @@ def plot_plots(
                                 f"{experiment_name}_train_test/own_recall_{j}/precision"
                             ]
                         )
+                        # print(line[f"{experiment_name}_train_test/own_recall_{j}/recall"])
                         recall[
                             f"{experiment_name}_train_test/own_recall_{j}/recall"
                         ].append(
                             line[f"{experiment_name}_train_test/own_recall_{j}/recall"]
+                        )
+                        val_recall[f"{experiment_name}_val/own_recall_1/recall"].append(
+                            line[f"{experiment_name}_val/own_recall/recall"]
+                        )
+                        val_precision[
+                            f"{experiment_name}_val/own_recall_1/precision"
+                        ].append(line[f"{experiment_name}_val/own_recall/precision"])
+                        precision[
+                            f"{experiment_name}_train_test/own_recall_1/precision"
+                        ].append(
+                            line[f"{experiment_name}_train_test/own_recall/precision"]
+                        )
+                        # print(line[f"{experiment_name}_train_test/own_recall_{j}/recall"])
+                        recall[
+                            f"{experiment_name}_train_test/own_recall_1/recall"
+                        ].append(
+                            line[f"{experiment_name}_train_test/own_recall/recall"]
+                        )
+                        val_recall[
+                            f"{experiment_name}_val/own_recall_1_{cut}/recall"
+                        ].append(line[f"{experiment_name}_val/own_recall_{cut}/recall"])
+                        val_precision[
+                            f"{experiment_name}_val/own_recall_1_{cut}/precision"
+                        ].append(
+                            line[f"{experiment_name}_val/own_recall_{cut}/precision"]
+                        )
+                        precision[
+                            f"{experiment_name}_train_test/own_recall_1_{cut}/precision"
+                        ].append(
+                            line[
+                                f"{experiment_name}_train_test/own_recall_{cut}/precision"
+                            ]
+                        )
+                        # print(line[f"{experiment_name}_train_test/own_recall_{j}/recall"])
+                        recall[
+                            f"{experiment_name}_train_test/own_recall_1_{cut}/recall"
+                        ].append(
+                            line[
+                                f"{experiment_name}_train_test/own_recall_{cut}/recall"
+                            ]
                         )
                         val_loss[metrics_files[i]].append(line["validation_loss"])
                         loss[metrics_files[i]].append(line["total_loss"])
@@ -273,22 +346,22 @@ def plot_plots(
     # Plot recall for the different cuts for the same models
     for i, metric in enumerate(metrics_data):
         for j in [1, 2, 5, 10, 100]:
-            for cut in cuts:
+            for k, cut in enumerate(cuts):
                 plt.plot(
                     iteration[metrics_files[i]],
                     recall[f"{experiment_name}_train_test/own_recall_{j}_{cut}/recall"],
-                    label=f"{labels[i]} Train",
-                    # color=colors[i],
+                    label=f"{labels[k]} Train",
+                    color=colors[k],
                 )
                 plt.plot(
                     iteration[metrics_files[i]],
-                    recall[f"{experiment_name}_val/own_recall_{j}_{cut}/recall"],
-                    label=f"{labels[i]} Val",
+                    val_recall[f"{experiment_name}_val/own_recall_{j}_{cut}/recall"],
+                    label=f"{labels[k]} Val",
                     linestyle="dashed",
-                    # color=colors[i],
+                    color=colors[k],
                 )
 
-            plt.legend(loc="upper right")
+            plt.legend(loc="lower right")
             plt.title(f"Recall for limit {j}: {title}, {metrics_files[i]}")
             plt.xlabel("Iteration")
             plt.ylabel("Recall")
@@ -305,10 +378,10 @@ def plot_plots(
     # Plot precision for different cuts for same models
     for i, metric in enumerate(metrics_data):
         for j in [1, 2, 5, 10, 100]:
-            for cut in cuts:
+            for k, cut in enumerate(cuts):
                 plt.plot(
                     iteration[metrics_files[i]],
-                    recall[
+                    precision[
                         f"{experiment_name}_train_test/own_recall_{j}_{cut}/precision"
                     ],
                     label=f"{cut} Train",
@@ -316,13 +389,15 @@ def plot_plots(
                 )
                 plt.plot(
                     iteration[metrics_files[i]],
-                    recall[f"{experiment_name}_val/own_recall_{j}_{cut}/precision"],
+                    val_precision[
+                        f"{experiment_name}_val/own_recall_{j}_{cut}/precision"
+                    ],
                     label=f"{cut} Val",
                     linestyle="dashed",
                     # color=colors[i],
                 )
 
-            plt.legend(loc="upper right")
+            plt.legend(loc="lower right")
             plt.title(f"Precision for limit {j}: {title}, {metrics_files[i]}")
             plt.xlabel("Iteration")
             plt.ylabel("Precision")
@@ -349,13 +424,13 @@ def plot_plots(
                 )
                 plt.plot(
                     iteration[metrics_files[i]],
-                    recall[f"{experiment_name}_val/own_recall_{j}_{cut}/recall"],
+                    val_recall[f"{experiment_name}_val/own_recall_{j}_{cut}/recall"],
                     label=f"{j} Val",
                     linestyle="dashed",
                     # color=colors[i],
                 )
 
-            plt.legend(loc="upper right")
+            plt.legend(loc="lower right")
             plt.title(f"Recall for cut {cut}: {title}, {metrics_files[i]}")
             plt.xlabel("Iteration")
             plt.ylabel("Recall")
@@ -375,7 +450,7 @@ def plot_plots(
             for j in [1, 2, 5, 10, 100]:
                 plt.plot(
                     iteration[metrics_files[i]],
-                    recall[
+                    precision[
                         f"{experiment_name}_train_test/own_recall_{j}_{cut}/precision"
                     ],
                     label=f"{j} Train",
@@ -383,13 +458,15 @@ def plot_plots(
                 )
                 plt.plot(
                     iteration[metrics_files[i]],
-                    recall[f"{experiment_name}_val/own_recall_{j}_{cut}/precision"],
+                    val_precision[
+                        f"{experiment_name}_val/own_recall_{j}_{cut}/precision"
+                    ],
                     label=f"{j} Val",
                     linestyle="dashed",
                     # color=colors[i],
                 )
 
-            plt.legend(loc="upper right")
+            plt.legend(loc="lower right")
             plt.title(f"Precision for cut {cut}: {title}, {metrics_files[i]}")
             plt.xlabel("Iteration")
             plt.ylabel("Precision")

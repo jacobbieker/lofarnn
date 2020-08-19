@@ -31,6 +31,7 @@ else:
 rotation = 180
 size = (300.0 / 3600.0) * np.sqrt(2)
 print(size)
+'''
 create_variable_source_dataset(
     cutout_directory=cutout_directory,
     pan_wise_location=pan_wise_location,
@@ -47,6 +48,7 @@ create_variable_source_dataset(
     verbose=False,
     gaussian=False,
 )
+'''
 create_cnn_dataset(
     root_directory=cutout_directory,
     pan_wise_catalog=pan_wise_location,
@@ -57,7 +59,7 @@ create_cnn_dataset(
     normalize=True,
     segmentation=False,
     multi_rotate_only=vac,
-    resize=200,
+    resize=None,
 )
 create_cnn_dataset(
     root_directory=cutout_directory,
@@ -69,5 +71,5 @@ create_cnn_dataset(
     normalize=False,
     segmentation=False,
     multi_rotate_only=vac,
-    resize=200,
+    resize=None,
 )

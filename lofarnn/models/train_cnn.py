@@ -65,7 +65,7 @@ def default_argument_parser():
     return parser
 
 
-def test(args, model, device, test_loader, name="test"):
+def test(args, model, device, test_loader, name="test", output_dir="./"):
     save_test_loss = []
     save_correct = []
     save_recalls = []
@@ -77,7 +77,11 @@ def test(args, model, device, test_loader, name="test"):
     correct = 0
     with torch.no_grad():
         for data in test_loader:
-            image, source, labels = data["image"].to(device), data["sources"].to(device), data["labels"].to(device)
+            image, source, labels = (
+                data["image"].to(device),
+                data["sources"].to(device),
+                data["labels"].to(device),
+            )
             output = model(image, source)
             # sum up batch loss
             test_loss += F.nll_loss(output, labels, reduction="sum").item()
@@ -87,10 +91,7 @@ def test(args, model, device, test_loader, name="test"):
 
             save_test_loss.append(test_loss)
             save_correct.append(correct)
-            if (
-                1 in data["labels"]
-                and pred.eq(labels.view_as(pred)).sum().item()
-            ):
+            if 1 in data["labels"] and pred.eq(labels.view_as(pred)).sum().item():
                 recall += 1
 
     recall /= len(test_loader.dataset.annotations)  # One source per annotation
@@ -107,19 +108,23 @@ def test(args, model, device, test_loader, name="test"):
         )
     )
     a = np.asarray(save_test_loss)
-    with open(os.path.join(args.output_dir, f"{name}_loss.csv"), "ab") as f:
+    with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
         np.savetxt(f, a, delimiter=",")
     a = np.asarray(save_recalls)
-    with open(os.path.join(args.output_dir, f"{name}_recall.csv"), "ab") as f:
+    with open(os.path.join(output_dir, f"{name}_recall.csv"), "ab") as f:
         np.savetxt(f, a, delimiter=",")
 
 
-def train(args, model, device, train_loader, optimizer, epoch):
+def train(args, model, device, train_loader, optimizer, epoch, output_dir="./"):
     save_loss = []
     total_loss = 0
     model.train()
     for batch_idx, data in enumerate(train_loader):
-        image, source, labels = data["image"].to(device), data["sources"].to(device), data["labels"].to(device)
+        image, source, labels = (
+            data["image"].to(device),
+            data["sources"].to(device),
+            data["labels"].to(device),
+        )
         optimizer.zero_grad()
         output = model(image, source)
         loss = F.nll_loss(F.log_softmax(output, dim=-1), labels)
@@ -136,7 +141,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
                 )
             )
     a = np.asarray(save_loss)
-    with open(os.path.join(args.output_dir, "train_loss.csv"), "ab") as f:
+    with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
         np.savetxt(f, a, delimiter=",")
 
 
@@ -173,14 +178,25 @@ def main(args):
     test_loader = dataloader.DataLoader(
         val_dataset, batch_size=args.batch, shuffle=False, num_workers=os.cpu_count()
     )
+    experiment_name = (
+        args.experiment
+        + f"_lr{args.lr}_b{args.batch}_single{args.single}_sources{args.num_sources}_norm{args.norm}"
+    )
+    if environment == "XPS":
+        output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
+    else:
+        output_dir = os.path.join("/home/s2153246/data/", "reports", experiment_name)
+    os.makedirs(output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = RadioSingleSourceModel(args.classes, 10).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     print("Model created")
     for epoch in range(args.epochs):
-        train(args, model, device, train_loader, optimizer, epoch)
-        test(args, model, device, train_test_loader, "train_test")
-        test(args, model, device, test_loader)
+        train(args, model, device, train_loader, optimizer, epoch, output_dir)
+        test(args, model, device, train_test_loader, "train_test", output_dir)
+        test(args, model, device, test_loader, output_dir)
+        if epoch % 5 == 0:  # Save every 5 epochs
+            torch.save(model, os.path.join(output_dir, "model.pth"))
 
 
 if __name__ == "__main__":
