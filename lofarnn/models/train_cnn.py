@@ -188,7 +188,10 @@ def main(args):
         output_dir = os.path.join("/home/s2153246/data/", "reports", experiment_name)
     os.makedirs(output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = RadioSingleSourceModel(args.classes, 10).to(device)
+    if args.single:
+        model = RadioSingleSourceModel(args.classes, 10).to(device)
+    else:
+        model = RadioMultiSourceModel(args.classes, 10).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     print("Model created")
     for epoch in range(args.epochs):

@@ -8,7 +8,7 @@ import numpy as np
 class RadioSourceDataset(Dataset):
     """Radio Source dataset."""
 
-    def __init__(self, json_file, single_source_per_img=True, num_sources=40):
+    def __init__(self, json_file, single_source_per_img=True, num_sources=40, shuffle=False):
         """
         Args:
             json_file (string): Path to the json file with annotations
@@ -17,6 +17,7 @@ class RadioSourceDataset(Dataset):
         self.annotations = pickle.load(open(json_file, "rb"), fix_imports=True)
         self.single_source = single_source_per_img
         self.num_sources = num_sources
+        self.shuffle = shuffle
 
         # for length and indexing in if single optical source per image
         self.mapping = {}
@@ -60,10 +61,11 @@ class RadioSourceDataset(Dataset):
         # Shuffling order of sources and labels, and only taking x number of sources
         sources = sources[: self.num_sources]
         labels = labels[: self.num_sources]
-        indicies = np.indices(labels.shape)
-        np.random.shuffle(indicies)
-        sources = sources[indicies]
-        labels = labels[indicies]
+        if self.shuffle:
+            indices = np.indices(labels.shape)
+            np.random.shuffle(indices)
+            sources = sources[indices]
+            labels = labels[indices]
 
         return {
             "image": torch.from_numpy(image),
