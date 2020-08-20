@@ -21,9 +21,9 @@ title = ["Rotated Fixed"]
 colors = ["blue", "green", "black", "orange", "red"]
 metrics_files = ["metrics", "metrics2"]
 
-# for i, f in enumerate(recall_files):
-#    plot_axis_recall(recall_path=f, vac_catalog=vac_catalog, bins=6, jelle_cut=False, limit=recall_limits[i])
-#    plot_axis_recall(recall_path=f, vac_catalog=vac_catalog, bins=6, jelle_cut=True, limit=recall_limits[i])
+for i, f in enumerate(recall_files):
+    plot_axis_recall(recall_path=f, vac_catalog=vac_catalog, bins=6, jelle_cut=False, limit=recall_limits[i])
+    plot_axis_recall(recall_path=f, vac_catalog=vac_catalog, bins=6, jelle_cut=True, limit=recall_limits[i])
 plot_plots(
     metrics_files=metrics_files,
     cuts=cuts,
