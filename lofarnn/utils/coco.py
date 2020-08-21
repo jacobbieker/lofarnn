@@ -126,115 +126,115 @@ def make_single_cnn_set(
                 image_dest_filename = os.path.join(
                     image_destination_dir, image_name.stem + f".cnn.npy"
                 )
-        (
-            image,
-            cutouts,
-            proposal_boxes,
-            segmentation_maps_five,
-            seg_box_five,
-            segmentation_maps_three,
-            seg_box_three,
-        ) = np.load(
-            image_name, allow_pickle=True
-        )  # mmap_mode might allow faster read
-        if segmentation == 3:
-            segmentation_maps = segmentation_maps_three.astype(np.uint8)
-            segmentation_proposals = seg_box_three
-        else:
-            segmentation_maps = segmentation_maps_five.astype(np.uint8)
-            segmentation_proposals = seg_box_five
-
-        if not segmentation:
-            segmentation_maps = np.asarray([])
-            segmentation_proposals = np.asarray([])
-
-        # Clean out segmentation proposals that do not have positive bounding boxes, if we need bounding boxes around them
-        if box_seg and segmentation:
-            kept_i = []
-            for i, sbox in enumerate(segmentation_proposals):
-                if (
-                    int(sbox[0]) >= 0
-                ):  # All negative values are for invalid segmentation maps
-                    kept_i.append(i)
-            # Only keep those with positive bounding boxes
-            segmentation_maps = np.take(segmentation_maps, kept_i, axis=0)
-            segmentation_proposals = np.take(segmentation_proposals, kept_i, axis=0)
-        image = np.nan_to_num(image)
-        # Change order to H,W,C for imgaug
-        segmentation_maps = np.moveaxis(segmentation_maps, 0, -1)
-        if rotation is not None:
-            if isinstance(rotation, (list, tuple, np.ndarray)):
-                (
-                    image,
-                    cutouts,
-                    proposal_boxes,
-                    segmentation_maps,
-                    segmentation_proposals,
-                ) = augment_image_and_bboxes(
-                    image,
-                    cutouts=cutouts,
-                    proposal_boxes=proposal_boxes,
-                    segmentation_maps=segmentation_maps,
-                    segmentation_proposals=segmentation_proposals,
-                    angle=rotation[m],
-                    crop_size=cut_size,
-                    new_size=resize,
-                )
-            else:
-                (
-                    image,
-                    cutouts,
-                    proposal_boxes,
-                    segmentation_maps,
-                    segmentation_proposals,
-                ) = augment_image_and_bboxes(
-                    image,
-                    cutouts=cutouts,
-                    proposal_boxes=proposal_boxes,
-                    segmentation_maps=segmentation_maps,
-                    segmentation_proposals=segmentation_proposals,
-                    angle=np.random.uniform(-rotation, rotation),
-                    crop_size=cut_size,
-                    new_size=resize,
-                )
-        else:
-            # Need this to convert the bbox coordinates into the correct format
+        if not os.path.exists(os.path.join(image_dest_filename)):
             (
                 image,
                 cutouts,
                 proposal_boxes,
-                segmentation_maps,
-                segmentation_proposals,
-            ) = augment_image_and_bboxes(
-                image,
-                cutouts=cutouts,
-                proposal_boxes=proposal_boxes,
-                segmentation_maps=segmentation_maps,
-                segmentation_proposals=segmentation_proposals,
-                angle=0,
-                new_size=resize,
-                crop_size=cut_size,
-                verbose=False,
-            )
-        width, height, depth = np.shape(image)
-        # Move the segmentation maps back to original order
-        if segmentation_maps.any():
-            segmentation_maps = np.moveaxis(segmentation_maps, -1, 0)
+                segmentation_maps_five,
+                seg_box_five,
+                segmentation_maps_three,
+                seg_box_three,
+            ) = np.load(
+                image_name, allow_pickle=True
+            )  # mmap_mode might allow faster read
+            if segmentation == 3:
+                segmentation_maps = segmentation_maps_three.astype(np.uint8)
+                segmentation_proposals = seg_box_three
+            else:
+                segmentation_maps = segmentation_maps_five.astype(np.uint8)
+                segmentation_proposals = seg_box_five
 
-        # First R (Radio) channel
-        image = image[:, :, 0]
-        image = convert_to_valid_color(
-            image,
-            clip=True,
-            lower_clip=0.0,
-            upper_clip=1000,
-            normalize=normalize,
-            scaling=None,
-        )
-        image = np.ma.filled(
-            image, fill_value=0.0
-        )  # convert back from masked array to normal array
-        if not os.path.exists(os.path.join(image_dest_filename)):
+            if not segmentation:
+                segmentation_maps = np.asarray([])
+                segmentation_proposals = np.asarray([])
+
+            # Clean out segmentation proposals that do not have positive bounding boxes, if we need bounding boxes around them
+            if box_seg and segmentation:
+                kept_i = []
+                for i, sbox in enumerate(segmentation_proposals):
+                    if (
+                        int(sbox[0]) >= 0
+                    ):  # All negative values are for invalid segmentation maps
+                        kept_i.append(i)
+                # Only keep those with positive bounding boxes
+                segmentation_maps = np.take(segmentation_maps, kept_i, axis=0)
+                segmentation_proposals = np.take(segmentation_proposals, kept_i, axis=0)
+            image = np.nan_to_num(image)
+            # Change order to H,W,C for imgaug
+            segmentation_maps = np.moveaxis(segmentation_maps, 0, -1)
+            if rotation is not None:
+                if isinstance(rotation, (list, tuple, np.ndarray)):
+                    (
+                        image,
+                        cutouts,
+                        proposal_boxes,
+                        segmentation_maps,
+                        segmentation_proposals,
+                    ) = augment_image_and_bboxes(
+                        image,
+                        cutouts=cutouts,
+                        proposal_boxes=proposal_boxes,
+                        segmentation_maps=segmentation_maps,
+                        segmentation_proposals=segmentation_proposals,
+                        angle=rotation[m],
+                        crop_size=cut_size,
+                        new_size=resize,
+                    )
+                else:
+                    (
+                        image,
+                        cutouts,
+                        proposal_boxes,
+                        segmentation_maps,
+                        segmentation_proposals,
+                    ) = augment_image_and_bboxes(
+                        image,
+                        cutouts=cutouts,
+                        proposal_boxes=proposal_boxes,
+                        segmentation_maps=segmentation_maps,
+                        segmentation_proposals=segmentation_proposals,
+                        angle=np.random.uniform(-rotation, rotation),
+                        crop_size=cut_size,
+                        new_size=resize,
+                    )
+            else:
+                # Need this to convert the bbox coordinates into the correct format
+                (
+                    image,
+                    cutouts,
+                    proposal_boxes,
+                    segmentation_maps,
+                    segmentation_proposals,
+                ) = augment_image_and_bboxes(
+                    image,
+                    cutouts=cutouts,
+                    proposal_boxes=proposal_boxes,
+                    segmentation_maps=segmentation_maps,
+                    segmentation_proposals=segmentation_proposals,
+                    angle=0,
+                    new_size=resize,
+                    crop_size=cut_size,
+                    verbose=False,
+                )
+            width, height, depth = np.shape(image)
+            # Move the segmentation maps back to original order
+            if segmentation_maps.any():
+                segmentation_maps = np.moveaxis(segmentation_maps, -1, 0)
+
+            # First R (Radio) channel
+            image = image[:, :, 0]
+            image = convert_to_valid_color(
+                image,
+                clip=True,
+                lower_clip=0.0,
+                upper_clip=1000,
+                normalize=normalize,
+                scaling=None,
+            )
+            image = np.ma.filled(
+                image, fill_value=0.0
+            )  # convert back from masked array to normal array
             if convert:
                 image = np.nan_to_num(image)
                 image = (255.0 * image).astype(np.uint8)
@@ -245,7 +245,9 @@ def make_single_cnn_set(
                 image = np.nan_to_num(image)  # Only take radio
                 print(isinstance(image, np.ma.MaskedArray))
                 np.save(image_dest_filename, image)  # Save to the final destination
-
+        else:
+            image = np.load(image_dest_filename)
+            height, width = np.shape(image)
         record = {
             "file_name": image_dest_filename,
             "image_id": i,
@@ -938,24 +940,39 @@ def create_cnn_annotations(
 
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
     bbox_size = []
-    for m in range(num_copies):
-        make_single_cnn_set(
-            image_names=image_names,
-            L=dataset_dicts,
-            m=m,
-            image_destination_dir=image_destination_dir,
-            pan_wise_location=pan_wise_location,
-            resize=resize,
-            rotation=rotation,
-            convert=convert,
-            all_channels=all_channels,
-            vac_catalog_location=vac_catalog_location,
-            segmentation=segmentation,
-            normalize=normalize,
-            box_seg=False,
-            cut_size=cut_size,
-            verbose=verbose,
+    manager = Manager()
+    pool = Pool(processes=os.cpu_count())
+    L = manager.list()
+    rotation = None
+    [
+        pool.apply_async(
+            make_single_cnn_set,
+            args=[
+                [name],
+                L,
+                0,
+                image_destination_dir,
+                pan_wise_location,
+                resize,
+                None,
+                convert,
+                all_channels,
+                vac_catalog_location,
+                segmentation,
+                normalize,
+                False,
+                cut_size,
+                verbose,
+            ],
         )
+        for name in image_names
+    ]
+    pool.close()
+    pool.join()
+    print(len(L))
+    print(f"Length of L: {len(L)}")
+    for element in L:
+        dataset_dicts.append(element)
     # Write all image dictionaries to file as one json
     json_path = os.path.join(json_dir, json_name)
     with open(json_path, "wb") as outfile:
@@ -1017,14 +1034,31 @@ def create_cnn_dataset(
         multi_names = l_objects["Source_Name"].data
     else:
         multi_names = None
+    if len(data_split["val"]) > 0:
+        create_cnn_annotations(
+            data_split["val"],
+            json_dir=annotations_directory,
+            image_destination_dir=val_directory,
+            json_name=f"cnn_val_norm{normalize}.pkl",
+            pan_wise_location=pan_wise_catalog,
+            resize=resize,
+            rotation=None,
+            convert=convert,
+            segmentation=segmentation,
+            normalize=normalize,
+            all_channels=all_channels,
+            vac_catalog_location=vac_catalog,
+            rotation_names=multi_names,
+            verbose=verbose,
+        )
     create_cnn_annotations(
-        data_split["train"],
+        data_split["test"],
         json_dir=annotations_directory,
-        image_destination_dir=train_directory,
-        json_name=f"cnn_train_norm{normalize}.pkl",
+        image_destination_dir=test_directory,
+        json_name=f"cnn_test_norm{normalize}.pkl",
         pan_wise_location=pan_wise_catalog,
         resize=resize,
-        rotation=rotation,
+        rotation=None,
         convert=convert,
         segmentation=segmentation,
         normalize=normalize,
@@ -1040,7 +1074,7 @@ def create_cnn_dataset(
         json_name=f"cnn_train_test_norm{normalize}.pkl",
         pan_wise_location=pan_wise_catalog,
         resize=resize,
-        rotation=rotation,
+        rotation=None,
         convert=convert,
         segmentation=segmentation,
         normalize=normalize,
@@ -1049,28 +1083,11 @@ def create_cnn_dataset(
         rotation_names=multi_names,
         verbose=verbose,
     )
-    if len(data_split["val"]) > 0:
-        create_cnn_annotations(
-            data_split["val"],
-            json_dir=annotations_directory,
-            image_destination_dir=val_directory,
-            json_name=f"cnn_val_norm{normalize}.pkl",
-            pan_wise_location=pan_wise_catalog,
-            resize=resize,
-            rotation=rotation,
-            convert=convert,
-            segmentation=segmentation,
-            normalize=normalize,
-            all_channels=all_channels,
-            vac_catalog_location=vac_catalog,
-            rotation_names=multi_names,
-            verbose=verbose,
-        )
     create_cnn_annotations(
-        data_split["test"],
+        data_split["train"],
         json_dir=annotations_directory,
-        image_destination_dir=test_directory,
-        json_name=f"cnn_test_norm{normalize}.pkl",
+        image_destination_dir=train_directory,
+        json_name=f"cnn_train_norm{normalize}.pkl",
         pan_wise_location=pan_wise_catalog,
         resize=resize,
         rotation=rotation,
