@@ -13,6 +13,7 @@ from lofarnn.models.base.cnn import (
     RadioMultiSourceModel,
     f1_loss,
 )
+from lofarnn.models.base.resnet import BinaryFocalLoss
 from torch.utils.data import dataset, dataloader
 import torch.nn.functional as F
 import torch
@@ -52,6 +53,9 @@ def default_argument_parser():
     parser.add_argument(
         "--dataset", type=str, default="", help="path to dataset annotations files"
     )
+    parser.add_argument(
+        "--loss", type=str, default="cross-entropy", help="loss to use, from 'cross-entropy' (default), 'focal', 'f1' "
+    )
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
     parser.add_argument("--batch", type=int, default=32, help="batch size")
     parser.add_argument("--epochs", type=int, default=200, help="number of epochs")
@@ -84,7 +88,13 @@ def test(args, model, device, test_loader, name="test", output_dir="./"):
             )
             output = model(image, source)
             # sum up batch loss
-            test_loss += F.nll_loss(output, labels, reduction="sum").item()
+            if args.loss == "cross-entropy":
+                test_loss += F.nll_loss(F.log_softmax(output, dim=-1), labels, reduction="sum").item()
+            elif args.loss == "f1":
+                test_loss += f1_loss(output, labels, is_training=False).item()
+            elif args.loss == "focal":
+                loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction='mean')
+                test_loss += loss_fn(output, labels).item()
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
             correct += pred.eq(labels.view_as(pred)).sum().item()
@@ -127,7 +137,15 @@ def train(args, model, device, train_loader, optimizer, epoch, output_dir="./"):
         )
         optimizer.zero_grad()
         output = model(image, source)
-        loss = F.nll_loss(F.log_softmax(output, dim=-1), labels)
+        if args.loss == "cross-entropy":
+            loss = F.nll_loss(F.log_softmax(output, dim=-1), labels, reduction="sum")
+        elif args.loss == "f1":
+            loss = f1_loss(output, labels, is_training=True)
+        elif args.loss == "focal":
+            loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction='mean')
+            loss = loss_fn(output, labels)
+        else:
+            raise Exception("Loss not one of 'cross-entropy', 'focal', 'f1' ")
         loss.backward()
 
         save_loss.append(loss.item())
@@ -180,7 +198,7 @@ def main(args):
     )
     experiment_name = (
         args.experiment
-        + f"_lr{args.lr}_b{args.batch}_single{args.single}_sources{args.num_sources}_norm{args.norm}"
+        + f"_lr{args.lr}_b{args.batch}_single{args.single}_sources{args.num_sources}_norm{args.norm}_loss{args.loss}"
     )
     if environment == "XPS":
         output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
