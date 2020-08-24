@@ -138,8 +138,9 @@ def determine_visible_catalogue_source_and_separation(
         dec_array = np.array(objects["ID_dec"], dtype=float)
     sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
     d2d = source_coord.separation(sky_coords)
+    angles = source_coord.position_angle(sky_coords)
 
-    return objects, d2d
+    return objects, d2d, angles, source_coord, sky_coords
 
 
 def determine_visible_catalogue_sources(ra, dec, size, catalogue, verbose=False):

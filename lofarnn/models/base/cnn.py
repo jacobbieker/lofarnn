@@ -87,7 +87,7 @@ class RadioMultiSourceModel(nn.Module):
 
         # Combined
         self.fc1 = nn.Linear(128 + 128, 64)
-        self.fc2 = nn.Linear(64, 2)
+        self.fc2 = nn.Linear(64, num_sources)
 
     def forward(self, image, data):
         x1 = self.cnn(image)
