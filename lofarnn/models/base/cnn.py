@@ -101,7 +101,7 @@ class RadioMultiSourceModel(nn.Module):
 
 
 def f1_loss(
-    y_true: torch.Tensor, y_pred: torch.Tensor, is_training=False
+    y_pred: torch.Tensor, y_true: torch.Tensor, is_training=False
 ) -> torch.Tensor:
     """Calculate F1 score. Can work with gpu tensors
 

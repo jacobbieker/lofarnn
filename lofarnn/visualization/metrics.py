@@ -14,7 +14,7 @@ def load_json_arr(json_path):
     return lines
 
 
-def plot_axis_recall(recall_path, vac_catalog, limit, jelle_cut=False, bins=10):
+def plot_axis_recall(recall_path, vac_catalog, limit, jelle_cut=False, bins=10, output_dir="./"):
     """
     Plot recall of apparent size to axis ratio
     :param recall_path: Recall path from SourceEvaluator, which has source_name and highest overlap of the limit
@@ -39,6 +39,7 @@ def plot_axis_recall(recall_path, vac_catalog, limit, jelle_cut=False, bins=10):
     radio_apparent_width = np.zeros(len(pred_source_names))
     radio_total_flux = np.zeros(len(pred_source_names))
     radio_z = np.zeros(len(pred_source_names))
+    radio_comp = np.zeros(len(pred_source_names))
     for i, source_name in enumerate(pred_source_names):
         mask = source_name == vac_catalog["Source_Name"]
 
@@ -47,27 +48,31 @@ def plot_axis_recall(recall_path, vac_catalog, limit, jelle_cut=False, bins=10):
         radio_apparent_width[i] = vac_catalog[mask]["LGZ_Width"].data
         radio_total_flux[i] = vac_catalog[mask]["Total_flux"].data
         radio_z[i] = vac_catalog[mask]["z_best"].data
+        radio_comp[i] = vac_catalog[mask]["LGZ_Assoc"].data
     radio_axis_ratio = radio_apparent_size / radio_apparent_width
     data_dict = {
         "Axis ratio": radio_axis_ratio,
         "Total flux [mJy]": radio_total_flux,
         "Apparent size [arcsec]": radio_apparent_size,
         "z": radio_z,
+        "Number of Components": radio_comp
     }
 
     ###calculate recall in bins
     # set which parameters you want to have on the X and Y axis
     for xlabel in ["Apparent size [arcsec]"]:
-        for ylabel in ["Total flux [mJy]", "Axis ratio", "z"]:
+        for ylabel in ["Total flux [mJy]", "Axis ratio", "z", "Number of Components"]:
             X = data_dict[xlabel]
             Y = data_dict[ylabel]
             # get edges with maxima determined using percentiles to be robust for outliers
             x_bin_edges = np.linspace(
-                np.nanpercentile(X, 1), np.nanpercentile(X, 98), bins + 1
+                np.nanpercentile(X, 1)-0.00001, np.nanpercentile(X, 98), bins + 1
             )
+            #x_bin_edges = np.linspace(np.nanmin(X)-0.00001, np.nanpercentile(X, 98), bins+1)
             y_bin_edges = np.linspace(
-                np.nanpercentile(Y, 1), np.nanpercentile(Y, 95), bins + 1
+                np.nanpercentile(Y, 1)-0.00001, np.nanpercentile(Y, 98), bins + 1
             )
+            #y_bin_edges = np.linspace(np.nanmin(Y)-0.00001, np.nanpercentile(Y, 98), bins + 1)
             # derive bin centers
             x_bin_width = x_bin_edges[1] - x_bin_edges[0]
             x_bin_centers = x_bin_edges[1:] - x_bin_width / 2
@@ -149,8 +154,8 @@ def plot_axis_recall(recall_path, vac_catalog, limit, jelle_cut=False, bins=10):
             ax.set_ylabel(ylabel)
 
             ax.set_title(f"Recall for {xlabel} vs {ylabel}, limit: {limit}")
-            fig.savefig(
-                f"{xlabel}-{ylabel}_limit{limit}_jelle{jelle_cut}.png",
+            fig.savefig(os.path.join(output_dir,
+                f"{xlabel}-{ylabel}_limit{limit}_jelle{jelle_cut}.png"),
                 dpi=200,
                 bbox_inches="tight",
             )
@@ -212,7 +217,6 @@ def plot_plots(
                 val_recall[f"{experiment_name}_val/own_recall_1/recall"] = []
                 val_precision[f"{experiment_name}_val/own_recall_1/precision"] = []
                 precision[f"{experiment_name}_train_test/own_recall_1/precision"] = []
-                # print(line[f"{experiment_name}_train_test/own_recall_{j}/recall"])
                 recall[f"{experiment_name}_train_test/own_recall_1/recall"] = []
                 val_recall[f"{experiment_name}_val/own_recall_1_{cut}/recall"] = []
                 val_precision[

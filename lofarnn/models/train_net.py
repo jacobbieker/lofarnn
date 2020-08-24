@@ -75,12 +75,12 @@ def setup(args):
         for d in ["val", "test", "train_test"]:
             DatasetCatalog.register(
                 f"{args.experiment}_" + d,
-                lambda d=d: get_only_mutli_dicts(
+                lambda d=d: get_lofar_dicts(
                     os.path.join(
                         args.dataset,
                         f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
                     ),
-                    multi=True, vac=args.vac_file,
+                    fraction=1,
                 ),
             )
             MetadataCatalog.get(f"{args.experiment}_" + d).set(
@@ -105,12 +105,12 @@ def setup(args):
         for d in ["val", "test", "train_test"]:
             DatasetCatalog.register(
                 f"{args.experiment}_" + d,
-                lambda d=d: get_only_mutli_dicts(
+                lambda d=d: get_lofar_dicts(
                     os.path.join(
                         args.dataset,
                         f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
                     ),
-                    multi=False, vac=args.vac_file,
+                    fraction=1,
                 ),
             )
             MetadataCatalog.get(f"{args.experiment}_" + d).set(
