@@ -50,13 +50,20 @@ class RadioSourceDataset(Dataset):
         """
         anno = self.annotations[self.mapping[idx][0]]
         image = np.load(anno["file_name"], fix_imports=True)
+        image = image.reshape((1, image.shape[0], image.shape[1]))
         source = anno["optical_sources"][self.mapping[idx][1]]
+        source[0] = source[0].value
+        source = np.asarray(source)
         label = anno["optical_labels"][self.mapping[idx][1]]
-
+        # First one is Optical, second one is Not
+        if label:
+            label = np.array([1,0])
+        else:
+            label = np.array([0,1])
         return {
             "image": torch.from_numpy(image).float(),
             "sources": torch.from_numpy(source).float(),
-            "labels": torch.from_numpy(label),
+            "labels": torch.from_numpy(label).float(),
         }
 
     def load_multi_source(self, idx):

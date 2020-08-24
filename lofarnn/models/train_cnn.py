@@ -85,6 +85,7 @@ def test(args, model, device, test_loader, name="test", output_dir="./"):
     model.eval()
     test_loss = 0
     correct = 0
+    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction='mean')
     with torch.no_grad():
         for data in test_loader:
             image, source, labels = (
@@ -99,13 +100,10 @@ def test(args, model, device, test_loader, name="test", output_dir="./"):
             elif args.loss == "f1":
                 test_loss += f1_loss(output, labels, is_training=False).item()
             elif args.loss == "focal":
-                loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction='mean')
                 test_loss += loss_fn(output, labels).item()
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
-            #print(pred)
             label = labels.argmax(dim=1, keepdim=True)
-            #print(label)
             correct += pred.eq(label.view_as(pred)).sum().item()
 
             save_test_loss.append(test_loss)
@@ -138,6 +136,7 @@ def train(args, model, device, train_loader, optimizer, epoch, output_dir="./"):
     save_loss = []
     total_loss = 0
     model.train()
+    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction='mean')
     for batch_idx, data in enumerate(train_loader):
         image, source, labels = (
             data["image"].to(device),
@@ -151,7 +150,6 @@ def train(args, model, device, train_loader, optimizer, epoch, output_dir="./"):
         elif args.loss == "f1":
             loss = f1_loss(output, labels, is_training=True)
         elif args.loss == "focal":
-            loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction='mean')
             loss = loss_fn(output, labels)
         else:
             raise Exception("Loss not one of 'cross-entropy', 'focal', 'f1' ")
@@ -219,7 +217,7 @@ def main(args):
     os.makedirs(output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if args.single:
-        model = RadioSingleSourceModel(args.classes, 10).to(device)
+        model = RadioSingleSourceModel(1, 10).to(device)
     else:
         model = RadioMultiSourceModel(1, args.classes).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
