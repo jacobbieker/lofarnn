@@ -114,7 +114,7 @@ def make_single_cnn_set(
     for i, image_name in enumerate(image_names):
         # Get image dimensions and insert them in a python dict
         record_dest_filename = os.path.join(
-            image_destination_dir, image_name.stem + f".record.npy"
+            image_destination_dir, image_name.stem + f".record.{normalize}.npy"
         )
         if convert:
             image_dest_filename = os.path.join(
@@ -126,7 +126,7 @@ def make_single_cnn_set(
                     image_destination_dir, image_name.stem + f".cnn.{m}.npy"
                 )
                 record_dest_filename = os.path.join(
-                    image_destination_dir, image_name.stem + f".record.{m}.npy"
+                    image_destination_dir, image_name.stem + f".record.{m}.{normalize}.npy"
                 )
             else:
                 image_dest_filename = os.path.join(
