@@ -17,6 +17,7 @@ from lofarnn.models.base.resnet import BinaryFocalLoss
 from torch.utils.data import dataset, dataloader
 import torch.nn.functional as F
 import torch
+import optuna
 
 
 def default_argument_parser():
@@ -75,7 +76,7 @@ def default_argument_parser():
     return parser
 
 
-def test(args, model, device, test_loader, name="test", output_dir="./"):
+def test(args, model, device, test_loader, name="test", output_dir="./", config={"loss": "cross-entropy"}):
     save_test_loss = []
     save_correct = []
     save_recalls = []
@@ -95,11 +96,11 @@ def test(args, model, device, test_loader, name="test", output_dir="./"):
             )
             output = model(image, source)
             # sum up batch loss
-            if args.loss == "cross-entropy":
+            if config["loss"] == "cross-entropy":
                 test_loss += F.binary_cross_entropy(F.softmax(output, dim=-1), labels).item()
-            elif args.loss == "f1":
+            elif config["loss"] == "f1":
                 test_loss += f1_loss(output, labels, is_training=False).item()
-            elif args.loss == "focal":
+            elif config["loss"] == "focal":
                 test_loss += loss_fn(output, labels).item()
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
@@ -108,10 +109,16 @@ def test(args, model, device, test_loader, name="test", output_dir="./"):
 
             save_test_loss.append(test_loss)
             save_correct.append(correct)
-            if torch.eq(pred, label) and label.item() == 1:
-                recall += 1
-
-    recall /= len(test_loader.dataset.annotations)  # One source per annotation
+            if torch.eq(pred, label):
+                if len(label) == 1:
+                    if label.item() == 1:
+                        recall += 1
+                else:
+                    recall += 1
+    if config["single"]:
+        recall /= len(test_loader.dataset.annotations)  # One source per annotation
+    else:
+        recall /= len(test_loader.dataset)
     save_recalls.append(recall)
     test_loss /= len(test_loader)
 
@@ -122,7 +129,7 @@ def test(args, model, device, test_loader, name="test", output_dir="./"):
             len(test_loader),
             100.0 * correct / len(test_loader),
             100.0 * recall,
-        )
+            )
     )
     a = np.asarray(save_test_loss)
     with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
@@ -130,9 +137,10 @@ def test(args, model, device, test_loader, name="test", output_dir="./"):
     a = np.asarray(save_recalls)
     with open(os.path.join(output_dir, f"{name}_recall.csv"), "ab") as f:
         np.savetxt(f, a, delimiter=",")
+    return 100.0 * correct / len(test_loader)
 
 
-def train(args, model, device, train_loader, optimizer, epoch, output_dir="./"):
+def train(args, model, device, train_loader, optimizer, epoch, output_dir="./", config={"loss": "cross-entropy"}):
     save_loss = []
     total_loss = 0
     model.train()
@@ -145,11 +153,11 @@ def train(args, model, device, train_loader, optimizer, epoch, output_dir="./"):
         )
         optimizer.zero_grad()
         output = model(image, source)
-        if args.loss == "cross-entropy":
+        if config["loss"] == "cross-entropy":
             loss = F.binary_cross_entropy(F.softmax(output, dim=-1), labels)
-        elif args.loss == "f1":
+        elif config["loss"] == "f1":
             loss = f1_loss(output, labels, is_training=True)
-        elif args.loss == "focal":
+        elif config["loss"] == "focal":
             loss = loss_fn(output, labels)
         else:
             raise Exception("Loss not one of 'cross-entropy', 'focal', 'f1' ")
@@ -170,30 +178,52 @@ def train(args, model, device, train_loader, optimizer, epoch, output_dir="./"):
         np.savetxt(f, a, delimiter=",")
 
 
-def setup(args):
+def setup(args, single):
     """
     Setup dataset and dataloaders for these new datasets
     """
     train_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
-        single_source_per_img=args.single,
+        single_source_per_img=single,
         shuffle=True,
     )
     train_test_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
-        single_source_per_img=args.single,
+        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
+        single_source_per_img=single,
         shuffle=True,
     )
     val_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_test_norm{args.norm}.pkl"),
-        single_source_per_img=args.single,
+        os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
+        single_source_per_img=single,
         shuffle=True,
     )
     return train_dataset, train_test_dataset, val_dataset
 
 
-def main(args):
-    train_dataset, train_test_dataset, val_dataset = setup(args)
+def objective(trial):
+    # Generate model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    config = {
+        "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
+        "fc_out": trial.suggest_int("fc_out", 8, 256),
+        "fc_final": trial.suggest_int("fc_final", 8, 256),
+        "single": trial.suggest_categorical("is_single", [False, True]),
+        "loss": trial.suggest_categorical("loss_fn", ["focal", "cross-entropy", "f1"])
+    }
+
+    train_dataset, train_test_dataset, val_dataset = setup(args, config["single"])
+
+    if config["single"]:
+        model = RadioSingleSourceModel(1, 10, config=config).to(device)
+    else:
+        model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
+
+    # generate optimizers
+    optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
+    lr = trial.suggest_loguniform("lr", 1e-5, 1e-1)
+    optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
+
     train_loader = dataloader.DataLoader(
         train_dataset, batch_size=args.batch, shuffle=True, num_workers=os.cpu_count()
     )
@@ -207,27 +237,54 @@ def main(args):
         val_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count()
     )
     experiment_name = (
-        args.experiment
-        + f"_lr{args.lr}_b{args.batch}_single{args.single}_sources{args.num_sources}_norm{args.norm}_loss{args.loss}"
+            args.experiment
+            + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}"
     )
     if environment == "XPS":
         output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
     else:
         output_dir = os.path.join("/home/s2153246/data/", "reports", experiment_name)
     os.makedirs(output_dir, exist_ok=True)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if args.single:
-        model = RadioSingleSourceModel(1, 10).to(device)
-    else:
-        model = RadioMultiSourceModel(1, args.classes).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+
     print("Model created")
-    for epoch in range(args.epochs):
-        test(args, model, device, test_loader, output_dir)
-        train(args, model, device, train_loader, optimizer, epoch, output_dir)
-        test(args, model, device, train_test_loader, "train_test", output_dir)
+    for epoch in range(10):
+        train(args, model, device, train_loader, optimizer, epoch, output_dir, config)
+        test(args, model, device, train_test_loader, "train_test", output_dir, config)
+        accuracy = test(args, model, device, test_loader, output_dir, config)
         if epoch % 5 == 0:  # Save every 5 epochs
             torch.save(model, os.path.join(output_dir, "model.pth"))
+
+        trial.report(accuracy, epoch)
+
+        # Handle pruning based on the intermediate value.
+        if trial.should_prune():
+            raise optuna.exceptions.TrialPruned()
+
+    return accuracy
+
+
+def main(args):
+    study = optuna.create_study(study_name="resnet_lotss", direction="maximize", storage="sqlite:///lotss.db", load_if_exists=True, pruner=optuna.pruners.HyperbandPruner(max_resource="auto"))
+    study.optimize(objective, n_trials=100)
+
+    pruned_trials = [t for t in study.trials if t.state == optuna.structs.TrialState.PRUNED]
+    complete_trials = [t for t in study.trials if t.state == optuna.structs.TrialState.COMPLETE]
+
+    print("Study statistics: ")
+    print("  Number of finished trials: ", len(study.trials))
+    print("  Number of pruned trials: ", len(pruned_trials))
+    print("  Number of complete trials: ", len(complete_trials))
+
+    print("Best trial:")
+    trial = study.best_trial
+
+    print("  Value: ", trial.value)
+
+    print("  Params: ")
+    for key, value in trial.params.items():
+        print("    {}: {}".format(key, value))
+
+    fig = optuna.visualization.plot_param_importances(study=study)
 
 
 if __name__ == "__main__":

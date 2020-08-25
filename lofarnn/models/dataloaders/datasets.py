@@ -35,11 +35,13 @@ class RadioSourceDataset(Dataset):
             total = 0
             for i, annotation in enumerate(self.annotations):
                 for j, _ in enumerate(annotation["optical_sources"]):
-                    self.mapping[total] = (i, j)
-                    total += 1
+                    if j < self.num_sources:
+                        self.mapping[total] = (i, j)
+                        total += 1
             self.length = total
         else:
             self.length = len(self.annotations)
+        print(f"Total Items: {self.length}")
 
     def __len__(self):
         return self.length
