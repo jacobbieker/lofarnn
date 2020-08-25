@@ -215,7 +215,7 @@ def objective(trial):
     train_dataset, train_test_dataset, val_dataset = setup(args, config["single"])
 
     if config["single"]:
-        model = RadioSingleSourceModel(1, 10, config=config).to(device)
+        model = RadioSingleSourceModel(1, 11, config=config).to(device)
     else:
         model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
 
@@ -264,7 +264,7 @@ def objective(trial):
 
 
 def main(args):
-    study = optuna.create_study(study_name="resnet_lotss", direction="maximize", storage="sqlite:///lotss.db", load_if_exists=True, pruner=optuna.pruners.HyperbandPruner(max_resource="auto"))
+    study = optuna.create_study(study_name="resnet_lotss", direction="maximize", storage="sqlite:///lotss_dr2.db", load_if_exists=True, pruner=optuna.pruners.HyperbandPruner(max_resource="auto"))
     study.optimize(objective, n_trials=100)
 
     pruned_trials = [t for t in study.trials if t.state == optuna.structs.TrialState.PRUNED]

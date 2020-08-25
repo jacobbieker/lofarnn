@@ -55,6 +55,7 @@ class RadioSourceDataset(Dataset):
         image = image.reshape((1, image.shape[0], image.shape[1]))
         source = anno["optical_sources"][self.mapping[idx][1]]
         source[0] = source[0].value
+        source[1] = source[1].value
         source = np.asarray(source)
         label = anno["optical_labels"][self.mapping[idx][1]]
         # First one is Optical, second one is Not
@@ -78,6 +79,7 @@ class RadioSourceDataset(Dataset):
         #print(image.shape)
         for i, item in enumerate(anno["optical_sources"]):
             anno["optical_sources"][i][0] = anno["optical_sources"][i][0].value
+            anno["optical_sources"][i][1] = anno["optical_sources"][i][1].value
         #anno["optical_sources"] = np.asarray(anno["optical_sources"])
         sources = np.asarray(anno["optical_sources"])
         labels = np.asarray(anno["optical_labels"])
