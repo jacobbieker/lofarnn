@@ -20,6 +20,8 @@ class RadioSourceDataset(Dataset):
         print(f"Len Anno: {len(self.annotations)}")
         new_anno = []
         for anno in self.annotations:
+            if isinstance(anno, np.ndarray):
+                anno = anno.item()
             if anno["height"] == anno["width"] == 200:
                 new_anno.append(anno)
         self.annotations = new_anno
@@ -80,7 +82,6 @@ class RadioSourceDataset(Dataset):
         for i, item in enumerate(anno["optical_sources"]):
             anno["optical_sources"][i][0] = anno["optical_sources"][i][0].value
             anno["optical_sources"][i][1] = anno["optical_sources"][i][1].value
-        #anno["optical_sources"] = np.asarray(anno["optical_sources"])
         sources = np.asarray(anno["optical_sources"])
         labels = np.asarray(anno["optical_labels"])
 

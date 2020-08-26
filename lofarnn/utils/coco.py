@@ -123,14 +123,14 @@ def make_single_cnn_set(
         else:
             if rotation is not None and rotation.any() > 0:
                 image_dest_filename = os.path.join(
-                    image_destination_dir, image_name.stem + f".cnn.{m}.npy"
+                    image_destination_dir, image_name.stem + f".cnn.{m}.{normalize}.npy"
                 )
                 record_dest_filename = os.path.join(
                     image_destination_dir, image_name.stem + f".record.{m}.{normalize}.npy"
                 )
             else:
                 image_dest_filename = os.path.join(
-                    image_destination_dir, image_name.stem + f".cnn.npy"
+                    image_destination_dir, image_name.stem + f".cnn.{normalize}.npy"
                 )
         if not os.path.exists(os.path.join(image_dest_filename)) and not os.path.exists(
                 os.path.join(record_dest_filename)):
@@ -250,7 +250,6 @@ def make_single_cnn_set(
                 pil_im.save(image_dest_filename)
             else:
                 image = np.nan_to_num(image)  # Only take radio
-                print(isinstance(image, np.ma.MaskedArray))
                 np.save(image_dest_filename, image)  # Save to the final destination
         else:
             image = np.load(image_dest_filename)
@@ -317,7 +316,7 @@ def make_single_cnn_set(
                 record["rotation"] = 0.0
             np.save(record_dest_filename, record)
         else:
-            record = np.load(record_dest_filename, fix_imports=True)
+            record = np.load(record_dest_filename, fix_imports=True, allow_pickle=True)
 
         # Now add the labels, so need to know which optical source is the true one
         L.append(record)

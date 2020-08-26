@@ -99,7 +99,7 @@ def test(args, model, device, test_loader, name="test", output_dir="./", config=
             if config["loss"] == "cross-entropy":
                 test_loss += F.binary_cross_entropy(F.softmax(output, dim=-1), labels).item()
             elif config["loss"] == "f1":
-                test_loss += f1_loss(output, labels, is_training=False).item()
+                test_loss += f1_loss(output, labels.argmax(dim=1), is_training=False).item()
             elif config["loss"] == "focal":
                 test_loss += loss_fn(output, labels).item()
             # get the index of the max log-probability
@@ -115,10 +115,7 @@ def test(args, model, device, test_loader, name="test", output_dir="./", config=
                         recall += 1
                 else:
                     recall += 1
-    if config["single"]:
-        recall /= len(test_loader.dataset.annotations)  # One source per annotation
-    else:
-        recall /= len(test_loader.dataset)
+    recall /= len(test_loader.dataset.annotations)
     save_recalls.append(recall)
     test_loss /= len(test_loader)
 
@@ -132,11 +129,11 @@ def test(args, model, device, test_loader, name="test", output_dir="./", config=
             )
     )
     a = np.asarray(save_test_loss)
-    with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
-        np.savetxt(f, a, delimiter=",")
-    a = np.asarray(save_recalls)
-    with open(os.path.join(output_dir, f"{name}_recall.csv"), "ab") as f:
-        np.savetxt(f, a, delimiter=",")
+    #with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
+    #    np.savetxt(f, a, delimiter=",")
+    #a = np.asarray(save_recalls)
+    #with open(os.path.join(output_dir, f"{name}_recall.csv"), "ab") as f:
+    #    np.savetxt(f, a, delimiter=",")
     return 100.0 * correct / len(test_loader)
 
 
@@ -156,7 +153,7 @@ def train(args, model, device, train_loader, optimizer, epoch, output_dir="./", 
         if config["loss"] == "cross-entropy":
             loss = F.binary_cross_entropy(F.softmax(output, dim=-1), labels)
         elif config["loss"] == "f1":
-            loss = f1_loss(output, labels, is_training=True)
+            loss = f1_loss(output, labels.argmax(dim=1), is_training=True)
         elif config["loss"] == "focal":
             loss = loss_fn(output, labels)
         else:
@@ -185,17 +182,17 @@ def setup(args, single):
     train_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
         single_source_per_img=single,
-        shuffle=True,
+        shuffle=False,
     )
     train_test_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
         single_source_per_img=single,
-        shuffle=True,
+        shuffle=False,
     )
     val_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
         single_source_per_img=single,
-        shuffle=True,
+        shuffle=False,
     )
     return train_dataset, train_test_dataset, val_dataset
 
@@ -208,14 +205,14 @@ def objective(trial):
         "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
         "fc_out": trial.suggest_int("fc_out", 8, 256),
         "fc_final": trial.suggest_int("fc_final", 8, 256),
-        "single": trial.suggest_categorical("is_single", [False, True]),
+        "single": False,
         "loss": trial.suggest_categorical("loss_fn", ["focal", "cross-entropy", "f1"])
     }
 
     train_dataset, train_test_dataset, val_dataset = setup(args, config["single"])
 
     if config["single"]:
-        model = RadioSingleSourceModel(1, 11, config=config).to(device)
+        model = RadioSingleSourceModel(1, 10, config=config).to(device)
     else:
         model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
 
