@@ -180,12 +180,12 @@ def setup(args):
         shuffle=True,
     )
     train_test_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
+        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
         single_source_per_img=args.single,
         shuffle=True,
     )
     val_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_test_norm{args.norm}.pkl"),
+        os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
         single_source_per_img=args.single,
         shuffle=True,
     )
@@ -216,10 +216,17 @@ def main(args):
         output_dir = os.path.join("/home/s2153246/data/", "reports", experiment_name)
     os.makedirs(output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    config = {
+        "act": "relu",
+        "fc_out": 128,
+        "fc_final": 64,
+        "single": False,
+        "loss": "cross-entropy"
+    }
     if args.single:
-        model = RadioSingleSourceModel(1, 10).to(device)
+        model = RadioSingleSourceModel(1, 11, config=config).to(device)
     else:
-        model = RadioMultiSourceModel(1, args.classes).to(device)
+        model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     print("Model created")
     for epoch in range(args.epochs):

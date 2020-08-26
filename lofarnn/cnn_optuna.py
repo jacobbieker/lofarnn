@@ -97,7 +97,10 @@ def test(args, model, device, test_loader, name="test", output_dir="./", config=
             output = model(image, source)
             # sum up batch loss
             if config["loss"] == "cross-entropy":
-                test_loss += F.binary_cross_entropy(F.softmax(output, dim=-1), labels).item()
+                try:
+                    test_loss += F.binary_cross_entropy(F.softmax(output, dim=-1), labels).item()
+                except RuntimeError:
+                    print(output)
             elif config["loss"] == "f1":
                 test_loss += f1_loss(output, labels.argmax(dim=1), is_training=False).item()
             elif config["loss"] == "focal":
@@ -205,14 +208,14 @@ def objective(trial):
         "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
         "fc_out": trial.suggest_int("fc_out", 8, 256),
         "fc_final": trial.suggest_int("fc_final", 8, 256),
-        "single": False,
+        "single": True,
         "loss": trial.suggest_categorical("loss_fn", ["focal", "cross-entropy", "f1"])
     }
 
     train_dataset, train_test_dataset, val_dataset = setup(args, config["single"])
 
     if config["single"]:
-        model = RadioSingleSourceModel(1, 10, config=config).to(device)
+        model = RadioSingleSourceModel(1, 11, config=config).to(device)
     else:
         model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
 
@@ -261,7 +264,7 @@ def objective(trial):
 
 
 def main(args):
-    study = optuna.create_study(study_name="resnet_lotss", direction="maximize", storage="sqlite:///lotss_dr2.db", load_if_exists=True, pruner=optuna.pruners.HyperbandPruner(max_resource="auto"))
+    study = optuna.create_study(study_name="resnet_lotss_single", direction="maximize", storage="sqlite:///lotss_dr2.db", load_if_exists=True, pruner=optuna.pruners.HyperbandPruner(max_resource="auto"))
     study.optimize(objective, n_trials=100)
 
     pruned_trials = [t for t in study.trials if t.state == optuna.structs.TrialState.PRUNED]

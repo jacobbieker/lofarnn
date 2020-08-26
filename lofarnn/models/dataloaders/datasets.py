@@ -9,13 +9,14 @@ import astropy.units as u
 class RadioSourceDataset(Dataset):
     """Radio Source dataset."""
 
-    def __init__(self, json_file, single_source_per_img=True, num_sources=40, shuffle=False):
+    def __init__(self, json_file, single_source_per_img=True, num_sources=40, shuffle=False, norm=True):
         """
         Args:
             json_file (string): Path to the json file with annotations
             single_source_per_img (bool, optional): Whether to give all sources with an image, or a single source per image
         """
         self.annotations = pickle.load(open(json_file, "rb"), fix_imports=True)
+        self.norm = norm
         # Remove any non-standard files
         print(f"Len Anno: {len(self.annotations)}")
         new_anno = []
@@ -57,7 +58,7 @@ class RadioSourceDataset(Dataset):
         image = image.reshape((1, image.shape[0], image.shape[1]))
         source = anno["optical_sources"][self.mapping[idx][1]]
         source[0] = source[0].value
-        source[1] = source[1].value
+        source[1] = source[1].value / (2*np.pi) # Convert to between 0 and 1
         source = np.asarray(source)
         label = anno["optical_labels"][self.mapping[idx][1]]
         # First one is Optical, second one is Not
@@ -81,7 +82,12 @@ class RadioSourceDataset(Dataset):
         #print(image.shape)
         for i, item in enumerate(anno["optical_sources"]):
             anno["optical_sources"][i][0] = anno["optical_sources"][i][0].value
-            anno["optical_sources"][i][1] = anno["optical_sources"][i][1].value
+            anno["optical_sources"][i][1] = anno["optical_sources"][i][1].value / (2*np.pi)
+            if self.norm:
+                for j in range(2,len(anno["optical_sources"][i])):
+                    value = anno["optical_sources"][i][j]
+                    value = np.clip(value, 10.0, 28.0)
+                    anno["optical_sources"][i][j] = (value - 10.0) / (28.0 - 10.0)
         sources = np.asarray(anno["optical_sources"])
         labels = np.asarray(anno["optical_labels"])
 
