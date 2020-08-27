@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import argparse
-from lofarnn.models.dataloaders.datasets import RadioSourceDataset
+from lofarnn.models.dataloaders.datasets import RadioSourceDataset, collate_variable_fn
 
 try:
     environment = os.environ["LOFARNN_ARCH"]
@@ -228,16 +228,17 @@ def objective(trial):
     optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
 
     train_loader = dataloader.DataLoader(
-        train_dataset, batch_size=args.batch, shuffle=True, num_workers=os.cpu_count()
+        train_dataset, batch_size=args.batch, shuffle=True, num_workers=os.cpu_count(), pin_memory=True, collate_fn=collate_variable_fn,
     )
     train_test_loader = dataloader.DataLoader(
         train_test_dataset,
         batch_size=1,
         shuffle=False,
         num_workers=os.cpu_count(),
+        pin_memory=True,
     )
     test_loader = dataloader.DataLoader(
-        val_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count()
+        val_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count(), pin_memory=True
     )
     experiment_name = (
             args.experiment

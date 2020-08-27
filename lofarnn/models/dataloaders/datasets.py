@@ -23,7 +23,7 @@ class RadioSourceDataset(Dataset):
         for anno in self.annotations:
             if isinstance(anno, np.ndarray):
                 anno = anno.item()
-            if anno["height"] > 1 and anno["width"] > 1:
+            if anno["height"] == anno["width"]:
                 new_anno.append(anno)
         self.annotations = new_anno
         print(f"Len Anno After Purge: {len(self.annotations)}")
@@ -83,7 +83,6 @@ class RadioSourceDataset(Dataset):
         """
         anno = self.annotations[idx]
         image = np.load(anno["file_name"], fix_imports=True)
-        print(image.shape)
         image = image.reshape((1, anno['height'], anno['width']))
         #print(image.shape)
         for i, item in enumerate(anno["optical_sources"]):
@@ -121,3 +120,22 @@ class RadioSourceDataset(Dataset):
             return self.load_single_source(idx)
         else:
             return self.load_multi_source(idx)
+
+
+def collate_variable_fn(batch):
+    images = []
+    max_size = 0
+    for item in batch:
+        if item["image"].shape()[-1] > max_size: # last element should be either width or height, so good for this
+            max_size = item["image"].shape()[-1]
+
+    # Second time to pad out tensors for this
+    for item in batch:
+        if item["image"].shape()[-1] < max_size:  # If smaller, need to pad to get to same size
+            diff = max_size - item["image"].shape()[-1]
+            m = torch.nn.ZeroPad2d((0,diff,0,diff))
+            images.append(m(item["image"]))
+
+    data = [item["sources"] for item in batch]
+    target = [item["labels"] for item in batch]
+    return [torch.tensor(images).float(), torch.tensor(data).float(), torch.tensor(target).float()]
