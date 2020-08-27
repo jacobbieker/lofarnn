@@ -111,7 +111,6 @@ class RadioSourceDataset(Dataset):
             "image": torch.from_numpy(image).float(),
             "sources": torch.from_numpy(sources).float(),
             "labels": torch.from_numpy(labels).float(),
-            "source_names": self._get_source_name(anno["file_name"])
         }
 
     def __getitem__(self, idx):
