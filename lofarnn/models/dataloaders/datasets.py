@@ -126,16 +126,19 @@ def collate_variable_fn(batch):
     images = []
     max_size = 0
     for item in batch:
-        if item["image"].shape()[-1] > max_size: # last element should be either width or height, so good for this
+        if item["image"].shape[-1] > max_size: # last element should be either width or height, so good for this
             max_size = item["image"].shape[-1]
 
     # Second time to pad out tensors for this
     for item in batch:
-        if item["image"].shape()[-1] < max_size:  # If smaller, need to pad to get to same size
+        if item["image"].shape[-1] < max_size:  # If smaller, need to pad to get to same size
             diff = max_size - item["image"].shape[-1]
             m = torch.nn.ZeroPad2d((0,diff,0,diff))
             images.append(m(item["image"]))
+        else:
+            images.append(item["image"])
 
-    data = [item["sources"] for item in batch]
-    target = [item["labels"] for item in batch]
-    return [torch.tensor(images).float(), torch.tensor(data).float(), torch.tensor(target).float()]
+    images = torch.stack(images, dim=0)
+    data = torch.stack([item["sources"] for item in batch], dim=0)
+    target = torch.stack([item["labels"] for item in batch], dim=0)
+    return [images, data, target]
