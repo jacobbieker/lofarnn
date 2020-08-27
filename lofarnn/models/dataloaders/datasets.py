@@ -23,8 +23,8 @@ class RadioSourceDataset(Dataset):
         for anno in self.annotations:
             if isinstance(anno, np.ndarray):
                 anno = anno.item()
-            if anno["height"] == anno["width"] == 200:
-                new_anno.append(anno)
+            #if anno["height"] == anno["width"] == 200:
+            new_anno.append(anno)
         self.annotations = new_anno
         print(f"Len Anno After Purge: {len(self.annotations)}")
 
