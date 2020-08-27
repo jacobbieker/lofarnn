@@ -23,8 +23,8 @@ class RadioSourceDataset(Dataset):
         for anno in self.annotations:
             if isinstance(anno, np.ndarray):
                 anno = anno.item()
-            #if anno["height"] == anno["width"] == 200:
-            new_anno.append(anno)
+            if anno["height"] > 1 and anno["width"] > 1:
+                new_anno.append(anno)
         self.annotations = new_anno
         print(f"Len Anno After Purge: {len(self.annotations)}")
 
@@ -83,7 +83,8 @@ class RadioSourceDataset(Dataset):
         """
         anno = self.annotations[idx]
         image = np.load(anno["file_name"], fix_imports=True)
-        image = image.reshape((1, image.shape[0], image.shape[1]))
+        print(image.shape)
+        image = image.reshape((1, anno['height'], anno['width']))
         #print(image.shape)
         for i, item in enumerate(anno["optical_sources"]):
             anno["optical_sources"][i][0] = anno["optical_sources"][i][0].value
