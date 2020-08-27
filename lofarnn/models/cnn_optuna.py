@@ -131,13 +131,13 @@ def test(args, model, device, test_loader, name="test", output_dir="./", config=
             100.0 * recall,
             )
     )
-    a = np.asarray(save_test_loss)
+    #a = np.asarray(save_test_loss)
     #with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
     #    np.savetxt(f, a, delimiter=",")
     #a = np.asarray(save_recalls)
     #with open(os.path.join(output_dir, f"{name}_recall.csv"), "ab") as f:
     #    np.savetxt(f, a, delimiter=",")
-    return 100.0 * correct / len(test_loader)
+    return test_loss
 
 
 def train(args, model, device, train_loader, optimizer, epoch, output_dir="./", config={"loss": "cross-entropy"}):
@@ -173,9 +173,9 @@ def train(args, model, device, train_loader, optimizer, epoch, output_dir="./", 
                     epoch, loss.item(), np.mean(save_loss[-args.log_interval :])
                 )
             )
-    a = np.asarray(save_loss)
-    with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
-        np.savetxt(f, a, delimiter=",")
+    #a = np.asarray(save_loss)
+    #with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
+    #    np.savetxt(f, a, delimiter=",")
 
 
 def setup(args, single):
@@ -186,16 +186,19 @@ def setup(args, single):
         os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
         single_source_per_img=single,
         shuffle=False,
+        norm=not args.norm,
     )
     train_test_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
         single_source_per_img=single,
         shuffle=False,
+        norm=not args.norm,
     )
     val_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
         single_source_per_img=single,
         shuffle=False,
+        norm=not args.norm,
     )
     return train_dataset, train_test_dataset, val_dataset
 
@@ -208,8 +211,8 @@ def objective(trial):
         "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
         "fc_out": trial.suggest_int("fc_out", 8, 256),
         "fc_final": trial.suggest_int("fc_final", 8, 256),
-        "single": True,
-        "loss": trial.suggest_categorical("loss_fn", ["focal", "cross-entropy", "f1"])
+        "single": False,
+        "loss": "cross-entropy"
     }
 
     train_dataset, train_test_dataset, val_dataset = setup(args, config["single"])
@@ -247,7 +250,7 @@ def objective(trial):
     os.makedirs(output_dir, exist_ok=True)
 
     print("Model created")
-    for epoch in range(10):
+    for epoch in range(5):
         train(args, model, device, train_loader, optimizer, epoch, output_dir, config)
         test(args, model, device, train_test_loader, "train_test", output_dir, config)
         accuracy = test(args, model, device, test_loader, output_dir, config)
@@ -264,8 +267,8 @@ def objective(trial):
 
 
 def main(args):
-    study = optuna.create_study(study_name="resnet_lotss_single", direction="maximize", storage="sqlite:///lotss_dr2.db", load_if_exists=True, pruner=optuna.pruners.HyperbandPruner(max_resource="auto"))
-    study.optimize(objective, n_trials=100)
+    study = optuna.create_study(study_name="resnet_lotss_variable_multi", direction="minimize", storage="sqlite:///lotss_dr2_loss.db", load_if_exists=True, pruner=optuna.pruners.HyperbandPruner(max_resource="auto"))
+    study.optimize(objective, n_trials=200)
 
     pruned_trials = [t for t in study.trials if t.state == optuna.structs.TrialState.PRUNED]
     complete_trials = [t for t in study.trials if t.state == optuna.structs.TrialState.COMPLETE]

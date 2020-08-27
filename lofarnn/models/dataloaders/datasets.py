@@ -72,6 +72,11 @@ class RadioSourceDataset(Dataset):
             "labels": torch.from_numpy(label).float(),
         }
 
+    @staticmethod
+    def _get_source_name(name):
+        source_name = name.split("/")[-1].split(".cnn")[0]
+        return source_name
+
     def load_multi_source(self, idx):
         """
         Given single index, get all the sources and labels, shuffling the order
@@ -106,6 +111,7 @@ class RadioSourceDataset(Dataset):
             "image": torch.from_numpy(image).float(),
             "sources": torch.from_numpy(sources).float(),
             "labels": torch.from_numpy(labels).float(),
+            "source_names": self._get_source_name(anno["file_name"])
         }
 
     def __getitem__(self, idx):
