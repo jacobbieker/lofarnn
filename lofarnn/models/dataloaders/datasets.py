@@ -142,8 +142,8 @@ def collate_variable_fn(batch):
         ):  # last element should be either width or height, so good for this
             max_size = item["image"].shape[-1]
 
-    if max_size > 224:
-        max_size = 224
+    if max_size > 400:
+        max_size = 400
 
     # Second time to pad out tensors for this
     for item in batch:
