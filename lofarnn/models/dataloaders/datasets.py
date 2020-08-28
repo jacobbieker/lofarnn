@@ -9,7 +9,14 @@ import astropy.units as u
 class RadioSourceDataset(Dataset):
     """Radio Source dataset."""
 
-    def __init__(self, json_file, single_source_per_img=True, num_sources=40, shuffle=False, norm=True):
+    def __init__(
+        self,
+        json_file,
+        single_source_per_img=True,
+        num_sources=40,
+        shuffle=False,
+        norm=True,
+    ):
         """
         Args:
             json_file (string): Path to the json file with annotations
@@ -58,14 +65,14 @@ class RadioSourceDataset(Dataset):
         image = image.reshape((1, image.shape[0], image.shape[1]))
         source = anno["optical_sources"][self.mapping[idx][1]]
         source[0] = source[0].value
-        source[1] = source[1].value / (2*np.pi) # Convert to between 0 and 1
+        source[1] = source[1].value / (2 * np.pi)  # Convert to between 0 and 1
         source = np.asarray(source)
         label = anno["optical_labels"][self.mapping[idx][1]]
         # First one is Optical, second one is Not
         if label:
-            label = np.array([1,0])
+            label = np.array([1, 0])
         else:
-            label = np.array([0,1])
+            label = np.array([0, 1])
         return {
             "image": torch.from_numpy(image).float(),
             "sources": torch.from_numpy(source).float(),
@@ -80,16 +87,20 @@ class RadioSourceDataset(Dataset):
     def load_multi_source(self, idx):
         """
         Given single index, get all the sources and labels, shuffling the order
+
+        TODO: Add zeroed out row for 'No Source' option
         """
         anno = self.annotations[idx]
         image = np.load(anno["file_name"], fix_imports=True)
-        image = image.reshape((1, anno['height'], anno['width']))
-        #print(image.shape)
+        image = image.reshape((1, anno["height"], anno["width"]))
+        # print(image.shape)
         for i, item in enumerate(anno["optical_sources"]):
             anno["optical_sources"][i][0] = anno["optical_sources"][i][0].value
-            anno["optical_sources"][i][1] = anno["optical_sources"][i][1].value / (2*np.pi)
+            anno["optical_sources"][i][1] = anno["optical_sources"][i][1].value / (
+                2 * np.pi
+            )
             if self.norm:
-                for j in range(2,len(anno["optical_sources"][i])):
+                for j in range(2, len(anno["optical_sources"][i])):
                     value = anno["optical_sources"][i][j]
                     value = np.clip(value, 10.0, 28.0)
                     anno["optical_sources"][i][j] = (value - 10.0) / (28.0 - 10.0)
@@ -106,7 +117,7 @@ class RadioSourceDataset(Dataset):
             labels = labels[indices]
             labels = labels.reshape(self.num_sources)
         else:
-            sources = sources.reshape(1,sources.shape[0], sources.shape[1])
+            sources = sources.reshape(1, sources.shape[0], sources.shape[1])
         return {
             "image": torch.from_numpy(image).float(),
             "sources": torch.from_numpy(sources).float(),
@@ -126,15 +137,25 @@ def collate_variable_fn(batch):
     images = []
     max_size = 0
     for item in batch:
-        if item["image"].shape[-1] > max_size: # last element should be either width or height, so good for this
+        if (
+            item["image"].shape[-1] > max_size
+        ):  # last element should be either width or height, so good for this
             max_size = item["image"].shape[-1]
+
+    if max_size > 224:
+        max_size = 224
 
     # Second time to pad out tensors for this
     for item in batch:
-        if item["image"].shape[-1] < max_size:  # If smaller, need to pad to get to same size
-            diff = max_size - item["image"].shape[-1]
-            m = torch.nn.ZeroPad2d((0,diff,0,diff))
-            images.append(m(item["image"]))
+        if item["image"].shape[-1] != max_size:
+            images.append(
+                torch.squeeze(
+                    torch.nn.functional.interpolate(
+                        item["image"].unsqueeze_(0), (max_size, max_size)
+                    ),
+                    0,
+                )
+            )
         else:
             images.append(item["image"])
 

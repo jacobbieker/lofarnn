@@ -40,7 +40,9 @@ class RadioSingleSourceModel(nn.Module):
         self.source2 = nn.Linear(self.config["fc_final"], self.config["fc_out"])
 
         # Combined
-        self.fc1 = nn.Linear(self.config["fc_out"] + self.config["fc_out"], self.config["fc_final"])
+        self.fc1 = nn.Linear(
+            self.config["fc_out"] + self.config["fc_out"], self.config["fc_final"]
+        )
         self.fc2 = nn.Linear(self.config["fc_final"], 2)
 
     def forward(self, image, data):
@@ -98,7 +100,9 @@ class RadioMultiSourceModel(nn.Module):
         self.cnn2.fc = nn.Linear(self.cnn2.fc.in_features, self.config["fc_out"])
 
         # Combined
-        self.fc1 = nn.Linear(self.config["fc_out"] + self.config["fc_out"], self.config["fc_final"])
+        self.fc1 = nn.Linear(
+            self.config["fc_out"] + self.config["fc_out"], self.config["fc_final"]
+        )
         self.fc2 = nn.Linear(self.config["fc_final"], num_sources)
 
     def forward(self, image, data):

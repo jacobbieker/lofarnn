@@ -295,7 +295,7 @@ class BinaryFocalLoss(nn.Module):
         balance_index: (int) balance class index, should be specific when alpha is float
     """
 
-    def __init__(self, alpha=[1.0, 1.0], gamma=2, ignore_index=None, reduction='mean'):
+    def __init__(self, alpha=[1.0, 1.0], gamma=2, ignore_index=None, reduction="mean"):
         super(BinaryFocalLoss, self).__init__()
         if alpha is None:
             alpha = [0.25, 0.75]
@@ -305,20 +305,23 @@ class BinaryFocalLoss(nn.Module):
         self.ignore_index = ignore_index
         self.reduction = reduction
 
-        assert self.reduction in ['none', 'mean', 'sum']
+        assert self.reduction in ["none", "mean", "sum"]
 
         if self.alpha is None:
             self.alpha = torch.ones(2)
         elif isinstance(self.alpha, (list, np.ndarray)):
             self.alpha = np.asarray(self.alpha)
             self.alpha = np.reshape(self.alpha, (2))
-            assert self.alpha.shape[0] == 2, \
-                'the `alpha` shape is not match the number of class'
+            assert (
+                self.alpha.shape[0] == 2
+            ), "the `alpha` shape is not match the number of class"
         elif isinstance(self.alpha, (float, int)):
-            self.alpha = np.asarray([self.alpha, 1.0 - self.alpha], dtype=np.float).view(2)
+            self.alpha = np.asarray(
+                [self.alpha, 1.0 - self.alpha], dtype=np.float
+            ).view(2)
 
         else:
-            raise TypeError('{} not supported'.format(type(self.alpha)))
+            raise TypeError("{} not supported".format(type(self.alpha)))
 
     def forward(self, output, target):
         prob = torch.sigmoid(output)
@@ -327,9 +330,18 @@ class BinaryFocalLoss(nn.Module):
         pos_mask = (target == 1).float()
         neg_mask = (target == 0).float()
 
-        pos_loss = -self.alpha[0] * torch.pow(torch.sub(1.0, prob), self.gamma) * torch.log(prob) * pos_mask
-        neg_loss = -self.alpha[1] * torch.pow(prob, self.gamma) * \
-                   torch.log(torch.sub(1.0, prob)) * neg_mask
+        pos_loss = (
+            -self.alpha[0]
+            * torch.pow(torch.sub(1.0, prob), self.gamma)
+            * torch.log(prob)
+            * pos_mask
+        )
+        neg_loss = (
+            -self.alpha[1]
+            * torch.pow(prob, self.gamma)
+            * torch.log(torch.sub(1.0, prob))
+            * neg_mask
+        )
 
         neg_loss = neg_loss.sum()
         pos_loss = pos_loss.sum()

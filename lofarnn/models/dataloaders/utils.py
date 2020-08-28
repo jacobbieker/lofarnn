@@ -57,7 +57,9 @@ def get_only_mutli_dicts(annotation_filepath, multi=True, vac=".."):
         new_dicts = []
         for i in range(0, len(dataset_dicts)):
             name = dataset_dicts[i]["file_name"].split("/")[-1].split(".npy")[0]
-            if name in vac_catalog or name.rpartition(".")[0] in vac_catalog: # Needed for both rotated and non rotated
+            if (
+                name in vac_catalog or name.rpartition(".")[0] in vac_catalog
+            ):  # Needed for both rotated and non rotated
                 new_dicts.append(dataset_dicts[i])
         dataset_dicts = new_dicts
     return dataset_dicts

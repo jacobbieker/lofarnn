@@ -65,7 +65,8 @@ def setup(args):
                         args.dataset,
                         f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
                     ),
-                    multi=True, vac=args.vac_file,
+                    multi=True,
+                    vac=args.vac_file,
                 ),
             )
             MetadataCatalog.get(f"{args.experiment}_" + d).set(
@@ -95,7 +96,8 @@ def setup(args):
                         args.dataset,
                         f"json_{d}_prop{args.precompute}_all{args.all_channel}_multi{args.multi_bbox}_seg{args.semseg}_norm{args.norm}.pkl",
                     ),
-                    multi=False, vac=args.vac_file,
+                    multi=False,
+                    vac=args.vac_file,
                 ),
             )
             MetadataCatalog.get(f"{args.experiment}_" + d).set(

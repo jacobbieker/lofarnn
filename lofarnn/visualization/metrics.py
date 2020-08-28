@@ -14,7 +14,9 @@ def load_json_arr(json_path):
     return lines
 
 
-def plot_axis_recall(recall_path, vac_catalog, limit, jelle_cut=False, bins=10, output_dir="./"):
+def plot_axis_recall(
+    recall_path, vac_catalog, limit, jelle_cut=False, bins=10, output_dir="./"
+):
     """
     Plot recall of apparent size to axis ratio
     :param recall_path: Recall path from SourceEvaluator, which has source_name and highest overlap of the limit
@@ -55,7 +57,7 @@ def plot_axis_recall(recall_path, vac_catalog, limit, jelle_cut=False, bins=10, 
         "Total flux [mJy]": radio_total_flux,
         "Apparent size [arcsec]": radio_apparent_size,
         "z": radio_z,
-        "Number of Components": radio_comp
+        "Number of Components": radio_comp,
     }
 
     ###calculate recall in bins
@@ -66,13 +68,13 @@ def plot_axis_recall(recall_path, vac_catalog, limit, jelle_cut=False, bins=10, 
             Y = data_dict[ylabel]
             # get edges with maxima determined using percentiles to be robust for outliers
             x_bin_edges = np.linspace(
-                np.nanpercentile(X, 1)-0.00001, np.nanpercentile(X, 98), bins + 1
+                np.nanpercentile(X, 1) - 0.00001, np.nanpercentile(X, 98), bins + 1
             )
-            #x_bin_edges = np.linspace(np.nanmin(X)-0.00001, np.nanpercentile(X, 98), bins+1)
+            # x_bin_edges = np.linspace(np.nanmin(X)-0.00001, np.nanpercentile(X, 98), bins+1)
             y_bin_edges = np.linspace(
-                np.nanpercentile(Y, 1)-0.00001, np.nanpercentile(Y, 98), bins + 1
+                np.nanpercentile(Y, 1) - 0.00001, np.nanpercentile(Y, 98), bins + 1
             )
-            #y_bin_edges = np.linspace(np.nanmin(Y)-0.00001, np.nanpercentile(Y, 98), bins + 1)
+            # y_bin_edges = np.linspace(np.nanmin(Y)-0.00001, np.nanpercentile(Y, 98), bins + 1)
             # derive bin centers
             x_bin_width = x_bin_edges[1] - x_bin_edges[0]
             x_bin_centers = x_bin_edges[1:] - x_bin_width / 2
@@ -154,8 +156,10 @@ def plot_axis_recall(recall_path, vac_catalog, limit, jelle_cut=False, bins=10, 
             ax.set_ylabel(ylabel)
 
             ax.set_title(f"Recall for {xlabel} vs {ylabel}, limit: {limit}")
-            fig.savefig(os.path.join(output_dir,
-                f"{xlabel}-{ylabel}_limit{limit}_jelle{jelle_cut}.png"),
+            fig.savefig(
+                os.path.join(
+                    output_dir, f"{xlabel}-{ylabel}_limit{limit}_jelle{jelle_cut}.png"
+                ),
                 dpi=200,
                 bbox_inches="tight",
             )

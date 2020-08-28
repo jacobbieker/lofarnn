@@ -57,11 +57,12 @@ def default_argument_parser():
         "--dataset", type=str, default="", help="path to dataset annotations files"
     )
     parser.add_argument(
-        "--loss", type=str, default="cross-entropy", help="loss to use, from 'cross-entropy' (default), 'focal', 'f1' "
+        "--loss",
+        type=str,
+        default="cross-entropy",
+        help="loss to use, from 'cross-entropy' (default), 'focal', 'f1' ",
     )
-    parser.add_argument(
-        "--experiment", type=str, default="", help="experiment name"
-    )
+    parser.add_argument("--experiment", type=str, default="", help="experiment name")
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
     parser.add_argument("--batch", type=int, default=32, help="batch size")
     parser.add_argument("--epochs", type=int, default=200, help="number of epochs")
@@ -85,7 +86,7 @@ def test(args, model, device, test_loader, name="test", output_dir="./"):
     model.eval()
     test_loss = 0
     correct = 0
-    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction='mean')
+    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction="mean")
     with torch.no_grad():
         for data in test_loader:
             image, source, labels = (
@@ -96,7 +97,9 @@ def test(args, model, device, test_loader, name="test", output_dir="./"):
             output = model(image, source)
             # sum up batch loss
             if args.loss == "cross-entropy":
-                test_loss += F.binary_cross_entropy(F.softmax(output, dim=-1), labels).item()
+                test_loss += F.binary_cross_entropy(
+                    F.softmax(output, dim=-1), labels
+                ).item()
             elif args.loss == "f1":
                 test_loss += f1_loss(output, labels, is_training=False).item()
             elif args.loss == "focal":
@@ -136,7 +139,7 @@ def train(args, model, device, train_loader, optimizer, epoch, output_dir="./"):
     save_loss = []
     total_loss = 0
     model.train()
-    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction='mean')
+    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction="mean")
     for batch_idx, data in enumerate(train_loader):
         image, source, labels = (
             data["image"].to(device),
@@ -198,10 +201,7 @@ def main(args):
         train_dataset, batch_size=args.batch, shuffle=True, num_workers=os.cpu_count()
     )
     train_test_loader = dataloader.DataLoader(
-        train_test_dataset,
-        batch_size=1,
-        shuffle=False,
-        num_workers=os.cpu_count(),
+        train_test_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count(),
     )
     test_loader = dataloader.DataLoader(
         val_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count()
@@ -221,7 +221,7 @@ def main(args):
         "fc_out": 128,
         "fc_final": 64,
         "single": False,
-        "loss": "cross-entropy"
+        "loss": "cross-entropy",
     }
     if args.single:
         model = RadioSingleSourceModel(1, 11, config=config).to(device)
