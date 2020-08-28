@@ -58,11 +58,12 @@ def default_argument_parser():
         "--dataset", type=str, default="", help="path to dataset annotations files"
     )
     parser.add_argument(
-        "--loss", type=str, default="cross-entropy", help="loss to use, from 'cross-entropy' (default), 'focal', 'f1' "
+        "--loss",
+        type=str,
+        default="cross-entropy",
+        help="loss to use, from 'cross-entropy' (default), 'focal', 'f1' ",
     )
-    parser.add_argument(
-        "--experiment", type=str, default="", help="experiment name"
-    )
+    parser.add_argument("--experiment", type=str, default="", help="experiment name")
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
     parser.add_argument("--batch", type=int, default=32, help="batch size")
     parser.add_argument("--epochs", type=int, default=200, help="number of epochs")
@@ -76,7 +77,15 @@ def default_argument_parser():
     return parser
 
 
-def test(args, model, device, test_loader, name="test", output_dir="./", config={"loss": "cross-entropy"}):
+def test(
+    args,
+    model,
+    device,
+    test_loader,
+    name="test",
+    output_dir="./",
+    config={"loss": "cross-entropy"},
+):
     save_test_loss = []
     save_correct = []
     save_recalls = []
@@ -86,7 +95,7 @@ def test(args, model, device, test_loader, name="test", output_dir="./", config=
     model.eval()
     test_loss = 0
     correct = 0
-    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction='mean')
+    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction="mean")
     with torch.no_grad():
         for data in test_loader:
             image, source, labels = (
@@ -98,11 +107,15 @@ def test(args, model, device, test_loader, name="test", output_dir="./", config=
             # sum up batch loss
             if config["loss"] == "cross-entropy":
                 try:
-                    test_loss += F.binary_cross_entropy(F.softmax(output, dim=-1), labels).item()
+                    test_loss += F.binary_cross_entropy(
+                        F.softmax(output, dim=-1), labels
+                    ).item()
                 except RuntimeError:
                     print(output)
             elif config["loss"] == "f1":
-                test_loss += f1_loss(output, labels.argmax(dim=1), is_training=False).item()
+                test_loss += f1_loss(
+                    output, labels.argmax(dim=1), is_training=False
+                ).item()
             elif config["loss"] == "focal":
                 test_loss += loss_fn(output, labels).item()
             # get the index of the max log-probability
@@ -129,27 +142,36 @@ def test(args, model, device, test_loader, name="test", output_dir="./", config=
             len(test_loader),
             100.0 * correct / len(test_loader),
             100.0 * recall,
-            )
+        )
     )
-    #a = np.asarray(save_test_loss)
-    #with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
+    # a = np.asarray(save_test_loss)
+    # with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
     #    np.savetxt(f, a, delimiter=",")
-    #a = np.asarray(save_recalls)
-    #with open(os.path.join(output_dir, f"{name}_recall.csv"), "ab") as f:
+    # a = np.asarray(save_recalls)
+    # with open(os.path.join(output_dir, f"{name}_recall.csv"), "ab") as f:
     #    np.savetxt(f, a, delimiter=",")
     return test_loss
 
 
-def train(args, model, device, train_loader, optimizer, epoch, output_dir="./", config={"loss": "cross-entropy"}):
+def train(
+    args,
+    model,
+    device,
+    train_loader,
+    optimizer,
+    epoch,
+    output_dir="./",
+    config={"loss": "cross-entropy"},
+):
     save_loss = []
     total_loss = 0
     model.train()
-    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction='mean')
+    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction="mean")
     for batch_idx, data in enumerate(train_loader):
         image, source, labels = (
-            data["image"].to(device),
-            data["sources"].to(device),
-            data["labels"].to(device),
+            data[0].to(device),
+            data[1].to(device),
+            data[2].to(device),
         )
         optimizer.zero_grad()
         output = model(image, source)
@@ -173,8 +195,8 @@ def train(args, model, device, train_loader, optimizer, epoch, output_dir="./", 
                     epoch, loss.item(), np.mean(save_loss[-args.log_interval :])
                 )
             )
-    #a = np.asarray(save_loss)
-    #with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
+    # a = np.asarray(save_loss)
+    # with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
     #    np.savetxt(f, a, delimiter=",")
 
 
@@ -212,7 +234,7 @@ def objective(trial):
         "fc_out": trial.suggest_int("fc_out", 8, 256),
         "fc_final": trial.suggest_int("fc_final", 8, 256),
         "single": False,
-        "loss": "cross-entropy"
+        "loss": "cross-entropy",
     }
 
     train_dataset, train_test_dataset, val_dataset = setup(args, config["single"])
@@ -228,7 +250,12 @@ def objective(trial):
     optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
 
     train_loader = dataloader.DataLoader(
-        train_dataset, batch_size=args.batch, shuffle=True, num_workers=os.cpu_count(), pin_memory=True, collate_fn=collate_variable_fn,
+        train_dataset,
+        batch_size=args.batch,
+        shuffle=True,
+        num_workers=os.cpu_count(),
+        pin_memory=True,
+        collate_fn=collate_variable_fn,
     )
     train_test_loader = dataloader.DataLoader(
         train_test_dataset,
@@ -238,11 +265,15 @@ def objective(trial):
         pin_memory=True,
     )
     test_loader = dataloader.DataLoader(
-        val_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count(), pin_memory=True
+        val_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=os.cpu_count(),
+        pin_memory=True,
     )
     experiment_name = (
-            args.experiment
-            + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}"
+        args.experiment
+        + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}"
     )
     if environment == "XPS":
         output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
@@ -268,11 +299,21 @@ def objective(trial):
 
 
 def main(args):
-    study = optuna.create_study(study_name="resnet_lotss_variable_multi", direction="minimize", storage="sqlite:///lotss_dr2_loss.db", load_if_exists=True, pruner=optuna.pruners.HyperbandPruner(max_resource="auto"))
-    study.optimize(objective, n_trials=200)
+    study = optuna.create_study(
+        study_name="resnet_lotss_variable_multi",
+        direction="minimize",
+        storage="sqlite:///lotss_dr2_loss.db",
+        load_if_exists=True,
+        pruner=optuna.pruners.HyperbandPruner(max_resource="auto"),
+    )
+    study.optimize(objective, n_trials=100)
 
-    pruned_trials = [t for t in study.trials if t.state == optuna.structs.TrialState.PRUNED]
-    complete_trials = [t for t in study.trials if t.state == optuna.structs.TrialState.COMPLETE]
+    pruned_trials = [
+        t for t in study.trials if t.state == optuna.structs.TrialState.PRUNED
+    ]
+    complete_trials = [
+        t for t in study.trials if t.state == optuna.structs.TrialState.COMPLETE
+    ]
 
     print("Study statistics: ")
     print("  Number of finished trials: ", len(study.trials))
