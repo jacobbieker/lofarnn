@@ -227,14 +227,14 @@ def setup(args, single):
 
 def objective(trial):
     # Generate model
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     config = {
         "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
         "fc_out": trial.suggest_int("fc_out", 8, 256),
         "fc_final": trial.suggest_int("fc_final", 8, 256),
-        "single": False,
-        "loss": "cross-entropy",
+        "single": args.single,
+        "loss": args.loss,
     }
 
     train_dataset, train_test_dataset, val_dataset = setup(args, config["single"])
@@ -253,8 +253,8 @@ def objective(trial):
         train_dataset,
         batch_size=args.batch,
         shuffle=True,
-        num_workers=1,
-        pin_memory=False,
+        num_workers=os.cpu_count(),
+        pin_memory=True,
         collate_fn=collate_variable_fn,
         drop_last=True,
     )
@@ -262,15 +262,15 @@ def objective(trial):
         train_test_dataset,
         batch_size=1,
         shuffle=False,
-        num_workers=1,
-        pin_memory=False,
+        num_workers=os.cpu_count(),
+        pin_memory=True,
     )
     test_loader = dataloader.DataLoader(
         val_dataset,
         batch_size=1,
         shuffle=False,
-        num_workers=1,
-        pin_memory=False,
+        num_workers=os.cpu_count(),
+        pin_memory=True,
     )
     experiment_name = (
         args.experiment
@@ -300,10 +300,14 @@ def objective(trial):
 
 
 def main(args):
+    if environment == "XPS":
+        db = os.path.join("/home/jacob/", "reports", f"lotss_dr2_{args.single}_{args.loss}.db")
+    else:
+        db = os.path.join("/home/s2153246/data/", f"lotss_dr2_{args.single}_{args.loss}.db")
     study = optuna.create_study(
-        study_name="resnet_lotss_variable_multi",
+        study_name=args.experiment,
         direction="minimize",
-        storage="sqlite:///lotss_dr2_loss.db",
+        storage="sqlite://"+db,
         load_if_exists=True,
         pruner=optuna.pruners.HyperbandPruner(max_resource="auto"),
     )
