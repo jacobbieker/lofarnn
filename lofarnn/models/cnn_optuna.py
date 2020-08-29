@@ -227,7 +227,7 @@ def setup(args, single):
 
 def objective(trial):
     # Generate model
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
 
     config = {
         "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
@@ -253,23 +253,24 @@ def objective(trial):
         train_dataset,
         batch_size=args.batch,
         shuffle=True,
-        num_workers=os.cpu_count(),
-        pin_memory=True,
+        num_workers=1,
+        pin_memory=False,
         collate_fn=collate_variable_fn,
+        drop_last=True,
     )
     train_test_loader = dataloader.DataLoader(
         train_test_dataset,
         batch_size=1,
         shuffle=False,
-        num_workers=os.cpu_count(),
-        pin_memory=True,
+        num_workers=1,
+        pin_memory=False,
     )
     test_loader = dataloader.DataLoader(
         val_dataset,
         batch_size=1,
         shuffle=False,
-        num_workers=os.cpu_count(),
-        pin_memory=True,
+        num_workers=1,
+        pin_memory=False,
     )
     experiment_name = (
         args.experiment
