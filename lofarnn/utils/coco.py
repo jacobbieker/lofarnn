@@ -133,9 +133,7 @@ def make_single_cnn_set(
                 image_dest_filename = os.path.join(
                     image_destination_dir, image_name.stem + f".cnn.{normalize}.npy"
                 )
-        if not os.path.exists(os.path.join(image_dest_filename)) and not os.path.exists(
-            os.path.join(record_dest_filename)
-        ):
+        if not os.path.exists(os.path.join(image_dest_filename)):
             (
                 image,
                 cutouts,
