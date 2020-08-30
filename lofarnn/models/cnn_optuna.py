@@ -50,6 +50,11 @@ def default_argument_parser():
         help="whether to use single source or multiple, default False",
     )
     parser.add_argument(
+        "--shuffle",
+        action="store_true",
+        help="whether to use shuffle multisource order, no effect for single source, default False",
+    )
+    parser.add_argument(
         "--num-sources", type=int, default=40, help="max number of sources to include",
     )
     parser.add_argument(
@@ -226,19 +231,19 @@ def setup(args, single):
     train_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
         single_source_per_img=single,
-        shuffle=False,
+        shuffle=args.shuffle,
         norm=not args.norm,
     )
     train_test_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
         single_source_per_img=single,
-        shuffle=False,
+        shuffle=args.shuffle,
         norm=not args.norm,
     )
     val_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
         single_source_per_img=single,
-        shuffle=False,
+        shuffle=args.shuffle,
         norm=not args.norm,
     )
     return train_dataset, train_test_dataset, val_dataset
@@ -302,18 +307,22 @@ def objective(trial):
     os.makedirs(output_dir, exist_ok=True)
 
     print("Model created")
-    for epoch in range(args.epochs):
-        train(args, model, device, train_loader, optimizer, epoch, output_dir, config)
-        test(args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
-        accuracy = test(args, model, device, test_loader, epoch, "Test", output_dir, config)
-        if epoch % 5 == 0:  # Save every 5 epochs
-            torch.save(model, os.path.join(output_dir, "model.pth"))
+    try:
+        for epoch in range(args.epochs):
+            train(args, model, device, train_loader, optimizer, epoch, output_dir, config)
+            test(args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
+            accuracy = test(args, model, device, test_loader, epoch, "Test", output_dir, config)
+            if epoch % 5 == 0:  # Save every 5 epochs
+                torch.save(model, os.path.join(output_dir, "model.pth"))
 
-        trial.report(accuracy, epoch)
+            trial.report(accuracy, epoch)
 
-        # Handle pruning based on the intermediate value.
-        if trial.should_prune():
-            raise optuna.exceptions.TrialPruned()
+            # Handle pruning based on the intermediate value.
+            if trial.should_prune():
+                raise optuna.exceptions.TrialPruned()
+    except:
+        # Failure, like NaN loss or out of memory errors
+        raise optuna.exceptions.TrialPruned()
 
     return accuracy
 
@@ -326,7 +335,7 @@ def main(args):
     study = optuna.create_study(
         study_name=args.experiment,
         direction="minimize",
-        storage="sqlite:///"+db,
+        storage="sqlite:///" + db,
         load_if_exists=True,
         pruner=optuna.pruners.HyperbandPruner(max_resource="auto"),
     )
