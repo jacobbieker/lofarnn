@@ -53,6 +53,9 @@ def default_argument_parser():
         "--num-sources", type=int, default=40, help="max number of sources to include",
     )
     parser.add_argument(
+        "--num-trials", type=int, default=100, help="max number of trials to perform",
+    )
+    parser.add_argument(
         "--classes", type=int, default=40, help="max number of sources to include",
     )
     parser.add_argument(
@@ -83,6 +86,7 @@ def test(
         model,
         device,
         test_loader,
+        epoch,
         name="Test",
         output_dir="./",
         config={"loss": "cross-entropy"},
@@ -157,7 +161,7 @@ def test(
             100.0 * recall,
         )
     )
-    pickle.dump(named_recalls, open(os.path.join(output_dir, f"{name}_source_recall.pkl"), "wb"))
+    pickle.dump(named_recalls, open(os.path.join(output_dir, f"{name}_source_recall_epoch{epoch}.pkl"), "wb"))
     a = np.asarray(save_test_loss)
     with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
         np.savetxt(f, a, delimiter=",")
@@ -298,10 +302,10 @@ def objective(trial):
     os.makedirs(output_dir, exist_ok=True)
 
     print("Model created")
-    for epoch in range(5):
+    for epoch in range(args.epochs):
         train(args, model, device, train_loader, optimizer, epoch, output_dir, config)
-        test(args, model, device, train_test_loader, "Train_test", output_dir, config)
-        accuracy = test(args, model, device, test_loader, "Test", output_dir, config)
+        test(args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
+        accuracy = test(args, model, device, test_loader, epoch, "Test", output_dir, config)
         if epoch % 5 == 0:  # Save every 5 epochs
             torch.save(model, os.path.join(output_dir, "model.pth"))
 
@@ -326,7 +330,7 @@ def main(args):
         load_if_exists=True,
         pruner=optuna.pruners.HyperbandPruner(max_resource="auto"),
     )
-    study.optimize(objective, n_trials=50)
+    study.optimize(objective, n_trials=args.num_trials)
 
     pruned_trials = [
         t for t in study.trials if t.state == optuna.structs.TrialState.PRUNED
