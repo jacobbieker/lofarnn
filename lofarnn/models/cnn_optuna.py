@@ -300,8 +300,8 @@ def objective(trial):
     print("Model created")
     for epoch in range(5):
         train(args, model, device, train_loader, optimizer, epoch, output_dir, config)
-        test(args, model, device, train_test_loader, "train_test", output_dir, config)
-        accuracy = test(args, model, device, test_loader, output_dir, config)
+        test(args, model, device, train_test_loader, "Train_test", output_dir, config)
+        accuracy = test(args, model, device, test_loader, "Test", output_dir, config)
         if epoch % 5 == 0:  # Save every 5 epochs
             torch.save(model, os.path.join(output_dir, "model.pth"))
 
@@ -326,7 +326,7 @@ def main(args):
         load_if_exists=True,
         pruner=optuna.pruners.HyperbandPruner(max_resource="auto"),
     )
-    study.optimize(objective, n_trials=100)
+    study.optimize(objective, n_trials=50)
 
     pruned_trials = [
         t for t in study.trials if t.state == optuna.structs.TrialState.PRUNED
