@@ -326,7 +326,7 @@ def main(args):
     study = optuna.create_study(
         study_name=args.experiment,
         direction="minimize",
-        storage="sqlite://" + db,
+        storage="sqlite:///"+db,
         load_if_exists=True,
         pruner=optuna.pruners.HyperbandPruner(max_resource="auto"),
     )
