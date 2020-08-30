@@ -74,7 +74,7 @@ class RadioSourceDataset(Dataset):
         else:
             label = np.array([0, 1]) # False
         return {
-            "image": torch.from_numpy(image).float(),
+            "images": torch.from_numpy(image).float(),
             "sources": torch.from_numpy(source).float(),
             "labels": torch.from_numpy(label).float(),
             "names": self._get_source_name(anno["file_name"])
@@ -120,7 +120,7 @@ class RadioSourceDataset(Dataset):
         else:
             sources = sources.reshape(1, sources.shape[0], sources.shape[1])
         return {
-            "image": torch.from_numpy(image).float(),
+            "images": torch.from_numpy(image).float(),
             "sources": torch.from_numpy(sources).float(),
             "labels": torch.from_numpy(labels).float(),
             "names": self._get_source_name(anno["file_name"])
@@ -142,26 +142,26 @@ def collate_variable_fn(batch):
     for item in batch:
         names.append(item["names"])
         if (
-            item["image"].shape[-1] > max_size
+            item["images"].shape[-1] > max_size
         ):  # last element should be either width or height, so good for this
-            max_size = item["image"].shape[-1]
+            max_size = item["images"].shape[-1]
 
     if max_size > 400:
         max_size = 400
 
     # Second time to pad out tensors for this
     for item in batch:
-        if item["image"].shape[-1] != max_size:
+        if item["images"].shape[-1] != max_size:
             images.append(
                 torch.squeeze(
                     torch.nn.functional.interpolate(
-                        item["image"].unsqueeze_(0), (max_size, max_size)
+                        item["images"].unsqueeze_(0), (max_size, max_size)
                     ),
                     0,
                 )
             )
         else:
-            images.append(item["image"])
+            images.append(item["images"])
 
     images = torch.stack(images, dim=0)
     data = torch.stack([item["sources"] for item in batch], dim=0)
