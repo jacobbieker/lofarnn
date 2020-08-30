@@ -70,13 +70,14 @@ class RadioSourceDataset(Dataset):
         label = anno["optical_labels"][self.mapping[idx][1]]
         # First one is Optical, second one is Not
         if label:
-            label = np.array([1, 0])
+            label = np.array([1, 0]) # True
         else:
-            label = np.array([0, 1])
+            label = np.array([0, 1]) # False
         return {
             "image": torch.from_numpy(image).float(),
             "sources": torch.from_numpy(source).float(),
             "labels": torch.from_numpy(label).float(),
+            "names": self._get_source_name(anno["file_name"])
         }
 
     @staticmethod
@@ -122,6 +123,7 @@ class RadioSourceDataset(Dataset):
             "image": torch.from_numpy(image).float(),
             "sources": torch.from_numpy(sources).float(),
             "labels": torch.from_numpy(labels).float(),
+            "names": self._get_source_name(anno["file_name"])
         }
 
     def __getitem__(self, idx):
@@ -135,8 +137,10 @@ class RadioSourceDataset(Dataset):
 
 def collate_variable_fn(batch):
     images = []
+    names = []
     max_size = 0
     for item in batch:
+        names.append(item["names"])
         if (
             item["image"].shape[-1] > max_size
         ):  # last element should be either width or height, so good for this
@@ -162,4 +166,4 @@ def collate_variable_fn(batch):
     images = torch.stack(images, dim=0)
     data = torch.stack([item["sources"] for item in batch], dim=0)
     target = torch.stack([item["labels"] for item in batch], dim=0)
-    return [images, data, target]
+    return {"images": images, "sources": data, "labels": target, "names": names}

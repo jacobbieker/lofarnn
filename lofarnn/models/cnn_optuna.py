@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import argparse
+import pickle
 from lofarnn.models.dataloaders.datasets import RadioSourceDataset, collate_variable_fn
 
 try:
@@ -78,13 +79,13 @@ def default_argument_parser():
 
 
 def test(
-    args,
-    model,
-    device,
-    test_loader,
-    name="test",
-    output_dir="./",
-    config={"loss": "cross-entropy"},
+        args,
+        model,
+        device,
+        test_loader,
+        name="Test",
+        output_dir="./",
+        config={"loss": "cross-entropy"},
 ):
     save_test_loss = []
     save_correct = []
@@ -92,16 +93,19 @@ def test(
     recall = 0
     precision = 0
 
+    named_recalls = {}
+
     model.eval()
     test_loss = 0
     correct = 0
     loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction="mean")
     with torch.no_grad():
         for data in test_loader:
-            image, source, labels = (
-                data["image"].to(device),
+            image, source, labels, names = (
+                data["images"].to(device),
                 data["sources"].to(device),
                 data["labels"].to(device),
+                data["names"]
             )
             output = model(image, source)
             # sum up batch loss
@@ -123,20 +127,29 @@ def test(
             label = labels.argmax(dim=1, keepdim=True)
             correct += pred.eq(label.view_as(pred)).sum().item()
 
+            # Now get named recall ones
+            if not args.single:
+                for i in range(len(names)):
+                    # Assumes testing is with batch size of 1
+                    named_recalls[names[i]] = pred.eq(label.view_as(pred)).sum().item()
+            else:
+                for i in range(len(names)):
+                    if label.item() == 0:  # Label is source, don't care about the many negative examples
+                        if pred.item() == 0:  # Prediction is source
+                            named_recalls[names[i]] = 1  # Value is correct
+                            recall += 1
+                        else:  # Prediction is not correct
+                            named_recalls[names[i]] = 0  # Value is incorrect
+
             save_test_loss.append(test_loss)
             save_correct.append(correct)
-            if torch.eq(pred, label):
-                if len(label) == 1:
-                    if label.item() == 1:
-                        recall += 1
-                else:
-                    recall += 1
     recall /= len(test_loader.dataset.annotations)
     save_recalls.append(recall)
     test_loss /= len(test_loader)
 
     print(
-        "\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%) Recall: {:.2f}%\n".format(
+        "\n{} set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%) Recall: {:.2f}%\n".format(
+            name,
             test_loss,
             correct,
             len(test_loader),
@@ -144,34 +157,36 @@ def test(
             100.0 * recall,
         )
     )
-    # a = np.asarray(save_test_loss)
-    # with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
-    #    np.savetxt(f, a, delimiter=",")
-    # a = np.asarray(save_recalls)
-    # with open(os.path.join(output_dir, f"{name}_recall.csv"), "ab") as f:
-    #    np.savetxt(f, a, delimiter=",")
+    pickle.dump(named_recalls, open(os.path.join(output_dir, f"{name}_source_recall.pkl"), "wb"))
+    a = np.asarray(save_test_loss)
+    with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
+        np.savetxt(f, a, delimiter=",")
+    a = np.asarray(save_recalls)
+    with open(os.path.join(output_dir, f"{name}_recall.csv"), "ab") as f:
+        np.savetxt(f, a, delimiter=",")
     return test_loss
 
 
 def train(
-    args,
-    model,
-    device,
-    train_loader,
-    optimizer,
-    epoch,
-    output_dir="./",
-    config={"loss": "cross-entropy"},
+        args,
+        model,
+        device,
+        train_loader,
+        optimizer,
+        epoch,
+        output_dir="./",
+        config={"loss": "cross-entropy"},
 ):
     save_loss = []
     total_loss = 0
     model.train()
     loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction="mean")
     for batch_idx, data in enumerate(train_loader):
-        image, source, labels = (
-            data[0].to(device),
-            data[1].to(device),
-            data[2].to(device),
+        image, source, labels, names = (
+            data["images"].to(device),
+            data["sources"].to(device),
+            data["labels"].to(device),
+            data["names"]
         )
         optimizer.zero_grad()
         output = model(image, source)
@@ -192,12 +207,12 @@ def train(
         if batch_idx % args.log_interval == 0:
             print(
                 "Train Epoch: {}\tLoss: {:.6f} \t Average loss {:.6f}".format(
-                    epoch, loss.item(), np.mean(save_loss[-args.log_interval :])
+                    epoch, loss.item(), np.mean(save_loss[-args.log_interval:])
                 )
             )
-    # a = np.asarray(save_loss)
-    # with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
-    #    np.savetxt(f, a, delimiter=",")
+    a = np.asarray(save_loss)
+    with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
+        np.savetxt(f, a, delimiter=",")
 
 
 def setup(args, single):
@@ -273,8 +288,8 @@ def objective(trial):
         pin_memory=True,
     )
     experiment_name = (
-        args.experiment
-        + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}"
+            args.experiment
+            + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}"
     )
     if environment == "XPS":
         output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
@@ -307,7 +322,7 @@ def main(args):
     study = optuna.create_study(
         study_name=args.experiment,
         direction="minimize",
-        storage="sqlite://"+db,
+        storage="sqlite://" + db,
         load_if_exists=True,
         pruner=optuna.pruners.HyperbandPruner(max_resource="auto"),
     )
