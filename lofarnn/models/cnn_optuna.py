@@ -107,7 +107,7 @@ def test(
     model.eval()
     test_loss = 0
     correct = 0
-    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction="mean")
+    loss_fn = BinaryFocalLoss(alpha=[config["alpha_1"], config["alpha_2"]], gamma=config["gamma"], reduction="mean")
     with torch.no_grad():
         for data in test_loader:
             image, source, labels, names = (
@@ -189,7 +189,7 @@ def train(
     save_loss = []
     total_loss = 0
     model.train()
-    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction="mean")
+    loss_fn = BinaryFocalLoss(alpha=[config["alpha_1"], config["alpha_2"]], gamma=config["gamma"], reduction="mean")
     for batch_idx, data in enumerate(train_loader):
         image, source, labels, names = (
             data["images"].to(device),
@@ -233,18 +233,21 @@ def setup(args, single):
         single_source_per_img=single,
         shuffle=args.shuffle,
         norm=not args.norm,
+        num_sources=args.num_sources
     )
     train_test_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
         single_source_per_img=single,
         shuffle=args.shuffle,
         norm=not args.norm,
+        num_sources=args.num_sources
     )
     val_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
         single_source_per_img=single,
         shuffle=args.shuffle,
         norm=not args.norm,
+        num_sources=args.num_sources
     )
     return train_dataset, train_test_dataset, val_dataset
 
@@ -257,9 +260,12 @@ def objective(trial):
         "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
         "fc_out": trial.suggest_int("fc_out", 8, 256),
         "fc_final": trial.suggest_int("fc_final", 8, 256),
+        "alpha_1": trial.suggest_uniform("alpha_1", 0.01, 0.99),
+        "gamma": trial.suggest_int("gamma", 0, 9),
         "single": args.single,
         "loss": args.loss,
     }
+    config["alpha_2"] = 1.0 - config["alpha_1"]
 
     train_dataset, train_test_dataset, val_dataset = setup(args, config["single"])
 
@@ -329,7 +335,7 @@ def objective(trial):
 
 def main(args):
     if environment == "XPS":
-        db = os.path.join("/home/jacob/", "reports", f"lotss_dr2_{args.single}_{args.loss}.db")
+        db = os.path.join("/home/jacob/Development/lofarnn", f"lotss_dr2_{args.single}_{args.loss}.db")
     else:
         db = os.path.join("/home/s2153246/data/", f"lotss_dr2_{args.single}_{args.loss}.db")
     study = optuna.create_study(
