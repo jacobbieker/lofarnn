@@ -167,3 +167,36 @@ def collate_variable_fn(batch):
     data = torch.stack([item["sources"] for item in batch], dim=0)
     target = torch.stack([item["labels"] for item in batch], dim=0)
     return {"images": images, "sources": data, "labels": target, "names": names}
+
+
+def collate_autokeras_fn(batch):
+    images = []
+    names = []
+    max_size = 0
+    for item in batch:
+        names.append(item["names"])
+        if (
+            item["images"].shape[-1] > max_size
+        ):  # last element should be either width or height, so good for this
+            max_size = item["images"].shape[-1]
+
+    if max_size > 400:
+        max_size = 400
+
+    # Second time to pad out tensors for this
+    for item in batch:
+        if item["images"].shape[-1] != max_size:
+            images.append(
+                torch.squeeze(
+                    torch.nn.functional.interpolate(
+                        item["images"].unsqueeze_(0), (max_size, max_size)
+                    ),
+                )
+            )
+        else:
+            images.append(item["images"])
+
+    images = torch.stack(images, dim=0)
+    data = torch.stack([item["sources"] for item in batch], dim=0).squeeze_()
+    target = torch.stack([item["labels"] for item in batch], dim=0)
+    return {"images": images, "sources": data, "labels": target, "names": names}
