@@ -14,66 +14,10 @@ from lofarnn.models.base.cnn import (
     f1_loss,
 )
 from lofarnn.models.base.resnet import BinaryFocalLoss
+from lofarnn.models.base.utils import default_argument_parser
 from torch.utils.data import dataset, dataloader
 import torch.nn.functional as F
 import torch
-
-
-def default_argument_parser():
-    """
-    Create a parser with some common arguments.
-
-    Returns:
-        argparse.ArgumentParser:
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--resume",
-        action="store_true",
-        help="whether to attempt to resume from the checkpoint directory",
-    )
-    parser.add_argument(
-        "--augment",
-        action="store_true",
-        help="whether to augment input data, default False",
-    )
-    parser.add_argument(
-        "--norm",
-        action="store_true",
-        help="whether to normalize magnitudes or not, default False",
-    )
-    parser.add_argument(
-        "--single",
-        action="store_true",
-        help="whether to use single source or multiple, default False",
-    )
-    parser.add_argument(
-        "--num-sources", type=int, default=40, help="max number of sources to include",
-    )
-    parser.add_argument(
-        "--classes", type=int, default=40, help="max number of sources to include",
-    )
-    parser.add_argument(
-        "--dataset", type=str, default="", help="path to dataset annotations files"
-    )
-    parser.add_argument(
-        "--loss",
-        type=str,
-        default="cross-entropy",
-        help="loss to use, from 'cross-entropy' (default), 'focal', 'f1' ",
-    )
-    parser.add_argument("--experiment", type=str, default="", help="experiment name")
-    parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
-    parser.add_argument("--batch", type=int, default=32, help="batch size")
-    parser.add_argument("--epochs", type=int, default=200, help="number of epochs")
-    parser.add_argument(
-        "--log-interval",
-        type=int,
-        default=20,
-        help="number of minibatches between logging",
-    )
-
-    return parser
 
 
 def test(args, model, device, test_loader, name="test", output_dir="./"):
