@@ -124,10 +124,9 @@ class RadioSourceDataset(Dataset):
             labels = labels.reshape(self.num_sources)
         else:
             sources = sources.reshape(1, sources.shape[0], sources.shape[1])
+        image = torch.from_numpy(image).float()
         if self.transform:
             image, sources = self.transform(image, sources)
-        else:
-            image = torch.from_numpy(image).float()
         return {
             "images": image,
             "sources": torch.from_numpy(sources).float(),
