@@ -30,14 +30,16 @@ def init_process(rank, size, fn, backend='nccl'):
 def objective(trial):
     # Generate model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     config = {
         "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
         "fc_out": trial.suggest_int("fc_out", 8, 256),
         "fc_final": trial.suggest_int("fc_final", 8, 256),
+        "alpha_1": trial.suggest_uniform("alpha_1", 0.01, 0.99),
+        "gamma": trial.suggest_int("gamma", 0, 9),
         "single": args.single,
         "loss": args.loss,
     }
+    config["alpha_2"] = 1.0 - config["alpha_1"]
 
     train_dataset, train_test_dataset, val_dataset = setup(args)
 
@@ -50,11 +52,6 @@ def objective(trial):
     optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
     lr = trial.suggest_loguniform("lr", 1e-5, 1e-1)
     optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
-    train_sampler = torch.utils.data.distributed.DistributedSampler(
-        train_dataset,
-        num_replicas=args.world_size,
-        rank=args.rank
-    )
     train_loader = dataloader.DataLoader(
         train_dataset,
         batch_size=args.batch,
@@ -63,12 +60,6 @@ def objective(trial):
         pin_memory=True,
         collate_fn=collate_variable_fn,
         drop_last=True,
-        sampler=train_sampler
-    )
-    train_test_sampler = torch.utils.data.distributed.DistributedSampler(
-        train_test_dataset,
-        num_replicas=args.world_size,
-        rank=args.rank
     )
     train_test_loader = dataloader.DataLoader(
         train_test_dataset,
@@ -76,12 +67,6 @@ def objective(trial):
         shuffle=False,
         num_workers=os.cpu_count(),
         pin_memory=True,
-        sampler=train_test_sampler
-    )
-    test_sampler = torch.utils.data.distributed.DistributedSampler(
-        val_dataset,
-        num_replicas=args.world_size,
-        rank=args.rank
     )
     test_loader = dataloader.DataLoader(
         val_dataset,
@@ -89,7 +74,6 @@ def objective(trial):
         shuffle=False,
         num_workers=os.cpu_count(),
         pin_memory=True,
-        sampler=test_sampler
     )
     experiment_name = (
             args.experiment
@@ -100,8 +84,6 @@ def objective(trial):
     else:
         output_dir = os.path.join("/home/s2153246/data/", "reports", experiment_name)
     os.makedirs(output_dir, exist_ok=True)
-    model = torch.nn.parallel.DistributedDataParallel(model,
-                                                device_ids=[args.gpu])
     print("Model created")
     try:
         for epoch in range(args.epochs):
