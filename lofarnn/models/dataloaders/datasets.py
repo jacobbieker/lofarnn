@@ -109,7 +109,7 @@ class RadioSourceDataset(Dataset):
                     value = anno["optical_sources"][i][j]
                     value = np.clip(value, 10.0, 28.0)
                     anno["optical_sources"][i][j] = (value - 10.0) / (28.0 - 10.0)
-        anno["optical_sources"].insert(0, np.zeros(shape=(len(anno["optical_sources"]),)))
+        anno["optical_sources"].insert(0, [0 for _ in range(len(anno["optical_sources"][0]))])
         anno["optical_labels"].insert(0, 0) # Give a zeroed out one for No Source
         sources = np.asarray(anno["optical_sources"])
         labels = np.asarray(anno["optical_labels"])
