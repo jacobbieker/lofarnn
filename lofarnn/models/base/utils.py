@@ -95,8 +95,8 @@ def only_image_transforms(image, sources):
         transforms.RandomVerticalFlip(),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(180),
-        transforms.RandomErasing(),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.RandomErasing()
     ])
     return sequence(image), sources
 
