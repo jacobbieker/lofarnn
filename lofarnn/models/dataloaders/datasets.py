@@ -64,8 +64,7 @@ class RadioSourceDataset(Dataset):
         anno = self.annotations[self.mapping[idx][0]]
         image = np.load(anno["file_name"], fix_imports=True)
         image = image.reshape((1, image.shape[0], image.shape[1]))
-        if self.transform:
-            image = self.transform(image)
+        image = torch.from_numpy(image).float()
         source = anno["optical_sources"][self.mapping[idx][1]]
         source[0] = source[0].value
         source[1] = source[1].value / (2 * np.pi)  # Convert to between 0 and 1
@@ -79,7 +78,7 @@ class RadioSourceDataset(Dataset):
         if self.transform:
             image, source = self.transform(image, source)
         return {
-            "images": torch.from_numpy(image).float(),
+            "images": image,
             "sources": torch.from_numpy(source).float(),
             "labels": torch.from_numpy(label).float(),
             "names": self._get_source_name(anno["file_name"])
@@ -110,6 +109,7 @@ class RadioSourceDataset(Dataset):
                     value = anno["optical_sources"][i][j]
                     value = np.clip(value, 10.0, 28.0)
                     anno["optical_sources"][i][j] = (value - 10.0) / (28.0 - 10.0)
+        anno["optical_sources"].insert(0, np.zeros(shape=(len(anno["optical_sources"]),))) # Give a zeroed out one for No Source
         sources = np.asarray(anno["optical_sources"])
         labels = np.asarray(anno["optical_labels"])
 
