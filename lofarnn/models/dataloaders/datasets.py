@@ -3,7 +3,6 @@ import torch
 import json
 import pickle
 import numpy as np
-import astropy.units as u
 
 
 class RadioSourceDataset(Dataset):
@@ -16,6 +15,7 @@ class RadioSourceDataset(Dataset):
         num_sources=40,
         shuffle=False,
         norm=True,
+        transform=None,
     ):
         """
         Args:
@@ -24,13 +24,14 @@ class RadioSourceDataset(Dataset):
         """
         self.annotations = pickle.load(open(json_file, "rb"), fix_imports=True)
         self.norm = norm
+        self.transform = transform
         # Remove any non-standard files
         print(f"Len Anno: {len(self.annotations)}")
         new_anno = []
         for anno in self.annotations:
             if isinstance(anno, np.ndarray):
                 anno = anno.item()
-            if anno["height"] == anno["width"]:
+            if anno["height"] == anno["width"] == 200:
                 new_anno.append(anno)
         self.annotations = new_anno
         print(f"Len Anno After Purge: {len(self.annotations)}")
@@ -63,10 +64,14 @@ class RadioSourceDataset(Dataset):
         anno = self.annotations[self.mapping[idx][0]]
         image = np.load(anno["file_name"], fix_imports=True)
         image = image.reshape((1, image.shape[0], image.shape[1]))
+        if self.transform:
+            image = self.transform(image)
         source = anno["optical_sources"][self.mapping[idx][1]]
         source[0] = source[0].value
         source[1] = source[1].value / (2 * np.pi)  # Convert to between 0 and 1
         source = np.asarray(source)
+        if self.transform:
+            image, source = self.transform(image, source)
         label = anno["optical_labels"][self.mapping[idx][1]]
         # First one is Optical, second one is Not
         if label:
@@ -107,6 +112,8 @@ class RadioSourceDataset(Dataset):
                     anno["optical_sources"][i][j] = (value - 10.0) / (28.0 - 10.0)
         sources = np.asarray(anno["optical_sources"])
         labels = np.asarray(anno["optical_labels"])
+        if self.transform:
+            image, sources = self.transform(image, sources)
 
         # Shuffling order of sources and labels, and only taking x number of sources
         sources = sources[: self.num_sources]

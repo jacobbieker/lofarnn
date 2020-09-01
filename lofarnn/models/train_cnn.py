@@ -1,8 +1,4 @@
 import os
-import numpy as np
-import argparse
-from lofarnn.models.dataloaders.datasets import RadioSourceDataset
-
 try:
     environment = os.environ["LOFARNN_ARCH"]
 except:
@@ -13,142 +9,21 @@ from lofarnn.models.base.cnn import (
     RadioMultiSourceModel,
     f1_loss,
 )
-from lofarnn.models.base.resnet import BinaryFocalLoss
-from lofarnn.models.base.utils import default_argument_parser
+from lofarnn.models.base.utils import default_argument_parser, setup, test, train
 from torch.utils.data import dataset, dataloader
-import torch.nn.functional as F
 import torch
-
-
-def test(args, model, device, test_loader, name="test", output_dir="./"):
-    save_test_loss = []
-    save_correct = []
-    save_recalls = []
-    recall = 0
-    precision = 0
-
-    model.eval()
-    test_loss = 0
-    correct = 0
-    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction="mean")
-    with torch.no_grad():
-        for data in test_loader:
-            image, source, labels = (
-                data["image"].to(device),
-                data["sources"].to(device),
-                data["labels"].to(device),
-            )
-            output = model(image, source)
-            # sum up batch loss
-            if args.loss == "cross-entropy":
-                test_loss += F.binary_cross_entropy(
-                    F.softmax(output, dim=-1), labels
-                ).item()
-            elif args.loss == "f1":
-                test_loss += f1_loss(output, labels, is_training=False).item()
-            elif args.loss == "focal":
-                test_loss += loss_fn(output, labels).item()
-            # get the index of the max log-probability
-            pred = output.argmax(dim=1, keepdim=True)
-            label = labels.argmax(dim=1, keepdim=True)
-            correct += pred.eq(label.view_as(pred)).sum().item()
-
-            save_test_loss.append(test_loss)
-            save_correct.append(correct)
-            if torch.eq(pred, label) and label.item() == 1:
-                recall += 1
-
-    recall /= len(test_loader.dataset.annotations)  # One source per annotation
-    save_recalls.append(recall)
-    test_loss /= len(test_loader)
-
-    print(
-        "\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%) Recall: {:.2f}%\n".format(
-            test_loss,
-            correct,
-            len(test_loader),
-            100.0 * correct / len(test_loader),
-            100.0 * recall,
-        )
-    )
-    a = np.asarray(save_test_loss)
-    with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
-        np.savetxt(f, a, delimiter=",")
-    a = np.asarray(save_recalls)
-    with open(os.path.join(output_dir, f"{name}_recall.csv"), "ab") as f:
-        np.savetxt(f, a, delimiter=",")
-
-
-def train(args, model, device, train_loader, optimizer, epoch, output_dir="./"):
-    save_loss = []
-    total_loss = 0
-    model.train()
-    loss_fn = BinaryFocalLoss(alpha=[0.25, 0.75], gamma=2, reduction="mean")
-    for batch_idx, data in enumerate(train_loader):
-        image, source, labels = (
-            data["image"].to(device),
-            data["sources"].to(device),
-            data["labels"].to(device),
-        )
-        optimizer.zero_grad()
-        output = model(image, source)
-        if args.loss == "cross-entropy":
-            loss = F.binary_cross_entropy(F.softmax(output, dim=-1), labels)
-        elif args.loss == "f1":
-            loss = f1_loss(output, labels, is_training=True)
-        elif args.loss == "focal":
-            loss = loss_fn(output, labels)
-        else:
-            raise Exception("Loss not one of 'cross-entropy', 'focal', 'f1' ")
-        loss.backward()
-
-        save_loss.append(loss.item())
-
-        optimizer.step()
-        total_loss += loss.item()
-        if batch_idx % args.log_interval == 0:
-            print(
-                "Train Epoch: {}\tLoss: {:.6f} \t Average loss {:.6f}".format(
-                    epoch, loss.item(), np.mean(save_loss[-args.log_interval :])
-                )
-            )
-    a = np.asarray(save_loss)
-    with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
-        np.savetxt(f, a, delimiter=",")
-
-
-def setup(args):
-    """
-    Setup dataset and dataloaders for these new datasets
-    """
-    train_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
-        single_source_per_img=args.single,
-        shuffle=True,
-    )
-    train_test_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
-        single_source_per_img=args.single,
-        shuffle=True,
-    )
-    val_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
-        single_source_per_img=args.single,
-        shuffle=True,
-    )
-    return train_dataset, train_test_dataset, val_dataset
 
 
 def main(args):
     train_dataset, train_test_dataset, val_dataset = setup(args)
     train_loader = dataloader.DataLoader(
-        train_dataset, batch_size=args.batch, shuffle=True, num_workers=os.cpu_count()
+        train_dataset, batch_size=args.batch, shuffle=True, num_workers=os.cpu_count(), pin_memory=True, drop_last=True
     )
     train_test_loader = dataloader.DataLoader(
-        train_test_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count(),
+        train_test_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count(), pin_memory=True
     )
     test_loader = dataloader.DataLoader(
-        val_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count()
+        val_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count(), pin_memory=True
     )
     experiment_name = (
         args.experiment
@@ -161,12 +36,15 @@ def main(args):
     os.makedirs(output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config = {
-        "act": "relu",
-        "fc_out": 128,
-        "fc_final": 64,
-        "single": False,
-        "loss": "cross-entropy",
+        "act": 'relu',
+        "fc_out": 83,
+        "fc_final": 140,
+        "alpha_1": 0.25,
+        "gamma": 2,
+        "single": args.single,
+        "loss": args.loss,
     }
+    config["alpha_2"] = 1.0 - config["alpha_1"]
     if args.single:
         model = RadioSingleSourceModel(1, 11, config=config).to(device)
     else:
@@ -174,9 +52,9 @@ def main(args):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     print("Model created")
     for epoch in range(args.epochs):
-        test(args, model, device, test_loader, output_dir)
-        train(args, model, device, train_loader, optimizer, epoch, output_dir)
-        test(args, model, device, train_test_loader, "train_test", output_dir)
+        train(args, model, device, train_loader, optimizer, epoch, output_dir, config)
+        test(args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
+        test(args, model, device, test_loader, epoch, "Test", output_dir, config)
         if epoch % 5 == 0:  # Save every 5 epochs
             torch.save(model, os.path.join(output_dir, "model.pth"))
 
