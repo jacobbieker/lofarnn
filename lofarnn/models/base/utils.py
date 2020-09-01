@@ -91,9 +91,11 @@ def only_image_transforms(image, sources):
     Only applies transforms to the image, and leaves the sources as they are
     """
     sequence = transforms.Compose([
+        transforms.ToPILImage(),
         transforms.RandomVerticalFlip(),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(180),
+        transforms.ToTensor()
     ])
     return sequence(image), sources
 

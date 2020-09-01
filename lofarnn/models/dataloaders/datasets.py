@@ -70,14 +70,14 @@ class RadioSourceDataset(Dataset):
         source[0] = source[0].value
         source[1] = source[1].value / (2 * np.pi)  # Convert to between 0 and 1
         source = np.asarray(source)
-        if self.transform:
-            image, source = self.transform(image, source)
         label = anno["optical_labels"][self.mapping[idx][1]]
         # First one is Optical, second one is Not
         if label:
             label = np.array([1, 0]) # True
         else:
             label = np.array([0, 1]) # False
+        if self.transform:
+            image, source = self.transform(image, source)
         return {
             "images": torch.from_numpy(image).float(),
             "sources": torch.from_numpy(source).float(),
@@ -112,8 +112,6 @@ class RadioSourceDataset(Dataset):
                     anno["optical_sources"][i][j] = (value - 10.0) / (28.0 - 10.0)
         sources = np.asarray(anno["optical_sources"])
         labels = np.asarray(anno["optical_labels"])
-        if self.transform:
-            image, sources = self.transform(image, sources)
 
         # Shuffling order of sources and labels, and only taking x number of sources
         sources = sources[: self.num_sources]
@@ -126,8 +124,12 @@ class RadioSourceDataset(Dataset):
             labels = labels.reshape(self.num_sources)
         else:
             sources = sources.reshape(1, sources.shape[0], sources.shape[1])
+        if self.transform:
+            image, sources = self.transform(image, sources)
+        else:
+            image = torch.from_numpy(image).float()
         return {
-            "images": torch.from_numpy(image).float(),
+            "images": image,
             "sources": torch.from_numpy(sources).float(),
             "labels": torch.from_numpy(labels).float(),
             "names": self._get_source_name(anno["file_name"])

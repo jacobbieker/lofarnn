@@ -1,7 +1,4 @@
 import os
-import numpy as np
-import argparse
-import pickle
 from lofarnn.models.dataloaders.datasets import RadioSourceDataset, collate_variable_fn
 
 try:
@@ -14,22 +11,11 @@ from lofarnn.models.base.cnn import (
     RadioMultiSourceModel,
     f1_loss,
 )
-from lofarnn.models.base.resnet import BinaryFocalLoss
 from lofarnn.models.base.utils import default_argument_parser, setup, test, train
 from torch.utils.data import dataset, dataloader
-import torch.nn.functional as F
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
-
-
-def init_process(rank, size, fn, backend='nccl'):
-    """ Initialize the distributed environment. """
-    os.environ['MASTER_ADDR'] = '127.0.0.1'
-    os.environ['MASTER_PORT'] = '29500'
-    dist.init_process_group(backend, rank=rank, world_size=size)
-    fn(rank, size)
-
 
 def main(gpu, args):
     rank = args.nr * args.gpus + gpu
