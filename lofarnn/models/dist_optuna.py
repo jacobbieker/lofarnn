@@ -109,7 +109,7 @@ def main(gpu, args):
         db = os.path.join("/home/s2153246/data/", f"lotss_dr2_{args.single}_{args.loss}.db")
     study = optuna.create_study(
         study_name=args.experiment,
-        direction="minimize",
+        direction="maximize" if args.single else "minimize",
         storage="sqlite:///" + db,
         load_if_exists=True,
         pruner=optuna.pruners.HyperbandPruner(max_resource="auto"),
