@@ -114,16 +114,8 @@ def main(gpu, args):
         load_if_exists=True,
         pruner=optuna.pruners.HyperbandPruner(max_resource="auto"),
     )
-    rank = args.nr * args.gpus + gpu
-    dist.init_process_group(
-        backend='nccl',
-        init_method='env://',
-        world_size=args.world_size,
-        rank=rank
-    )
     torch.cuda.set_device(gpu)
     args.gpu = gpu
-    args.rank = rank
     study.optimize(objective, n_trials=args.num_trials)
 
     pruned_trials = [
