@@ -173,7 +173,10 @@ def test(
     a = np.asarray(save_recalls)
     with open(os.path.join(output_dir, f"{name}_recall.csv"), "ab") as f:
         np.savetxt(f, a, delimiter=",")
-    return test_loss
+    if config["single"]:
+        return correct
+    else:
+        return test_loss
 
 
 def train(
@@ -340,7 +343,7 @@ def main(args):
         db = os.path.join("/home/s2153246/data/", f"lotss_dr2_{args.single}_{args.loss}.db")
     study = optuna.create_study(
         study_name=args.experiment,
-        direction="minimize",
+        direction="maximize" if args.single else "minimize",
         storage="sqlite:///" + db,
         load_if_exists=True,
         pruner=optuna.pruners.HyperbandPruner(max_resource="auto"),
