@@ -1,9 +1,6 @@
 import os
-import numpy as np
-import argparse
-import pickle
-from lofarnn.models.dataloaders.datasets import RadioSourceDataset, collate_variable_fn
-from lofarnn.models.base.utils import default_argument_parser, setup
+from lofarnn.models.dataloaders.datasets import collate_variable_fn
+from lofarnn.models.base.utils import default_argument_parser, setup, train, test
 
 try:
     environment = os.environ["LOFARNN_ARCH"]
@@ -37,7 +34,7 @@ def objective(trial):
     }
     config["alpha_2"] = 1.0 - config["alpha_1"]
 
-    train_dataset, train_test_dataset, val_dataset = setup(args, config["single"])
+    train_dataset, train_test_dataset, val_dataset = setup(args)
 
     if config["single"]:
         model = RadioSingleSourceModel(1, 11, config=config).to(device)
