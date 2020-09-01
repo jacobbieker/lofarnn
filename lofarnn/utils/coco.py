@@ -299,9 +299,7 @@ def make_single_cnn_set(
             for j, obj in enumerate(objects):
                 optical_sources.append([])
                 if obj["objID"] == source["objID"] or obj["AllWISE"] == source["AllWISE"]:
-                    optical_labels.append(
-                        1
-                    )  # Optical Source
+                    optical_labels.append(1)  # Optical Source
                 else:
                     optical_labels.append(0)
                 optical_sources[-1].append(distances[j])
@@ -1085,7 +1083,7 @@ def create_cnn_dataset(
             data_split["val"],
             json_dir=annotations_directory,
             image_destination_dir=val_directory,
-            json_name=f"cnn_val_norm{normalize}.pkl",
+            json_name=f"cnn_val_norm{normalize}_extra.pkl",
             pan_wise_location=pan_wise_catalog,
             resize=resize,
             rotation=None,
@@ -1101,7 +1099,7 @@ def create_cnn_dataset(
         data_split["train"],
         json_dir=annotations_directory,
         image_destination_dir=train_directory,
-        json_name=f"cnn_train_test_norm{normalize}.pkl",
+        json_name=f"cnn_train_test_norm{normalize}_extra.pkl",
         pan_wise_location=pan_wise_catalog,
         resize=resize,
         rotation=None,
@@ -1117,7 +1115,7 @@ def create_cnn_dataset(
         data_split["test"],
         json_dir=annotations_directory,
         image_destination_dir=test_directory,
-        json_name=f"cnn_test_norm{normalize}.pkl",
+        json_name=f"cnn_test_norm{normalize}_extra.pkl",
         pan_wise_location=pan_wise_catalog,
         resize=resize,
         rotation=None,
@@ -1133,7 +1131,7 @@ def create_cnn_dataset(
         data_split["train"],
         json_dir=annotations_directory,
         image_destination_dir=train_directory,
-        json_name=f"cnn_train_norm{normalize}.pkl",
+        json_name=f"cnn_train_norm{normalize}_extra.pkl",
         pan_wise_location=pan_wise_catalog,
         resize=resize,
         rotation=rotation,
