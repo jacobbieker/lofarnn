@@ -298,16 +298,15 @@ def make_single_cnn_set(
             optical_labels = []
             for j, obj in enumerate(objects):
                 optical_sources.append([])
-                if np.isclose(source["ID_ra"], obj["ra"]) and np.isclose(
-                    source["ID_dec"], obj["dec"]
-                ):
+                if obj["objID"] == source["objID"] or obj["AllWISE"] == source["AllWISE"]:
                     optical_labels.append(
                         1
-                    )  # Optical Source TODO check because sometimes two sources match?
+                    )  # Optical Source
                 else:
                     optical_labels.append(0)
                 optical_sources[-1].append(distances[j])
                 optical_sources[-1].append(angles[j])
+                optical_sources[-1].append(obj["z_best"])
                 for layer in layers:
                     value = np.nan_to_num(obj[layer])
                     if normalize:  # Scale to between 0 and 1 for 10 to 28 magnitude
