@@ -27,80 +27,84 @@ def init_process(rank, size, fn, backend='nccl'):
     fn(rank, size)
 
 
-def objective(trial):
-    # Generate model
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    config = {
-        "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
-        "fc_out": trial.suggest_int("fc_out", 8, 256),
-        "fc_final": trial.suggest_int("fc_final", 8, 256),
-        "alpha_1": trial.suggest_uniform("alpha_1", 0.01, 0.99),
-        "gamma": trial.suggest_int("gamma", 0, 9),
-        "single": args.single,
-        "loss": args.loss,
-    }
-    config["alpha_2"] = 1.0 - config["alpha_1"]
+class Objective(object):
+    def __init__(self, args):
+        self.args = args
 
-    train_dataset, train_test_dataset, val_dataset = setup(args)
+    def __call__(self, trial):
 
-    if config["single"]:
-        model = RadioSingleSourceModel(1, 11, config=config).to(device)
-    else:
-        model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
+        # Generate model
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        config = {
+            "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
+            "fc_out": trial.suggest_int("fc_out", 8, 256),
+            "fc_final": trial.suggest_int("fc_final", 8, 256),
+            "alpha_1": trial.suggest_uniform("alpha_1", 0.01, 0.99),
+            "gamma": trial.suggest_int("gamma", 0, 9),
+            "single": self.args.single,
+            "loss": self.args.loss,
+        }
+        config["alpha_2"] = 1.0 - config["alpha_1"]
 
-    # generate optimizers
-    optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
-    lr = trial.suggest_loguniform("lr", 1e-5, 1e-1)
-    optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
-    train_loader = dataloader.DataLoader(
-        train_dataset,
-        batch_size=args.batch,
-        shuffle=False,
-        num_workers=os.cpu_count(),
-        pin_memory=True,
-        collate_fn=collate_variable_fn,
-        drop_last=True,
-    )
-    train_test_loader = dataloader.DataLoader(
-        train_test_dataset,
-        batch_size=1,
-        shuffle=False,
-        num_workers=os.cpu_count(),
-        pin_memory=True,
-    )
-    test_loader = dataloader.DataLoader(
-        val_dataset,
-        batch_size=1,
-        shuffle=False,
-        num_workers=os.cpu_count(),
-        pin_memory=True,
-    )
-    experiment_name = (
-            args.experiment
-            + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}"
-    )
-    if environment == "XPS":
-        output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
-    else:
-        output_dir = os.path.join("/home/s2153246/data/", "reports", experiment_name)
-    os.makedirs(output_dir, exist_ok=True)
-    print("Model created")
-    try:
-        for epoch in range(args.epochs):
-            train(args, model, device, train_loader, optimizer, epoch, output_dir, config)
-            test(args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
-            accuracy = test(args, model, device, test_loader, epoch, "Test", output_dir, config)
-            trial.report(accuracy, epoch)
+        train_dataset, train_test_dataset, val_dataset = setup(args)
 
-            # Handle pruning based on the intermediate value.
-            if trial.should_prune():
-                raise optuna.exceptions.TrialPruned()
-    except:
-        # Failure, like NaN loss or out of memory errors
-        raise optuna.exceptions.TrialPruned()
+        if config["single"]:
+            model = RadioSingleSourceModel(1, 11, config=config).to(device)
+        else:
+            model = RadioMultiSourceModel(1, self.args.classes, config=config).to(device)
 
-    return accuracy
+        # generate optimizers
+        optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
+        lr = trial.suggest_loguniform("lr", 1e-5, 1e-1)
+        optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
+        train_loader = dataloader.DataLoader(
+            train_dataset,
+            batch_size=self.args.batch,
+            shuffle=False,
+            num_workers=os.cpu_count(),
+            pin_memory=True,
+            collate_fn=collate_variable_fn,
+            drop_last=True,
+        )
+        train_test_loader = dataloader.DataLoader(
+            train_test_dataset,
+            batch_size=1,
+            shuffle=False,
+            num_workers=os.cpu_count(),
+            pin_memory=True,
+        )
+        test_loader = dataloader.DataLoader(
+            val_dataset,
+            batch_size=1,
+            shuffle=False,
+            num_workers=os.cpu_count(),
+            pin_memory=True,
+        )
+        experiment_name = (
+                self.args.experiment
+                + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}"
+        )
+        if environment == "XPS":
+            output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
+        else:
+            output_dir = os.path.join("/home/s2153246/data/", "reports", experiment_name)
+        os.makedirs(output_dir, exist_ok=True)
+        print("Model created")
+        try:
+            for epoch in range(args.epochs):
+                train(self.args, model, device, train_loader, optimizer, epoch, output_dir, config)
+                test(self.args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
+                accuracy = test(self.args, model, device, test_loader, epoch, "Test", output_dir, config)
+                trial.report(accuracy, epoch)
 
+                # Handle pruning based on the intermediate value.
+                if trial.should_prune():
+                    raise optuna.exceptions.TrialPruned()
+        except:
+            # Failure, like NaN loss or out of memory errors
+            raise optuna.exceptions.TrialPruned()
+
+        return accuracy
 
 def main(gpu, args):
     if environment == "XPS":
@@ -116,6 +120,7 @@ def main(gpu, args):
     )
     torch.cuda.set_device(gpu)
     args.gpu = gpu
+    objective = Objective(args=args)
     study.optimize(objective, n_trials=args.num_trials)
 
     pruned_trials = [
