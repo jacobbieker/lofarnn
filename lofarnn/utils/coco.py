@@ -298,7 +298,7 @@ def make_single_cnn_set(
             optical_labels = []
             for j, obj in enumerate(objects):
                 optical_sources.append([])
-                if obj["objID"] == source["objID"] or obj["AllWISE"] == source["AllWISE"]:
+                if obj["objID"] == source["objID"] and obj["AllWISE"] == source["AllWISE"]:
                     optical_labels.append(1)  # Optical Source
                 else:
                     optical_labels.append(0)
