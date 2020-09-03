@@ -34,7 +34,7 @@ class Objective(object):
     def __call__(self, trial):
 
         # Generate model
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device(f"cuda:{self.args.gpu}" if torch.cuda.is_available() else "cpu")
         config = {
             "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
             "fc_out": trial.suggest_int("fc_out", 8, 256),
@@ -49,7 +49,7 @@ class Objective(object):
         train_dataset, train_test_dataset, val_dataset = setup(self.args)
 
         if config["single"]:
-            model = RadioSingleSourceModel(1, 11, config=config).to(device)
+            model = RadioSingleSourceModel(1, 11, config=config).cuda(device)
         else:
             model = RadioMultiSourceModel(1, self.args.classes, config=config).to(device)
 
