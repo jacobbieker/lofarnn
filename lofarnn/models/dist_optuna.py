@@ -34,7 +34,7 @@ class Objective(object):
     def __call__(self, trial):
 
         # Generate model
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device(f"cuda:{self.args.gpu}" if torch.cuda.is_available() else "cpu")
         config = {
             "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
             "fc_out": trial.suggest_int("fc_out", 8, 256),
@@ -46,10 +46,10 @@ class Objective(object):
         }
         config["alpha_2"] = 1.0 - config["alpha_1"]
 
-        train_dataset, train_test_dataset, val_dataset = setup(args)
+        train_dataset, train_test_dataset, val_dataset = setup(self.args)
 
         if config["single"]:
-            model = RadioSingleSourceModel(1, 11, config=config).to(device)
+            model = RadioSingleSourceModel(1, 11, config=config).cuda(device)
         else:
             model = RadioMultiSourceModel(1, self.args.classes, config=config).to(device)
 
@@ -82,7 +82,7 @@ class Objective(object):
         )
         experiment_name = (
                 self.args.experiment
-                + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}"
+                + f"_lr{lr}_b{self.args.batch}_single{config['single']}_sources{self.args.num_sources}_norm{self.args.norm}_loss{config['loss']}"
         )
         if environment == "XPS":
             output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
@@ -91,7 +91,7 @@ class Objective(object):
         os.makedirs(output_dir, exist_ok=True)
         print("Model created")
         try:
-            for epoch in range(args.epochs):
+            for epoch in range(self.args.epochs):
                 train(self.args, model, device, train_loader, optimizer, epoch, output_dir, config)
                 test(self.args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
                 accuracy = test(self.args, model, device, test_loader, epoch, "Test", output_dir, config)
