@@ -61,7 +61,7 @@ class Objective(object):
         if self.args.lr_type == "plateau":
             scheduler = ReduceLROnPlateau(optimizer, 'min', patience=3)
         elif self.args.lr_type == "cyclical":
-            scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=0.1 if args.lr < 0.1 else 10 * args.lr)
+            scheduler = CyclicLR(optimizer, base_lr=lr, max_lr=0.1 if lr < 0.1 else 10 * lr)
         else:
             scheduler = None
         train_loader = dataloader.DataLoader(
