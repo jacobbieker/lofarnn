@@ -74,6 +74,7 @@ def default_argument_parser():
     )
     parser.add_argument("--experiment", type=str, default="", help="experiment name")
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
+    parser.add_argument("--lr-type", type=str, default="", help="learning rate type: None (default), 'plataeu', or 'cyclical' ")
     parser.add_argument("--batch", type=int, default=32, help="batch size")
     parser.add_argument("--epochs", type=int, default=200, help="number of epochs")
     parser.add_argument(
@@ -203,6 +204,7 @@ def test(
                 for i in range(len(names)):
                     # Assumes testing is with batch size of 1
                     named_recalls[names[i]] = pred.eq(label.view_as(pred)).sum().item()
+                    recall += pred.eq(label.view_as(pred)).sum().item()
             else:
                 for i in range(len(names)):
                     if label.item() == 0:  # Label is source, don't care about the many negative examples
@@ -247,6 +249,7 @@ def train(
         device,
         train_loader,
         optimizer,
+        scheduler,
         epoch,
         output_dir="./",
         config={"loss": "cross-entropy"},
@@ -277,6 +280,9 @@ def train(
         save_loss.append(loss.item())
 
         optimizer.step()
+
+        if args.lr_type == "cyclical":
+            scheduler.step()
         total_loss += loss.item()
         if batch_idx % args.log_interval == 0:
             print(
@@ -284,6 +290,8 @@ def train(
                     epoch, loss.item(), np.mean(save_loss[-args.log_interval:])
                 )
             )
+    if args.lr_type == "plateau":
+        scheduler.step() # LROnPlateau step is after each epoch
     a = np.asarray(save_loss)
     with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
         np.savetxt(f, a, delimiter=",")

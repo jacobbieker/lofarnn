@@ -133,7 +133,7 @@ def make_single_cnn_set(
                 image_dest_filename = os.path.join(
                     image_destination_dir, image_name.stem + f".cnn.{normalize}.npy"
                 )
-        if not os.path.exists(os.path.join(image_dest_filename)) or True:
+        if not os.path.exists(os.path.join(image_dest_filename)):
             (
                 image,
                 cutouts,
@@ -262,7 +262,7 @@ def make_single_cnn_set(
             "width": width,
             "depth": 1,
         }
-        if not os.path.exists(os.path.join(record_dest_filename)) or True:
+        if not os.path.exists(os.path.join(record_dest_filename)):
             # Get all sources within 300 arcseconds of the source, or root(2) value
             # Get all sources within 300 arcseconds, can cut them down later
             # Get source

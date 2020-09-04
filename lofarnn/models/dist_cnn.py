@@ -12,6 +12,7 @@ from lofarnn.models.base.cnn import (
     f1_loss,
 )
 from lofarnn.models.base.utils import default_argument_parser, setup, test, train
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CyclicLR
 from torch.utils.data import dataset, dataloader
 import torch
 import torch.distributed as dist
@@ -42,7 +43,7 @@ def main(gpu, args):
     train_dataset, train_test_dataset, val_dataset = setup(args)
 
     if config["single"]:
-        model = RadioSingleSourceModel(1, 11, config=config)
+        model = RadioSingleSourceModel(1, 12, config=config)
     else:
         model = RadioMultiSourceModel(1, args.classes, config=config)
 
@@ -50,7 +51,12 @@ def main(gpu, args):
     optimizer_name = "Adam"
     lr = 0.00057
     optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
-
+    if args.lr_type == "plateau":
+        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=3)
+    elif args.lr_type == "cyclical":
+        scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=0.1 if args.lr < 0.1 else 10*args.lr)
+    else:
+        scheduler = None
     train_sampler = torch.utils.data.distributed.DistributedSampler(
         train_dataset,
         num_replicas=args.world_size,
@@ -107,7 +113,7 @@ def main(gpu, args):
                                                       device_ids=[gpu])
     print("Model created")
     for epoch in range(args.epochs):
-        train(args, model, train_loader, optimizer, epoch, output_dir, config)
+        train(args, model, train_loader, optimizer, scheduler, epoch, output_dir, config)
         test(args, model, train_test_loader, epoch, "Train_test", output_dir, config)
         test(args, model, test_loader, epoch, "Test", output_dir, config)
 

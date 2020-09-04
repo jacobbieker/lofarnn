@@ -12,9 +12,8 @@ from lofarnn.models.base.cnn import (
     RadioMultiSourceModel,
     f1_loss,
 )
-from lofarnn.models.base.resnet import BinaryFocalLoss
-from torch.utils.data import dataset, dataloader
-import torch.nn.functional as F
+from torch.utils.data import dataloader
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CyclicLR
 import torch
 import optuna
 
@@ -37,7 +36,7 @@ def objective(trial):
     train_dataset, train_test_dataset, val_dataset = setup(args)
 
     if config["single"]:
-        model = RadioSingleSourceModel(1, 11, config=config).to(device)
+        model = RadioSingleSourceModel(1, 12, config=config).to(device)
     else:
         model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
 
@@ -45,6 +44,12 @@ def objective(trial):
     optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
     lr = trial.suggest_loguniform("lr", 1e-5, 1e-1)
     optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
+    if args.lr_type == "plateau":
+        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=3)
+    elif args.lr_type == "cyclical":
+        scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=0.1 if args.lr < 0.1 else 10*args.lr)
+    else:
+        scheduler = None
 
     train_loader = dataloader.DataLoader(
         train_dataset,
@@ -71,7 +76,7 @@ def objective(trial):
     )
     experiment_name = (
             args.experiment
-            + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}"
+            + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}_scheduler{args.lr_type}"
     )
     if environment == "XPS":
         output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
@@ -82,7 +87,7 @@ def objective(trial):
     print("Model created")
     try:
         for epoch in range(args.epochs):
-            train(args, model, device, train_loader, optimizer, epoch, output_dir, config)
+            train(args, model, device, train_loader, optimizer, scheduler, epoch, output_dir, config)
             test(args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
             accuracy = test(args, model, device, test_loader, epoch, "Test", output_dir, config)
             if epoch % 5 == 0:  # Save every 5 epochs

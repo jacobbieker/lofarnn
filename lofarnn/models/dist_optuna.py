@@ -12,6 +12,7 @@ from lofarnn.models.base.cnn import (
     f1_loss,
 )
 from lofarnn.models.base.utils import default_argument_parser, setup, train, test
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CyclicLR
 from torch.utils.data import dataset, dataloader
 import torch
 import torch.distributed as dist
@@ -49,7 +50,7 @@ class Objective(object):
         train_dataset, train_test_dataset, val_dataset = setup(self.args)
 
         if config["single"]:
-            model = RadioSingleSourceModel(1, 11, config=config).cuda(device)
+            model = RadioSingleSourceModel(1, 12, config=config).cuda(device)
         else:
             model = RadioMultiSourceModel(1, self.args.classes, config=config).to(device)
 
@@ -57,6 +58,12 @@ class Objective(object):
         optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
         lr = trial.suggest_loguniform("lr", 1e-5, 1e-1)
         optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
+        if self.args.lr_type == "plateau":
+            scheduler = ReduceLROnPlateau(optimizer, 'min', patience=3)
+        elif self.args.lr_type == "cyclical":
+            scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=0.1 if args.lr < 0.1 else 10 * args.lr)
+        else:
+            scheduler = None
         train_loader = dataloader.DataLoader(
             train_dataset,
             batch_size=self.args.batch,
@@ -82,7 +89,7 @@ class Objective(object):
         )
         experiment_name = (
                 self.args.experiment
-                + f"_lr{lr}_b{self.args.batch}_single{config['single']}_sources{self.args.num_sources}_norm{self.args.norm}_loss{config['loss']}"
+                + f"_lr{lr}_b{self.args.batch}_single{config['single']}_sources{self.args.num_sources}_norm{self.args.norm}_loss{config['loss']}_scheduler{self.args.lr_type}"
         )
         if environment == "XPS":
             output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
@@ -92,7 +99,7 @@ class Objective(object):
         print("Model created")
         try:
             for epoch in range(self.args.epochs):
-                train(self.args, model, device, train_loader, optimizer, epoch, output_dir, config)
+                train(self.args, model, device, train_loader, optimizer, scheduler, epoch, output_dir, config)
                 test(self.args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
                 accuracy = test(self.args, model, device, test_loader, epoch, "Test", output_dir, config)
                 trial.report(accuracy, epoch)

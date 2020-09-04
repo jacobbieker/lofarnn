@@ -10,6 +10,7 @@ from lofarnn.models.base.cnn import (
     f1_loss,
 )
 from lofarnn.models.base.utils import default_argument_parser, setup, test, train
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CyclicLR
 from torch.utils.data import dataset, dataloader
 import torch
 
@@ -27,7 +28,7 @@ def main(args):
     )
     experiment_name = (
         args.experiment
-        + f"_lr{args.lr}_b{args.batch}_single{args.single}_sources{args.num_sources}_norm{args.norm}_loss{args.loss}"
+        + f"_lr{args.lr}_b{args.batch}_single{args.single}_sources{args.num_sources}_norm{args.norm}_loss{args.loss}_scheduler{args.lr_type}"
     )
     if environment == "XPS":
         output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
@@ -50,9 +51,15 @@ def main(args):
     else:
         model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    if args.lr_type == "plateau":
+        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=3)
+    elif args.lr_type == "cyclical":
+        scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=0.1 if args.lr < 0.1 else 10*args.lr)
+    else:
+        scheduler = None
     print("Model created")
     for epoch in range(args.epochs):
-        train(args, model, device, train_loader, optimizer, epoch, output_dir, config)
+        train(args, model, device, train_loader, optimizer, scheduler, epoch, output_dir, config)
         test(args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
         test(args, model, device, test_loader, epoch, "Test", output_dir, config)
         if epoch % 5 == 0:  # Save every 5 epochs
