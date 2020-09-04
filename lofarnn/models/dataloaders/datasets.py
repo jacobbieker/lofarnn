@@ -16,6 +16,7 @@ class RadioSourceDataset(Dataset):
         shuffle=False,
         norm=True,
         transform=None,
+        remove_no_source=True,
     ):
         """
         Args:
@@ -27,12 +28,16 @@ class RadioSourceDataset(Dataset):
         self.transform = transform
         # Remove any non-standard files
         print(f"Len Anno: {len(self.annotations)}")
+        print(f"JSON File: {json_file}")
         new_anno = []
         for anno in self.annotations:
             if isinstance(anno, np.ndarray):
                 anno = anno.item()
             if anno["height"] == anno["width"] == 200:
-                new_anno.append(anno)
+                if remove_no_source and np.count_nonzero(anno["optical_labels"]) != 0:
+                    new_anno.append(anno)
+                else:
+                    new_anno.append(anno)
         self.annotations = new_anno
         print(f"Len Anno After Purge: {len(self.annotations)}")
 
@@ -92,8 +97,6 @@ class RadioSourceDataset(Dataset):
     def load_multi_source(self, idx):
         """
         Given single index, get all the sources and labels, shuffling the order
-
-        TODO: Add zeroed out row for 'No Source' option
         """
         anno = self.annotations[idx]
         image = np.load(anno["file_name"], fix_imports=True)

@@ -29,14 +29,17 @@ def main(gpu, args):
 
     # Generate model
     config = {
-        "act": "relu",
-        "fc_out": 256,
-        "fc_final": 256,
+        "act": "leaky",
+        "fc_out": 186,
+        "fc_final": 136,
         "single": args.single,
         "loss": args.loss,
+        "gamma": 2,
+        "alpha_1": 0.12835728
+
     }
 
-    train_dataset, train_test_dataset, val_dataset = setup(args, config["single"])
+    train_dataset, train_test_dataset, val_dataset = setup(args)
 
     if config["single"]:
         model = RadioSingleSourceModel(1, 11, config=config)
@@ -45,7 +48,7 @@ def main(gpu, args):
 
     # generate optimizers
     optimizer_name = "Adam"
-    lr = 1e-5
+    lr = 0.00057
     optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(

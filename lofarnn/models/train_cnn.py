@@ -36,17 +36,17 @@ def main(args):
     os.makedirs(output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config = {
-        "act": 'relu',
-        "fc_out": 83,
-        "fc_final": 140,
-        "alpha_1": 0.25,
-        "gamma": 2,
+        "act": "leaky",
+        "fc_out": 186,
+        "fc_final": 136,
         "single": args.single,
         "loss": args.loss,
+        "gamma": 2,
+        "alpha_1": 0.12835728
     }
     config["alpha_2"] = 1.0 - config["alpha_1"]
     if args.single:
-        model = RadioSingleSourceModel(1, 11, config=config).to(device)
+        model = RadioSingleSourceModel(1, 12, config=config).to(device)
     else:
         model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
