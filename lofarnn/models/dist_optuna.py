@@ -20,10 +20,10 @@ import torch.multiprocessing as mp
 import optuna
 
 
-def init_process(rank, size, fn, backend='nccl'):
+def init_process(rank, size, fn, backend="nccl"):
     """ Initialize the distributed environment. """
-    os.environ['MASTER_ADDR'] = '127.0.0.1'
-    os.environ['MASTER_PORT'] = '29500'
+    os.environ["MASTER_ADDR"] = "127.0.0.1"
+    os.environ["MASTER_PORT"] = "29500"
     dist.init_process_group(backend, rank=rank, world_size=size)
     fn(rank, size)
 
@@ -35,7 +35,9 @@ class Objective(object):
     def __call__(self, trial):
 
         # Generate model
-        device = torch.device(f"cuda:{self.args.gpu}" if torch.cuda.is_available() else "cpu")
+        device = torch.device(
+            f"cuda:{self.args.gpu}" if torch.cuda.is_available() else "cpu"
+        )
         config = {
             "act": trial.suggest_categorical("activation", ["relu", "elu", "leaky"]),
             "fc_out": trial.suggest_int("fc_out", 8, 256),
@@ -52,16 +54,22 @@ class Objective(object):
         if config["single"]:
             model = RadioSingleSourceModel(1, 12, config=config).cuda(device)
         else:
-            model = RadioMultiSourceModel(1, self.args.classes, config=config).to(device)
+            model = RadioMultiSourceModel(1, self.args.classes, config=config).to(
+                device
+            )
 
         # generate optimizers
-        optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
+        optimizer_name = trial.suggest_categorical(
+            "optimizer", ["Adam", "RMSprop", "SGD"]
+        )
         lr = trial.suggest_loguniform("lr", 1e-5, 1e-1)
         optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
         if self.args.lr_type == "plateau":
-            scheduler = ReduceLROnPlateau(optimizer, 'min', patience=3)
+            scheduler = ReduceLROnPlateau(optimizer, "min", patience=3)
         elif self.args.lr_type == "cyclical":
-            scheduler = CyclicLR(optimizer, base_lr=lr, max_lr=0.1 if lr < 0.1 else 10 * lr)
+            scheduler = CyclicLR(
+                optimizer, base_lr=lr, max_lr=0.1 if lr < 0.1 else 10 * lr
+            )
         else:
             scheduler = None
         train_loader = dataloader.DataLoader(
@@ -88,20 +96,50 @@ class Objective(object):
             pin_memory=True,
         )
         experiment_name = (
-                self.args.experiment
-                + f"_lr{lr}_b{self.args.batch}_single{config['single']}_sources{self.args.num_sources}_norm{self.args.norm}_loss{config['loss']}_scheduler{self.args.lr_type}"
+            self.args.experiment
+            + f"_lr{lr}_b{self.args.batch}_single{config['single']}_sources{self.args.num_sources}_norm{self.args.norm}_loss{config['loss']}_scheduler{self.args.lr_type}"
         )
         if environment == "XPS":
             output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
         else:
-            output_dir = os.path.join("/home/s2153246/data/", "reports", experiment_name)
+            output_dir = os.path.join(
+                "/home/s2153246/data/", "reports", experiment_name
+            )
         os.makedirs(output_dir, exist_ok=True)
         print("Model created")
         try:
             for epoch in range(self.args.epochs):
-                train(self.args, model, device, train_loader, optimizer, scheduler, epoch, output_dir, config)
-                test(self.args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
-                accuracy = test(self.args, model, device, test_loader, epoch, "Test", output_dir, config)
+                train(
+                    self.args,
+                    model,
+                    device,
+                    train_loader,
+                    optimizer,
+                    scheduler,
+                    epoch,
+                    output_dir,
+                    config,
+                )
+                test(
+                    self.args,
+                    model,
+                    device,
+                    train_test_loader,
+                    epoch,
+                    "Train_test",
+                    output_dir,
+                    config,
+                )
+                accuracy = test(
+                    self.args,
+                    model,
+                    device,
+                    test_loader,
+                    epoch,
+                    "Test",
+                    output_dir,
+                    config,
+                )
                 trial.report(accuracy, epoch)
 
                 # Handle pruning based on the intermediate value.
@@ -113,11 +151,16 @@ class Objective(object):
 
         return accuracy
 
+
 def main(gpu, args):
     if environment == "XPS":
-        db = os.path.join("/home/jacob/", "reports", f"lotss_dr2_{args.single}_{args.loss}.db")
+        db = os.path.join(
+            "/home/jacob/", "reports", f"lotss_dr2_{args.single}_{args.loss}.db"
+        )
     else:
-        db = os.path.join("/home/s2153246/data/", f"lotss_dr2_{args.single}_{args.loss}.db")
+        db = os.path.join(
+            "/home/s2153246/data/", f"lotss_dr2_{args.single}_{args.loss}.db"
+        )
     study = optuna.create_study(
         study_name=args.experiment,
         direction="maximize" if args.single else "minimize",

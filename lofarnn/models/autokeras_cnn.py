@@ -2,6 +2,7 @@ import tensorflow as tf
 import autokeras as ak
 import os
 from lofarnn.models.dataloaders.datasets import RadioSourceDataset, collate_autokeras_fn
+
 try:
     environment = os.environ["LOFARNN_ARCH"]
 except:
@@ -47,33 +48,41 @@ def main(args):
         data["images"].numpy(),
         data["sources"].numpy(),
         data["labels"].numpy(),
-        data["names"].numpy()
+        data["names"].numpy(),
     )
     val_data = next(test_loader)
     val_image, val_source, val_labels, val_names = (
         val_data["images"].numpy(),
         val_data["sources"].numpy(),
         val_data["labels"].numpy(),
-        val_data["names"].numpy()
+        val_data["names"].numpy(),
     )
 
     model = ak.AutoModel(
-        inputs=[ak.ImageInput(), ak.StructuredDataInput(column_names=["angle",
-                                                                      "separation",
-                                                                      "iFApMag",
-                                                                      "w1Mag",
-                                                                      "gFApMag",
-                                                                      "rFApMag",
-                                                                      "zFApMag",
-                                                                      "yFApMag",
-                                                                      "w2Mag",
-                                                                      "w3Mag",
-                                                                      "w4Mag"])],
+        inputs=[
+            ak.ImageInput(),
+            ak.StructuredDataInput(
+                column_names=[
+                    "angle",
+                    "separation",
+                    "iFApMag",
+                    "w1Mag",
+                    "gFApMag",
+                    "rFApMag",
+                    "zFApMag",
+                    "yFApMag",
+                    "w2Mag",
+                    "w3Mag",
+                    "w4Mag",
+                ]
+            ),
+        ],
         outputs=[
-            ak.ClassificationHead(loss='categorical_crossentropy', metrics=['accuracy'])
+            ak.ClassificationHead(loss="categorical_crossentropy", metrics=["accuracy"])
         ],
         overwrite=True,
-        max_trials=50)
+        max_trials=50,
+    )
 
     # Fit the model with prepared data.
     image_val = val_image
@@ -88,10 +97,9 @@ def main(args):
         [image_data, structured_data],
         [classification_target],
         # Use your own validation set.
-        validation_data=(
-            [image_val, structured_val],
-            [classification_val]),
-        epochs=10)
+        validation_data=([image_val, structured_val], [classification_val]),
+        epochs=10,
+    )
 
     keras_model = model.export_model()
 
