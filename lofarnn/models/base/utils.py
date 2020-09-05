@@ -291,7 +291,7 @@ def train(
                 )
             )
     if args.lr_type == "plateau":
-        scheduler.step() # LROnPlateau step is after each epoch
+        scheduler.step(total_loss) # LROnPlateau step is after each epoch
     a = np.asarray(save_loss)
     with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
         np.savetxt(f, a, delimiter=",")
