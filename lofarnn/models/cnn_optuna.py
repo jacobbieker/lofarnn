@@ -45,9 +45,9 @@ def objective(trial):
     lr = trial.suggest_loguniform("lr", 1e-5, 1e-1)
     optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
     if args.lr_type == "plateau":
-        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=3)
+        scheduler = ReduceLROnPlateau(optimizer, "min", patience=3)
     elif args.lr_type == "cyclical":
-        scheduler = CyclicLR(optimizer, base_lr=lr, max_lr=0.1 if lr < 0.1 else 10*lr)
+        scheduler = CyclicLR(optimizer, base_lr=lr, max_lr=0.1 if lr < 0.1 else 10 * lr)
     else:
         scheduler = None
 
@@ -75,8 +75,8 @@ def objective(trial):
         pin_memory=True,
     )
     experiment_name = (
-            args.experiment
-            + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}_scheduler{args.lr_type}"
+        args.experiment
+        + f"_lr{lr}_b{args.batch}_single{config['single']}_sources{args.num_sources}_norm{args.norm}_loss{config['loss']}_scheduler{args.lr_type}"
     )
     if environment == "XPS":
         output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
@@ -87,9 +87,30 @@ def objective(trial):
     print("Model created")
     try:
         for epoch in range(args.epochs):
-            train(args, model, device, train_loader, optimizer, scheduler, epoch, output_dir, config)
-            test(args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
-            accuracy = test(args, model, device, test_loader, epoch, "Test", output_dir, config)
+            train(
+                args,
+                model,
+                device,
+                train_loader,
+                optimizer,
+                scheduler,
+                epoch,
+                output_dir,
+                config,
+            )
+            test(
+                args,
+                model,
+                device,
+                train_test_loader,
+                epoch,
+                "Train_test",
+                output_dir,
+                config,
+            )
+            accuracy = test(
+                args, model, device, test_loader, epoch, "Test", output_dir, config
+            )
             if epoch % 5 == 0:  # Save every 5 epochs
                 torch.save(model, os.path.join(output_dir, "model.pth"))
 
@@ -107,9 +128,13 @@ def objective(trial):
 
 def main(args):
     if environment == "XPS":
-        db = os.path.join("/home/jacob/Development/lofarnn", f"lotss_dr2_{args.single}_{args.loss}.db")
+        db = os.path.join(
+            "/home/jacob/Development/lofarnn", f"lotss_dr2_{args.single}_{args.loss}.db"
+        )
     else:
-        db = os.path.join("/home/s2153246/data/", f"lotss_dr2_{args.single}_{args.loss}.db")
+        db = os.path.join(
+            "/home/s2153246/data/", f"lotss_dr2_{args.single}_{args.loss}.db"
+        )
     study = optuna.create_study(
         study_name=args.experiment,
         direction="maximize" if args.single else "minimize",

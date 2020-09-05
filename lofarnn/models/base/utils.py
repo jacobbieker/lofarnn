@@ -14,6 +14,7 @@ from lofarnn.models.base.cnn import (
 from lofarnn.models.base.resnet import BinaryFocalLoss
 import torch
 
+
 def default_argument_parser():
     """
     Create a parser with some common arguments.
@@ -53,10 +54,12 @@ def default_argument_parser():
     parser.add_argument(
         "--nodes", type=int, default=1, help="max number of nodes to use",
     )
-    parser.add_argument('-g', '--gpus', default=1, type=int,
-                        help='number of gpus per node')
-    parser.add_argument('-nr', '--nr', default=0, type=int,
-                        help='ranking within the nodes')
+    parser.add_argument(
+        "-g", "--gpus", default=1, type=int, help="number of gpus per node"
+    )
+    parser.add_argument(
+        "-nr", "--nr", default=0, type=int, help="ranking within the nodes"
+    )
     parser.add_argument(
         "--num-trials", type=int, default=100, help="max number of trials to perform",
     )
@@ -74,7 +77,12 @@ def default_argument_parser():
     )
     parser.add_argument("--experiment", type=str, default="", help="experiment name")
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
-    parser.add_argument("--lr-type", type=str, default="", help="learning rate type: None (default), 'plataeu', or 'cyclical' ")
+    parser.add_argument(
+        "--lr-type",
+        type=str,
+        default="",
+        help="learning rate type: None (default), 'plataeu', or 'cyclical' ",
+    )
     parser.add_argument("--batch", type=int, default=32, help="batch size")
     parser.add_argument("--epochs", type=int, default=200, help="number of epochs")
     parser.add_argument(
@@ -91,14 +99,16 @@ def only_image_transforms(image, sources):
     """
     Only applies transforms to the image, and leaves the sources as they are
     """
-    sequence = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.RandomVerticalFlip(),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(180),
-        transforms.ToTensor(),
-        transforms.RandomErasing()
-    ])
+    sequence = transforms.Compose(
+        [
+            transforms.ToPILImage(),
+            transforms.RandomVerticalFlip(),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(180),
+            transforms.ToTensor(),
+            transforms.RandomErasing(),
+        ]
+    )
     return sequence(image), sources
 
 
@@ -108,15 +118,19 @@ def radio_transforms(image, sources):
         image = TF.rotate(image, angle)
         # Add that angle, in radians, to the sources
         if sources.ndim == 1:  # Single source
-            sources[1] = sources[1] + (np.deg2rad(angle) / (2 * np.pi))  # Add radians to source in 0 to 1 scale
-            sources[1] = (sources[1] + 1.) % 1.  # keep between 0 and 1
+            sources[1] = sources[1] + (
+                np.deg2rad(angle) / (2 * np.pi)
+            )  # Add radians to source in 0 to 1 scale
+            sources[1] = (sources[1] + 1.0) % 1.0  # keep between 0 and 1
         elif sources.ndim == 2:
             for i, item in enumerate(sources):
-                sources[i][1] = sources[i][1] + (np.deg2rad(angle) / (2 * np.pi))  # Add radians to source
-                sources[i][1] = (sources[i][1] + 1.) % 1.
+                sources[i][1] = sources[i][1] + (
+                    np.deg2rad(angle) / (2 * np.pi)
+                )  # Add radians to source
+                sources[i][1] = (sources[i][1] + 1.0) % 1.0
     # Random flips
-    #image = TF.hflip(image)
-    #image = TF.vflip(image)
+    # image = TF.hflip(image)
+    # image = TF.vflip(image)
     return image, sources
 
 
@@ -130,7 +144,7 @@ def setup(args):
         shuffle=args.shuffle,
         norm=not args.norm,
         num_sources=args.num_sources,
-        transform=only_image_transforms if args.augment else None
+        transform=only_image_transforms if args.augment else None,
     )
     train_test_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"),
@@ -149,15 +163,16 @@ def setup(args):
     args.world_size = args.gpus * args.nodes
     return train_dataset, train_test_dataset, val_dataset
 
+
 def test(
-        args,
-        model,
-        device,
-        test_loader,
-        epoch,
-        name="Test",
-        output_dir="./",
-        config={"loss": "cross-entropy"},
+    args,
+    model,
+    device,
+    test_loader,
+    epoch,
+    name="Test",
+    output_dir="./",
+    config={"loss": "cross-entropy"},
 ):
     save_test_loss = []
     save_correct = []
@@ -170,14 +185,18 @@ def test(
     model.eval()
     test_loss = 0
     correct = 0
-    loss_fn = BinaryFocalLoss(alpha=[config["alpha_1"], config["alpha_2"]], gamma=config["gamma"], reduction="mean")
+    loss_fn = BinaryFocalLoss(
+        alpha=[config["alpha_1"], config["alpha_2"]],
+        gamma=config["gamma"],
+        reduction="mean",
+    )
     with torch.no_grad():
         for data in test_loader:
             image, source, labels, names = (
                 data["images"].to(device),
                 data["sources"].to(device),
                 data["labels"].to(device),
-                data["names"]
+                data["names"],
             )
             output = model(image, source)
             # sum up batch loss
@@ -207,7 +226,9 @@ def test(
                     recall += pred.eq(label.view_as(pred)).sum().item()
             else:
                 for i in range(len(names)):
-                    if label.item() == 0:  # Label is source, don't care about the many negative examples
+                    if (
+                        label.item() == 0
+                    ):  # Label is source, don't care about the many negative examples
                         if pred.item() == 0:  # Prediction is source
                             named_recalls[names[i]] = 1  # Value is correct
                             recall += 1
@@ -230,7 +251,10 @@ def test(
             100.0 * recall,
         )
     )
-    pickle.dump(named_recalls, open(os.path.join(output_dir, f"{name}_source_recall_epoch{epoch}.pkl"), "wb"))
+    pickle.dump(
+        named_recalls,
+        open(os.path.join(output_dir, f"{name}_source_recall_epoch{epoch}.pkl"), "wb"),
+    )
     a = np.asarray(save_test_loss)
     with open(os.path.join(output_dir, f"{name}_loss.csv"), "ab") as f:
         np.savetxt(f, a, delimiter=",")
@@ -244,26 +268,30 @@ def test(
 
 
 def train(
-        args,
-        model,
-        device,
-        train_loader,
-        optimizer,
-        scheduler,
-        epoch,
-        output_dir="./",
-        config={"loss": "cross-entropy"},
+    args,
+    model,
+    device,
+    train_loader,
+    optimizer,
+    scheduler,
+    epoch,
+    output_dir="./",
+    config={"loss": "cross-entropy"},
 ):
     save_loss = []
     total_loss = 0
     model.train()
-    loss_fn = BinaryFocalLoss(alpha=[config["alpha_1"], config["alpha_2"]], gamma=config["gamma"], reduction="mean")
+    loss_fn = BinaryFocalLoss(
+        alpha=[config["alpha_1"], config["alpha_2"]],
+        gamma=config["gamma"],
+        reduction="mean",
+    )
     for batch_idx, data in enumerate(train_loader):
         image, source, labels, names = (
             data["images"].to(device),
             data["sources"].to(device),
             data["labels"].to(device),
-            data["names"]
+            data["names"],
         )
         optimizer.zero_grad()
         output = model(image, source)
@@ -287,11 +315,11 @@ def train(
         if batch_idx % args.log_interval == 0:
             print(
                 "Train Epoch: {}\tLoss: {:.6f} \t Average loss {:.6f}".format(
-                    epoch, loss.item(), np.mean(save_loss[-args.log_interval:])
+                    epoch, loss.item(), np.mean(save_loss[-args.log_interval :])
                 )
             )
     if args.lr_type == "plateau":
-        scheduler.step() # LROnPlateau step is after each epoch
+        scheduler.step()  # LROnPlateau step is after each epoch
     a = np.asarray(save_loss)
     with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
         np.savetxt(f, a, delimiter=",")

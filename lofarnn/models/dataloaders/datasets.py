@@ -34,7 +34,11 @@ class RadioSourceDataset(Dataset):
             if isinstance(anno, np.ndarray):
                 anno = anno.item()
             if anno["height"] == anno["width"] == 200:
-                if remove_no_source and np.count_nonzero(anno["optical_labels"]) != 0:
+                if (
+                    remove_no_source
+                    and np.count_nonzero(anno["optical_labels"][:num_sources]) != 0
+                ):
+                    # Check if there is a source within the cutoff, if not, ignore it as well, unless we want non source ones
                     new_anno.append(anno)
                 else:
                     new_anno.append(anno)
@@ -77,16 +81,16 @@ class RadioSourceDataset(Dataset):
         label = anno["optical_labels"][self.mapping[idx][1]]
         # First one is Optical, second one is Not
         if label:
-            label = np.array([1, 0]) # True
+            label = np.array([1, 0])  # True
         else:
-            label = np.array([0, 1]) # False
+            label = np.array([0, 1])  # False
         if self.transform:
             image, source = self.transform(image, source)
         return {
             "images": image,
             "sources": torch.from_numpy(source).float(),
             "labels": torch.from_numpy(label).float(),
-            "names": self._get_source_name(anno["file_name"])
+            "names": self._get_source_name(anno["file_name"]),
         }
 
     @staticmethod
@@ -112,8 +116,15 @@ class RadioSourceDataset(Dataset):
                     value = anno["optical_sources"][i][j]
                     value = np.clip(value, 10.0, 28.0)
                     anno["optical_sources"][i][j] = (value - 10.0) / (28.0 - 10.0)
-        anno["optical_sources"].insert(0, [0 for _ in range(len(anno["optical_sources"][0]))])
-        anno["optical_labels"].insert(0, 0) # Give a zeroed out one for No Source
+        anno["optical_sources"].insert(
+            0, [0 for _ in range(len(anno["optical_sources"][0]))]
+        )
+        if np.max(anno["optical_sources"][: (self.num_sources - 1)]) == 0:
+            anno["optical_labels"].insert(
+                0, 1
+            )  # Give a 1 if no source in cutoff location out one for No Source
+        else:
+            anno["optical_labels"].insert(0, 0)
         sources = np.asarray(anno["optical_sources"])
         labels = np.asarray(anno["optical_labels"])
 
@@ -135,7 +146,7 @@ class RadioSourceDataset(Dataset):
             "images": image,
             "sources": torch.from_numpy(sources).float(),
             "labels": torch.from_numpy(labels).float(),
-            "names": self._get_source_name(anno["file_name"])
+            "names": self._get_source_name(anno["file_name"]),
         }
 
     def __getitem__(self, idx):

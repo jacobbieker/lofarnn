@@ -1,4 +1,5 @@
 import os
+
 try:
     environment = os.environ["LOFARNN_ARCH"]
 except:
@@ -18,13 +19,26 @@ import torch
 def main(args):
     train_dataset, train_test_dataset, val_dataset = setup(args)
     train_loader = dataloader.DataLoader(
-        train_dataset, batch_size=args.batch, shuffle=True, num_workers=os.cpu_count(), pin_memory=True, drop_last=True
+        train_dataset,
+        batch_size=args.batch,
+        shuffle=True,
+        num_workers=os.cpu_count(),
+        pin_memory=True,
+        drop_last=True,
     )
     train_test_loader = dataloader.DataLoader(
-        train_test_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count(), pin_memory=True
+        train_test_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=os.cpu_count(),
+        pin_memory=True,
     )
     test_loader = dataloader.DataLoader(
-        val_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count(), pin_memory=True
+        val_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=os.cpu_count(),
+        pin_memory=True,
     )
     experiment_name = (
         args.experiment
@@ -43,7 +57,7 @@ def main(args):
         "single": args.single,
         "loss": args.loss,
         "gamma": 2,
-        "alpha_1": 0.12835728
+        "alpha_1": 0.12835728,
     }
     config["alpha_2"] = 1.0 - config["alpha_1"]
     if args.single:
@@ -52,15 +66,36 @@ def main(args):
         model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     if args.lr_type == "plateau":
-        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=3)
+        scheduler = ReduceLROnPlateau(optimizer, "min", patience=3)
     elif args.lr_type == "cyclical":
-        scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=0.1 if args.lr < 0.1 else 10*args.lr)
+        scheduler = CyclicLR(
+            optimizer, base_lr=args.lr, max_lr=0.1 if args.lr < 0.1 else 10 * args.lr
+        )
     else:
         scheduler = None
     print("Model created")
     for epoch in range(args.epochs):
-        train(args, model, device, train_loader, optimizer, scheduler, epoch, output_dir, config)
-        test(args, model, device, train_test_loader, epoch, "Train_test", output_dir, config)
+        train(
+            args,
+            model,
+            device,
+            train_loader,
+            optimizer,
+            scheduler,
+            epoch,
+            output_dir,
+            config,
+        )
+        test(
+            args,
+            model,
+            device,
+            train_test_loader,
+            epoch,
+            "Train_test",
+            output_dir,
+            config,
+        )
         test(args, model, device, test_loader, epoch, "Test", output_dir, config)
         if epoch % 5 == 0:  # Save every 5 epochs
             torch.save(model, os.path.join(output_dir, "model.pth"))
