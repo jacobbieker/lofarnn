@@ -4,8 +4,10 @@ from lofarnn.models.base.utils import setup, default_argument_parser
 from torch.utils.data import dataset, dataloader
 import os
 import torch
+import torch.nn.functional as F
 
-directory = ""
+directory = "/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources4_normTrue_lossfocal_schedulerplateau/"
+directory = "/home/jacob/reports/all_best_lr0.00024128_b8_singleFalse_sources41_normTrue_losscross-entropy_schedulercyclical/"
 
 def main(args):
     train_dataset, train_test_dataset, val_dataset = setup(args)
@@ -20,7 +22,7 @@ def main(args):
     train_test_loader = dataloader.DataLoader(
         train_test_dataset,
         batch_size=1,
-        shuffle=False,
+        shuffle=True,
         num_workers=os.cpu_count(),
         pin_memory=True,
     )
@@ -49,14 +51,22 @@ def main(args):
     model = torch.load(os.path.join(directory, "model.pth"))
     model = model.to(device)
 
-    data = next(train_test_loader)
-    image, source, labels, names = (
-        data["images"].to(device),
-        data["sources"].to(device),
-        data["labels"].to(device),
-        data["names"],
-    )
-    visuaize_maps(model=model, inputs=(image, source), labels=labels, title="Test", )
+    for data in train_test_loader:
+        image, source, labels, names = (
+            data["images"].to(device),
+            data["sources"].to(device),
+            data["labels"].to(device),
+            data["names"],
+        )
+        print(source.ndim)
+        print(F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy())
+        if source.ndim == 2 and F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy() == [[0]]: # Only take positive ones for single one
+            print(source)
+            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,))
+            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,), baselines=(1,1))
+        elif source.ndim > 2: # Take it all for multi ones
+            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1))
+            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1), baselines=(1,1))
 
 
 if __name__ == "__main__":
