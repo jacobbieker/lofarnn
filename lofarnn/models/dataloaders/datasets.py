@@ -75,8 +75,9 @@ class RadioSourceDataset(Dataset):
         image = image.reshape((1, image.shape[0], image.shape[1]))
         image = torch.from_numpy(image).float()
         source = anno["optical_sources"][self.mapping[idx][1]]
-        source[0] = source[0].value
+        source[0] = source[0].value / (0.03) # Distance (arcseconds)
         source[1] = source[1].value / (2 * np.pi)  # Convert to between 0 and 1
+        source[2] = source[2] / 7.0 # Redshift
         source = np.asarray(source)
         label = anno["optical_labels"][self.mapping[idx][1]]
         # First one is Optical, second one is Not
@@ -107,11 +108,11 @@ class RadioSourceDataset(Dataset):
         image = image.reshape((1, anno["height"], anno["width"]))
         # print(image.shape)
         for i, item in enumerate(anno["optical_sources"]):
-            anno["optical_sources"][i][0] = anno["optical_sources"][i][0].value
+            anno["optical_sources"][i][0] = (anno["optical_sources"][i][0].value - 0.0) / (0.03 - 0.0) # Distance (arcseconds) for first 40 elements
             anno["optical_sources"][i][1] = anno["optical_sources"][i][1].value / (
                 2 * np.pi
             )
-            anno["optical_sources"][i][2] = np.clip(anno["optical_sources"][i][2], 0.0, 100.0) # Redshift
+            anno["optical_sources"][i][2] = (np.clip(anno["optical_sources"][i][2], 0.0, 7.0) - 0.0) / (7.0 - 0.0) # Redshift
             if self.norm:
                 for j in range(3, len(anno["optical_sources"][i])):
                     value = anno["optical_sources"][i][j]
