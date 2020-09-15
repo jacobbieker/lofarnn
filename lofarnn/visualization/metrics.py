@@ -72,7 +72,7 @@ def plot_axis_recall(
             )
             # x_bin_edges = np.linspace(np.nanmin(X)-0.00001, np.nanpercentile(X, 98), bins+1)
             y_bin_edges = np.linspace(
-                np.nanpercentile(Y, 1) - 0.00001, np.nanpercentile(Y, 98), bins + 1
+                np.nanpercentile(Y, 1) - 0.00001, np.nanpercentile(Y, 95), bins + 1
             )
             # y_bin_edges = np.linspace(np.nanmin(Y)-0.00001, np.nanpercentile(Y, 98), bins + 1)
             # derive bin centers
