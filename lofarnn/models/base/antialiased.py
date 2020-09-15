@@ -154,18 +154,18 @@ class AntiAliasedResNet(nn.Module):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         planes = [int(width_per_group * groups * 2 ** i) for i in range(4)]
-        self.inplanes = planes[0]
+        self.inplanes = 64
         self.keep_fc = keep_fc
 
         if pool_only:
             self.conv1 = nn.Conv2d(
-                num_channels, planes[0], kernel_size=7, stride=2, padding=3, bias=False
+                num_channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
             )
         else:
             self.conv1 = nn.Conv2d(
-                num_channels, planes[0], kernel_size=7, stride=1, padding=3, bias=False
+                num_channels, self.inplanes, kernel_size=7, stride=1, padding=3, bias=False
             )
-        self.bn1 = norm_layer(planes[0])
+        self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
 
         if pool_only:
@@ -185,11 +185,11 @@ class AntiAliasedResNet(nn.Module):
             )
 
         self.layer1 = self._make_layer(
-            block, planes[0], layers[0], groups=groups, norm_layer=norm_layer
+            block, 64, layers[0], groups=groups, norm_layer=norm_layer
         )
         self.layer2 = self._make_layer(
             block,
-            planes[1],
+            128,
             layers[1],
             stride=2,
             groups=groups,
@@ -198,7 +198,7 @@ class AntiAliasedResNet(nn.Module):
         )
         self.layer3 = self._make_layer(
             block,
-            planes[2],
+            256,
             layers[2],
             stride=2,
             groups=groups,
@@ -207,7 +207,7 @@ class AntiAliasedResNet(nn.Module):
         )
         self.layer4 = self._make_layer(
             block,
-            planes[3],
+            512,
             layers[3],
             stride=2,
             groups=groups,
@@ -215,7 +215,7 @@ class AntiAliasedResNet(nn.Module):
             filter_size=filter_size,
         )
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(planes[3] * block.expansion, num_classes)
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
