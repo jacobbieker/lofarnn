@@ -79,9 +79,9 @@ class RadioMultiSourceModel(nn.Module):
         self.config = config
 
         # Image net - ResNet 101 32x8d
-        self.cnn = AntiAliasedResNet(
+        self.cnn = ResNet(
             num_image_layers,
-            AliasedBottleneck,
+            Bottleneck,
             [3, 4, 23, 3],
             num_classes=num_sources,
             zero_init_residual=False,
