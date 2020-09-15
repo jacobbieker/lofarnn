@@ -9,6 +9,7 @@ import torch.nn.functional as F
 directory = "/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources4_normTrue_lossfocal_schedulerplateau/"
 directory = "/home/jacob/reports/all_best_lr0.00024128_b8_singleFalse_sources41_normTrue_losscross-entropy_schedulercyclical/"
 
+
 def main(args):
     train_dataset, train_test_dataset, val_dataset = setup(args)
     train_loader = dataloader.DataLoader(

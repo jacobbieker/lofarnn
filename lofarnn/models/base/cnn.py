@@ -121,6 +121,64 @@ class RadioMultiSourceModel(nn.Module):
         return x
 
 
+class RadioMultiSourceEnsembleModel(nn.Module):
+    """
+    Model for classifying which of a set number of sources is the optical source
+    Uses an Ensemble of multiple networks per input to give the output
+    """
+
+    def __init__(self, num_image_layers, num_sources, config):
+        super(RadioMultiSourceEnsembleModel, self).__init__()
+        self.config = config
+
+        # Image net - ResNet 101 32x8d
+        self.cnn = ResNet(
+            num_image_layers,
+            Bottleneck,
+            [3, 4, 23, 3],
+            num_classes=num_sources,
+            zero_init_residual=False,
+            groups=32,
+            width_per_group=8,
+            keep_fc=True,
+        )
+        self.cnn.fc = nn.Linear(self.cnn.fc.in_features, self.config["fc_out"])
+
+        # Source net - ResNet 101 32x8d
+        self.cnn2 = ResNet(
+            num_image_layers,
+            Bottleneck,
+            [3, 4, 23, 3],
+            num_classes=num_sources,
+            zero_init_residual=False,
+            groups=32,
+            width_per_group=8,
+            keep_fc=True,
+        )
+        self.cnn2.fc = nn.Linear(self.cnn2.fc.in_features, self.config["fc_out"])
+
+        # Combined
+        self.fc1 = nn.Linear(
+            self.config["fc_out"] + self.config["fc_out"], self.config["fc_final"]
+        )
+        self.fc2 = nn.Linear(self.config["fc_final"], num_sources)
+
+    def forward(self, image, data):
+        x1 = self.cnn(image)
+        x2 = self.cnn2(data)
+
+        # Combine them
+        x = torch.cat((x1, x2), dim=1)
+        if self.config["act"] == "leaky":
+            x = F.leaky_relu(self.fc1(x))
+        elif self.config["act"] == "elu":
+            x = F.elu(self.fc1(x))
+        else:
+            x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+
 def f1_loss(
     y_pred: torch.Tensor, y_true: torch.Tensor, is_training=False
 ) -> torch.Tensor:
