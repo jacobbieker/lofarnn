@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from lofarnn.models.base.resnet import ResNet, Bottleneck
 from lofarnn.models.base.antialiased import AntiAliasedResNet
+from lofarnn.models.base.antialiased import Bottleneck as AliasedBottleneck
 
 """
 
@@ -26,7 +27,7 @@ class RadioSingleSourceModel(nn.Module):
         # Image net
         self.cnn = AntiAliasedResNet(
             num_image_layers,
-            Bottleneck,
+            AliasedBottleneck,
             [3, 4, 23, 3],
             num_classes=2,
             zero_init_residual=False,
@@ -80,7 +81,7 @@ class RadioMultiSourceModel(nn.Module):
         # Image net - ResNet 101 32x8d
         self.cnn = AntiAliasedResNet(
             num_image_layers,
-            Bottleneck,
+            AliasedBottleneck,
             [3, 4, 23, 3],
             num_classes=num_sources,
             zero_init_residual=False,
