@@ -11,6 +11,15 @@ good_cols = [
     "z_best",
     "ra",
     "dec",
+    "iFApFlux",
+    "w1Flux",
+    "gFApFlux",
+    "rFApFlux",
+    "zFApFlux",
+    "yFApFlux",
+    "w2Flux",
+    "w3Flux",
+    "w4Flux",
     "iFApMag",
     "w1Mag",
     "gFApMag",
@@ -22,4 +31,4 @@ good_cols = [
     "w4Mag",
 ]
 dat = dat[good_cols]
-dat.write("/home/s2153246/data/combined_panstarr_allwise.fits", format="fits")
+dat.write("/home/s2153246/data/combined_panstarr_allwise_flux.fits", format="fits")
