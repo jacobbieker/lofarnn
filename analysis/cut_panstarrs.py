@@ -52,7 +52,4 @@ good_cols = [
     "w4Mag",
 ]
 dat = dat[good_cols]
-# plt.hist(dat["z_best"])
-# plt.xlim(0.0,10.0)
-# plt.show()
-dat.write("/home/jacob/combined_panstarr_allwise_flux.fits", format="fits")
+dat.write("/home/s2153246/data/combined_panstarr_allwise_flux.fits", format="fits")

@@ -45,9 +45,9 @@ def main(args):
         "alpha_1": 0.12835728,
     }
     config["alpha_2"] = 1.0 - config["alpha_1"]
-    #if args.single:
+    # if args.single:
     #    model = RadioSingleSourceModel(1, 12, config=config).to(device)
-    #else:
+    # else:
     #    model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
     model = torch.load(os.path.join(directory, "model.pth"))
     model = model.to(device)
@@ -61,18 +61,43 @@ def main(args):
         )
         print(source.ndim)
         print(F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy())
-        if source.ndim == 2 and F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy() == [[0]]: # Only take positive ones for single one
-            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,))
-            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,), baselines=(1,1))
-            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,), use_label=True)
-            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,), baselines=(1,1), use_label=True)
-        elif source.ndim > 2: # Take it all for multi ones
-            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1))
-            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1), baselines=(1,1))
-            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1), use_label=True)
-            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1), baselines=(1,1), use_label=True)
-            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1), baselines=(0.5,0.5))
-            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1), baselines=(0.5,0.5), use_label=True)
+        if source.ndim == 2 and F.softmax(labels, dim=-1).argmax(
+            dim=1, keepdim=True
+        ).cpu().numpy() == [
+            [0]
+        ]:  # Only take positive ones for single one
+            print(source)
+            visuaize_maps(
+                model=model,
+                inputs=(image, source),
+                labels=labels,
+                title=data["names"][0],
+                second_occlusion=(1,),
+            )
+            visuaize_maps(
+                model=model,
+                inputs=(image, source),
+                labels=labels,
+                title=data["names"][0],
+                second_occlusion=(1,),
+                baselines=(1, 1),
+            )
+        elif source.ndim > 2:  # Take it all for multi ones
+            visuaize_maps(
+                model=model,
+                inputs=(image, source),
+                labels=labels,
+                title=data["names"][0],
+                second_occlusion=(1, 1, 1),
+            )
+            visuaize_maps(
+                model=model,
+                inputs=(image, source),
+                labels=labels,
+                title=data["names"][0],
+                second_occlusion=(1, 1, 1),
+                baselines=(1, 1),
+            )
 
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()

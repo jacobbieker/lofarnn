@@ -6,7 +6,7 @@ import pickle
 from lofarnn.models.dataloaders.utils import get_lotss_objects
 
 
-recall_dir = "/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/"
+recall_dir = "/home/jacob/Development/test_lofarnn/best_multi_non_optuna_allnorm_lr0.0003_b24_singleFalse_sources41_normTrue_losscross-entropy_schedulerplateau/"
 recall_files = []
 train_test = []
 test = []
@@ -18,11 +18,11 @@ for path, subdirs, files in os.walk(recall_dir):
             test.append(os.path.join(path, name))
 vac_catalog = "/run/media/jacob/SSD_Backup/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
 experiment_name = "multi_only_rotated_f_redux"
-experiment_dir = "/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/"
+experiment_dir = "/home/jacob/Development/test_lofarnn/best_multi_non_optuna_allnorm_lr0.0003_b24_singleFalse_sources41_normTrue_losscross-entropy_schedulerplateau/"
 output_dir = "./"
 cuts = ["single_comp", "multi_comp", "size15.0_flux10.0"]
 labels = ["Single", "Multi", "Jelle"]
-title = ["Rotated Fixed Multi-Only"]
+title = ["Rotated Fixed Single-Only"]
 colors = ["blue", "green", "black", "orange", "red"]
 metrics_files = ["metrics"]
 
@@ -33,79 +33,93 @@ experiment_dirs = []
 titles = []
 
 # Plot overall losses
-train_test_loss = np.loadtxt("/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/Train_test_recall.csv")
-test_loss = np.loadtxt("/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/Test_recall.csv")
-train_loss = np.loadtxt("/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/train_loss.csv")
-#print(train_test_loss)
+train_test_loss = np.loadtxt(
+    "/home/jacob/Development/test_lofarnn/best_multi_non_optuna_allnorm_lr0.0003_b24_singleFalse_sources41_normTrue_losscross-entropy_schedulerplateau/Train_test_recall.csv"
+)
+test_loss = np.loadtxt(
+    "/home/jacob/Development/test_lofarnn/best_multi_non_optuna_allnorm_lr0.0003_b24_singleFalse_sources41_normTrue_losscross-entropy_schedulerplateau/Test_recall.csv"
+)
+train_loss = np.loadtxt(
+    "/home/jacob/Development/test_lofarnn/best_multi_non_optuna_allnorm_lr0.0003_b24_singleFalse_sources41_normTrue_losscross-entropy_schedulerplateau/train_loss.csv"
+)
+# print(train_test_loss)
 vac_catalog = get_lotss_objects(vac_catalog)
 # Get only LGZ Ones
 
+
 def load_files(paths, vac_catalog):
     data = [pickle.load(open(os.path.join(p), "rb"), fix_imports=True) for p in paths]
-    cuts = {"Single": [], "Multi": [], "Jelle": []}
+    cuts = {"All": [], "Single": [], "Multi": [], "Jelle": []}
     vac_single = vac_catalog[vac_catalog["LGZ_Assoc"] == 1]
     vac_multi = vac_catalog[vac_catalog["LGZ_Assoc"] > 1]
-    vac_catalog = vac_catalog[vac_catalog["LGZ_Size"] > 15.0]
-    vac_catalog = vac_catalog[vac_catalog["Total_flux"] > 10.0]
+    vac_j = vac_catalog[vac_catalog["LGZ_Size"] > 15.0]
+    vac_j = vac_j[vac_j["Total_flux"] > 10.0]
     num_single = 0
     num_multi = 0
     num_jelle = 0
+    num_all = 0
     for key in data[0].keys():
+        num_all += 1
         if key in vac_multi["Source_Name"]:
             num_multi += 1
         if key in vac_single["Source_Name"]:
             num_single += 1
-        if key in vac_catalog["Source_Name"]:
+        if key in vac_j["Source_Name"]:
             num_jelle += 1
     print(num_single)
     print(num_multi)
     print(num_jelle)
+    print(num_all)
 
     # Now go through each epoch and get recall for those ones
     s_recall = []
     m_recall = []
     j_recall = []
+    a_recall = []
     for element in data:
         single_recall = 0
         multi_recall = 0
         jelle_recall = 0
+        all_recall = 0
         for key, value in element.items():
+            if value == 1:
+                all_recall += 1
             if key in vac_multi["Source_Name"] and value == 1:
                 multi_recall += 1
             if key in vac_single["Source_Name"] and value == 1:
                 single_recall += 1
             if key in vac_catalog["Source_Name"] and value == 1:
                 jelle_recall += 1
-        s_recall.append(float(single_recall)/num_single)
-        m_recall.append(float(multi_recall)/num_multi)
-        j_recall.append(float(jelle_recall)/num_jelle)
-    return s_recall, m_recall, j_recall
+        s_recall.append(float(single_recall) / num_single)
+        m_recall.append(float(multi_recall) / num_multi)
+        j_recall.append(float(jelle_recall) / num_jelle)
+        a_recall.append(float(all_recall) / num_all)
+    return s_recall, m_recall, j_recall, a_recall
 
 
 train_test = reversed(np.sort(train_test))
 test = reversed(np.sort(test))
-s, m, j = load_files(test, vac_catalog)
-st, mt, jt = load_files(train_test, vac_catalog)
-
+s, m, j, a = load_files(test, vac_catalog)
+st, mt, jt, at = load_files(train_test, vac_catalog)
+print(f"Max Recall All: {np.max(a)}")
 plt.plot(list(range(len(s))), s, label="Single Val")
+plt.plot(list(range(len(a))), a, label="All Val")
 plt.plot(list(range(len(m))), m, label="Multi Val")
 plt.plot(list(range(len(j))), j, label="Jelle Val")
 plt.plot(list(range(len(st))), st, label="Single Train")
+plt.plot(list(range(len(at))), at, label="All Train")
 plt.plot(list(range(len(mt))), mt, label="Multi Train")
 plt.plot(list(range(len(jt))), jt, label="Jelle Train")
 plt.ylabel("Recall")
 plt.xlabel("Epoch")
 plt.title("Recall for fixed CNN Multi ")
-plt.legend(loc='best')
+plt.legend(loc="best")
 plt.show()
 exit()
 
 
-
-
-
 exit()
-#plt.plot(list(range(len(train_loss))), train_loss, label="Train")
+# plt.plot(list(range(len(train_loss))), train_loss, label="Train")
 plt.plot(list(range(len(test_loss))), test_loss, label="Test")
 plt.plot(list(range(len(train_test_loss))), train_test_loss, label="Train Test")
 plt.legend(loc="best")
