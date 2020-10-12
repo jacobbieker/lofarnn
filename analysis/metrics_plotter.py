@@ -1,7 +1,7 @@
 from lofarnn.visualization.metrics import plot_axis_recall, plot_plots
 import os
 
-recall_dir = "/home/jacob/Development/reports/rotated_v_size400_prop4096_depth101_batchSize4_lr0.0001_frac1.0/"
+recall_dir = "/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/"
 recall_files = [
     os.path.join(recall_dir, "inference", "rotated_v_val_recall_limit1.pkl"),
     os.path.join(recall_dir, "inference","rotated_v_train_test_recall_limit1.pkl"),
@@ -11,9 +11,9 @@ recall_files = [
     os.path.join(recall_dir, "inference","rotated_v_train_test_recall_limit5.pkl"),
 ]
 recall_limits = ["v1", "t1", "v2", "t2", "v5", "t5"]
-vac_catalog = "/home/jacob/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
+vac_catalog = "/run/media/jacob/SSD_Backup/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
 experiment_name = "rotated_v"
-experiment_dir = "/home/jacob/Development/reports/rotated_v_size400_prop4096_depth101_batchSize4_lr0.0001_frac1.0/"
+experiment_dir = "/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/"
 output_dir = "./"
 cuts = ["single_comp", "multi_comp", "size15.0_flux10.0"]
 labels = ["Single", "Multi", "Jelle"]
@@ -26,6 +26,32 @@ generation_dirs = []
 generation_filenames = []
 experiment_dirs = []
 titles = []
+
+plot_axis_recall(recall_path="/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/Test_source_recall_epoch3.pkl",
+                 vac_catalog=vac_catalog,
+                 bins=4,
+                 jelle_cut=False,
+                 limit="VSingle4",
+                 output_dir="./")
+plot_axis_recall(recall_path="/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/Test_source_recall_epoch3.pkl",
+                 vac_catalog=vac_catalog,
+                 bins=4,
+                 jelle_cut=True,
+                 limit="VJSingle4",
+                 output_dir="./")
+plot_axis_recall(recall_path="/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/Train_test_source_recall_epoch3.pkl",
+                 vac_catalog=vac_catalog,
+                 bins=4,
+                 jelle_cut=False,
+                 limit="TSingle4",
+                 output_dir="./")
+plot_axis_recall(recall_path="/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/Train_test_source_recall_epoch3.pkl",
+                 vac_catalog=vac_catalog,
+                 bins=4,
+                 jelle_cut=True,
+                 limit="TJSingle4",
+                 output_dir="./")
+exit()
 for path, subdirs, files in os.walk(report_dir):
     for name in files:
         if "limit1.pkl" in name:
@@ -59,8 +85,8 @@ for i, item in enumerate(experiment_dirs):
         print(f"Failed: {e}")
 for i, item in enumerate(generation_filenames):
     limit = "t1" if "train" in item else "v1"
-    plot_axis_recall(recall_path=item, vac_catalog=vac_catalog, bins=6, jelle_cut=False, limit=limit, output_dir=generation_dirs[i])
-    plot_axis_recall(recall_path=item, vac_catalog=vac_catalog, bins=6, jelle_cut=True, limit=limit, output_dir=generation_dirs[i])
+    plot_axis_recall(recall_path=item, vac_catalog=vac_catalog, bins=4, jelle_cut=False, limit=limit, output_dir=generation_dirs[i])
+    plot_axis_recall(recall_path=item, vac_catalog=vac_catalog, bins=4, jelle_cut=True, limit=limit, output_dir=generation_dirs[i])
 exit()
 #for i, f in enumerate(recall_files):
 #    plot_axis_recall(recall_path=f, vac_catalog=vac_catalog, bins=6, jelle_cut=False, limit=recall_limits[i])

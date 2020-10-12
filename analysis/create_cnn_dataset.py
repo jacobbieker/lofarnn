@@ -21,11 +21,11 @@ if environment == "ALICE":
     pan_wise_location = "/home/s2153246/data/combined_panstarr_allwise.fits"
     multi_process = True
 else:
-    pan_wise_location = "/mnt/LargeSSD/hetdex_ps1_allwise_photoz_v0.6.fits"
-    dr_two = "/mnt/LargeSSD/mosaics/"
-    comp_cat = "/mnt/LargeSSD/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
-    vac = "/mnt/LargeSSD/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
-    cutout_directory = "/mnt/HDD/fixed_lgz_rotated/"
+    pan_wise_location = "/home/jacob/combined_panstarr_allwise_flux.fits"
+    dr_two = "/run/media/jacob/SSD_Backup/mosaics/"
+    comp_cat = "/run/media/jacob/SSD_Backup/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
+    vac = "/run/media/jacob/SSD_Backup/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
+    cutout_directory = "/run/media/jacob/T7/fixed_sqrt_flux"
     multi_process = True
 
 rotation = 180

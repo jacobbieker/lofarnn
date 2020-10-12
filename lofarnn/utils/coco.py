@@ -92,21 +92,21 @@ def create_coco_style_directory_structure(root_directory, suffix="", verbose=Fal
 
 
 def make_single_cnn_set(
-    image_names,
-    L,
-    m,
-    image_destination_dir=None,
-    pan_wise_location="",
-    resize=None,
-    rotation=None,
-    convert=True,
-    all_channels=False,
-    vac_catalog_location="",
-    segmentation=False,
-    normalize=True,
-    box_seg=True,
-    cut_size=None,
-    verbose=False,
+        image_names,
+        L,
+        m,
+        image_destination_dir=None,
+        pan_wise_location="",
+        resize=None,
+        rotation=None,
+        convert=True,
+        all_channels=False,
+        vac_catalog_location="",
+        segmentation=False,
+        normalize=True,
+        box_seg=True,
+        cut_size=None,
+        verbose=False,
 ):
     pan_wise_catalog = fits.open(pan_wise_location, memmap=True)
     pan_wise_catalog = pan_wise_catalog[1].data
@@ -161,7 +161,7 @@ def make_single_cnn_set(
                 kept_i = []
                 for i, sbox in enumerate(segmentation_proposals):
                     if (
-                        int(sbox[0]) >= 0
+                            int(sbox[0]) >= 0
                     ):  # All negative values are for invalid segmentation maps
                         kept_i.append(i)
                 # Only keep those with positive bounding boxes
@@ -231,17 +231,43 @@ def make_single_cnn_set(
 
             # First R (Radio) channel
             image = image[:, :, 0]
+            image_clip = np.copy(image)
+            image_none = np.copy(image)
             image = convert_to_valid_color(
                 image,
                 clip=True,
                 lower_clip=0.0,
                 upper_clip=1000,
                 normalize=normalize,
+                scaling="sqrt",
+            )
+            image_clip = convert_to_valid_color(
+                image_clip,
+                clip=True,
+                lower_clip=0.0,
+                upper_clip=1000,
+                normalize=normalize,
                 scaling=None,
+            )
+            image_none = convert_to_valid_color(
+                image_none,
+                clip=False,
+                lower_clip=0.0,
+                upper_clip=1000,
+                normalize=False,
+                scaling="sqrt",
             )
             image = np.ma.filled(
                 image, fill_value=0.0
             )  # convert back from masked array to normal array
+            image_clip = np.ma.filled(
+                image_clip, fill_value=0.0
+            )  # convert back from masked array to normal array
+            image_none = np.ma.filled(
+                image_none, fill_value=0.0
+            )  # convert back from masked array to normal array
+            # Now restack into 3 channel image
+            image = np.dstack((image, image_clip, image_none))
             if convert:
                 image = np.nan_to_num(image)
                 image = (255.0 * image).astype(np.uint8)
@@ -253,14 +279,14 @@ def make_single_cnn_set(
                 np.save(image_dest_filename, image)  # Save to the final destination
         else:
             image = np.load(image_dest_filename)
-            height, width = np.shape(image)
+            height, width, depth = np.shape(image)
 
         record = {
             "file_name": image_dest_filename,
             "image_id": i,
             "height": height,
             "width": width,
-            "depth": 1,
+            "depth": depth,
         }
         if not os.path.exists(os.path.join(record_dest_filename)):
             # Get all sources within 300 arcseconds of the source, or root(2) value
@@ -294,13 +320,22 @@ def make_single_cnn_set(
                 "w3Mag",
                 "w4Mag",
             ]
+            flux_layers = ["iFApFlux",
+                           "w1Flux",
+                           "gFApFlux",
+                           "rFApFlux",
+                           "zFApFlux",
+                           "yFApFlux",
+                           "w2Flux",
+                           "w3Flux",
+                           "w4Flux", ]
             optical_sources = []
             optical_labels = []
             for j, obj in enumerate(objects):
                 optical_sources.append([])
                 if (
-                    obj["objID"] == source["objID"]
-                    and obj["AllWISE"] == source["AllWISE"]
+                        obj["objID"] == source["objID"]
+                        and obj["AllWISE"] == source["AllWISE"]
                 ):
                     optical_labels.append(1)  # Optical Source
                 else:
@@ -313,6 +348,10 @@ def make_single_cnn_set(
                     if normalize:  # Scale to between 0 and 1 for 10 to 28 magnitude
                         value = np.clip(value, 10.0, 28.0)
                         value = (value - 10.0) / (28.0 - 10.0)
+                    optical_sources[-1].append(value)
+                for layer in flux_layers:
+                    value = np.nan_to_num(obj[layer])
+                    value = np.clip(value, a_min=0.0, a_max=(np.nanpercentile(pan_wise_catalog[layer], 99)))
                     optical_sources[-1].append(value)
             record["optical_sources"] = optical_sources
             record["optical_labels"] = optical_labels
@@ -331,22 +370,22 @@ def make_single_cnn_set(
 
 
 def make_single_coco_annotation_set(
-    image_names,
-    L,
-    m,
-    image_destination_dir=None,
-    multiple_bboxes=True,
-    resize=None,
-    rotation=None,
-    convert=True,
-    all_channels=False,
-    precomputed_proposals=False,
-    segmentation=False,
-    normalize=True,
-    box_seg=True,
-    stats=[],
-    cut_size=None,
-    verbose=False,
+        image_names,
+        L,
+        m,
+        image_destination_dir=None,
+        multiple_bboxes=True,
+        resize=None,
+        rotation=None,
+        convert=True,
+        all_channels=False,
+        precomputed_proposals=False,
+        segmentation=False,
+        normalize=True,
+        box_seg=True,
+        stats=[],
+        cut_size=None,
+        verbose=False,
 ):
     """
     For use with multiprocessing, goes through and does one rotation for the COCO annotations
@@ -429,7 +468,7 @@ def make_single_coco_annotation_set(
             kept_i = []
             for i, sbox in enumerate(segmentation_proposals):
                 if (
-                    int(sbox[0]) >= 0
+                        int(sbox[0]) >= 0
                 ):  # All negative values are for invalid segmentation maps
                     kept_i.append(i)
             # Only keep those with positive bounding boxes
@@ -660,27 +699,27 @@ def make_single_coco_annotation_set(
         if box_seg and len(segmentation_proposals) > 0:
             L.append(record)
         if (
-            not box_seg
+                not box_seg
         ):  # We don't care if segmentation proposals are not there, only want sources
             L.append(record)
 
 
 def create_coco_annotations(
-    image_names,
-    image_destination_dir=None,
-    json_dir="",
-    json_name="json_data.pkl",
-    multiple_bboxes=True,
-    resize=None,
-    rotation=None,
-    convert=True,
-    all_channels=False,
-    precomputed_proposals=False,
-    segmentation=False,
-    normalize=True,
-    cut_size=None,
-    rotation_names=None,
-    verbose=False,
+        image_names,
+        image_destination_dir=None,
+        json_dir="",
+        json_name="json_data.pkl",
+        multiple_bboxes=True,
+        resize=None,
+        rotation=None,
+        convert=True,
+        all_channels=False,
+        precomputed_proposals=False,
+        segmentation=False,
+        normalize=True,
+        cut_size=None,
+        rotation_names=None,
+        verbose=False,
 ):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
@@ -836,21 +875,21 @@ def create_coco_annotations(
 
 
 def create_cnn_annotations(
-    image_names,
-    image_destination_dir=None,
-    json_dir="",
-    json_name="json_data.pkl",
-    pan_wise_location="",
-    resize=None,
-    rotation=None,
-    convert=True,
-    all_channels=False,
-    vac_catalog_location="",
-    segmentation=False,
-    normalize=True,
-    cut_size=None,
-    rotation_names=None,
-    verbose=False,
+        image_names,
+        image_destination_dir=None,
+        json_dir="",
+        json_name="json_data.pkl",
+        pan_wise_location="",
+        resize=None,
+        rotation=None,
+        convert=True,
+        all_channels=False,
+        vac_catalog_location="",
+        segmentation=False,
+        normalize=True,
+        cut_size=None,
+        rotation_names=None,
+        verbose=False,
 ):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
@@ -968,7 +1007,7 @@ def create_cnn_annotations(
 
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
     bbox_size = []
-    """
+    #"""
     manager = Manager()
     pool = Pool(processes=os.cpu_count())
     L = manager.list()
@@ -1020,6 +1059,7 @@ def create_cnn_annotations(
         cut_size,
         verbose,
     )
+    #"""
     # Write all image dictionaries to file as one json
     json_path = os.path.join(json_dir, json_name)
     with open(json_path, "wb") as outfile:
@@ -1029,19 +1069,19 @@ def create_cnn_annotations(
 
 
 def create_cnn_dataset(
-    root_directory,
-    pan_wise_catalog="",
-    split_fraction=0.2,
-    resize=None,
-    rotation=None,
-    convert=True,
-    all_channels=False,
-    vac_catalog="",
-    segmentation=False,
-    normalize=True,
-    subset="",
-    multi_rotate_only=None,
-    verbose=False,
+        root_directory,
+        pan_wise_catalog="",
+        split_fraction=0.2,
+        resize=None,
+        rotation=None,
+        convert=True,
+        all_channels=False,
+        vac_catalog="",
+        segmentation=False,
+        normalize=True,
+        subset="",
+        multi_rotate_only=None,
+        verbose=False,
 ):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
@@ -1149,19 +1189,19 @@ def create_cnn_dataset(
 
 
 def create_coco_dataset(
-    root_directory,
-    multiple_bboxes=False,
-    split_fraction=0.2,
-    resize=None,
-    rotation=None,
-    convert=True,
-    all_channels=False,
-    precomputed_proposals=False,
-    segmentation=False,
-    normalize=True,
-    subset="",
-    multi_rotate_only=None,
-    verbose=False,
+        root_directory,
+        multiple_bboxes=False,
+        split_fraction=0.2,
+        resize=None,
+        rotation=None,
+        convert=True,
+        all_channels=False,
+        precomputed_proposals=False,
+        segmentation=False,
+        normalize=True,
+        subset="",
+        multi_rotate_only=None,
+        verbose=False,
 ):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
@@ -1312,18 +1352,18 @@ def split_data(image_directory, val_split=0.2, test_split=0.2):
 
 
 def get_all_single_image_std_mean(
-    image,
-    num_layers,
-    layer_0,
-    layer_1,
-    layer_2,
-    layer_3,
-    layer_4,
-    layer_5,
-    layer_6,
-    layer_7,
-    layer_8,
-    layer_9,
+        image,
+        num_layers,
+        layer_0,
+        layer_1,
+        layer_2,
+        layer_3,
+        layer_4,
+        layer_5,
+        layer_6,
+        layer_7,
+        layer_8,
+        layer_9,
 ):
     try:
         data = Image.open(image).convert("RGB")

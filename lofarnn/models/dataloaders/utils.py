@@ -12,7 +12,7 @@ def get_lotss_objects(fname, verbose=False):
 
     with fits.open(fname) as hdul:
         table = hdul[1].data
-
+    print(table.columns)
     if verbose:
         print(table.columns)
 

@@ -6,7 +6,7 @@ import pickle
 from lofarnn.models.dataloaders.utils import get_lotss_objects
 
 
-recall_dir = "/home/jacob/all_best_lr0.00024128_b8_singleFalse_sources41_normTrue_losscross-entropy_schedulercyclical/"
+recall_dir = "/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/"
 recall_files = []
 train_test = []
 test = []
@@ -16,9 +16,9 @@ for path, subdirs, files in os.walk(recall_dir):
             train_test.append(os.path.join(path, name))
         elif "Test" in name and ".pkl" in name:
             test.append(os.path.join(path, name))
-vac_catalog = "/home/jacob/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
+vac_catalog = "/run/media/jacob/SSD_Backup/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
 experiment_name = "multi_only_rotated_f_redux"
-experiment_dir = "/home/jacob/all_best_lr0.00024128_b8_singleFalse_sources41_normTrue_losscross-entropy_schedulercyclical/"
+experiment_dir = "/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/"
 output_dir = "./"
 cuts = ["single_comp", "multi_comp", "size15.0_flux10.0"]
 labels = ["Single", "Multi", "Jelle"]
@@ -33,9 +33,9 @@ experiment_dirs = []
 titles = []
 
 # Plot overall losses
-train_test_loss = np.loadtxt("/home/jacob/all_best_lr0.00024128_b8_singleFalse_sources41_normTrue_losscross-entropy_schedulercyclical/Train_test_recall.csv")
-test_loss = np.loadtxt("/home/jacob/all_best_lr0.00024128_b8_singleFalse_sources41_normTrue_losscross-entropy_schedulercyclical/Test_recall.csv")
-train_loss = np.loadtxt("/home/jacob/all_best_lr0.00024128_b8_singleFalse_sources41_normTrue_losscross-entropy_schedulercyclical/train_loss.csv")
+train_test_loss = np.loadtxt("/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/Train_test_recall.csv")
+test_loss = np.loadtxt("/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/Test_recall.csv")
+train_loss = np.loadtxt("/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources20_normTrue_lossfocal_schedulerplateau/train_loss.csv")
 #print(train_test_loss)
 vac_catalog = get_lotss_objects(vac_catalog)
 # Get only LGZ Ones

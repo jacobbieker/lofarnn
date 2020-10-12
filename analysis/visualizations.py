@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional as F
 
 directory = "/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources4_normTrue_lossfocal_schedulerplateau/"
-directory = "/home/jacob/reports/all_best_lr0.00024128_b8_singleFalse_sources41_normTrue_losscross-entropy_schedulercyclical/"
+directory = "/run/media/jacob/SSD_Backup/all_best_lr0.00024128_b8_singleFalse_sources41_normTrue_losscross-entropy_schedulercyclical/"
 
 
 def main(args):
@@ -62,13 +62,17 @@ def main(args):
         print(source.ndim)
         print(F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy())
         if source.ndim == 2 and F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy() == [[0]]: # Only take positive ones for single one
-            print(source)
             visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,))
             visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,), baselines=(1,1))
+            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,), use_label=True)
+            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,), baselines=(1,1), use_label=True)
         elif source.ndim > 2: # Take it all for multi ones
             visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1))
             visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1), baselines=(1,1))
-
+            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1), use_label=True)
+            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1), baselines=(1,1), use_label=True)
+            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1), baselines=(0.5,0.5))
+            visuaize_maps(model=model, inputs=(image, source), labels=labels, title=data["names"][0], second_occlusion=(1,1,1), baselines=(0.5,0.5), use_label=True)
 
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()

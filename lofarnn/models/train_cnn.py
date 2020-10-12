@@ -57,7 +57,7 @@ def main(args):
         "single": args.single,
         "loss": args.loss,
         "gamma": 2,
-        "alpha_1": 0.12835728,
+        "alpha_1": 0.25,
     }
     config["alpha_2"] = 1.0 - config["alpha_1"]
     if args.single:

@@ -61,9 +61,13 @@ def visuaize_maps(
     igrad_2 = NoiseTunnel(igrad)
     # deep_lift = DeepLift(model)
     grad_shap = ShapleyValueSampling(model)
-    targets = model(inputs[0], inputs[1])
-    targets = F.softmax(targets, dim=-1).argmax(dim=1, keepdim=True)
+    output = model(inputs[0], inputs[1])
+    output = F.softmax(output, dim=-1).argmax(dim=1, keepdim=True)
     labels = F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True)
+    if use_label:
+        targets = labels
+    else:
+        targets = output
     print(targets)
     correct = targets.cpu().numpy() == labels.cpu().numpy()
     # if correct:
@@ -95,7 +99,7 @@ def visuaize_maps(
         occ_out = convert_to_image(occ_out)
         saliency_out = convert_to_image(saliency_out)
         igrad_out = convert_to_image(igrad_out)
-        grad_shap_out = convert_to_image(grad_shap_out)
+        #grad_shap_out = convert_to_image(grad_shap_out)
     else:
         inputs = convert_to_image_multi(inputs)
         occ_out = convert_to_image_multi(occ_out)
