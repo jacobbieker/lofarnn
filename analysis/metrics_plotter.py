@@ -1,23 +1,21 @@
-from lofarnn.visualization.metrics import plot_axis_recall, plot_plots
+from lofarnn.visualization.metrics import plot_axis_recall, plot_plots, plot_compared_axis_recall, plot_cutoffs
 import os
+import pickle
+import numpy as np
 
-recall_dir = "/home/jacob/Development/reports/rotated_v_size400_prop4096_depth101_batchSize4_lr0.0001_frac1.0/"
+recall_dir = "/home/jacob/Development/reports/rotated_f_redux_size400_prop4096_depth101_batchSize8_lr0.002_frac1.0/"
 recall_files = [
-    os.path.join(recall_dir, "inference", "rotated_v_val_recall_limit1.pkl"),
-    os.path.join(recall_dir, "inference","rotated_v_train_test_recall_limit1.pkl"),
-    os.path.join(recall_dir, "inference","rotated_v_val_recall_limit2.pkl"),
-    os.path.join(recall_dir, "inference","rotated_v_train_test_recall_limit2.pkl"),
-    os.path.join(recall_dir,"inference", "rotated_v_val_recall_limit5.pkl"),
-    os.path.join(recall_dir, "inference","rotated_v_train_test_recall_limit5.pkl"),
+"/home/jacob/Development/test_lofarnn/lofarnn/Test_source_recall_epoch92.pkl"
 ]
-recall_limits = ["v1", "t1", "v2", "t2", "v5", "t5"]
+baseline = "/home/jacob/Development/test_lofarnn/lofarnn/analysis/train_closest_baseline_recall.pkl"
+recall_limits = ["BaseCompClassNeg", "t1", "v2", "t2", "v5", "t5"]
 vac_catalog = "/home/jacob/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
-experiment_name = "rotated_v"
-experiment_dir = "/home/jacob/Development/reports/rotated_v_size400_prop4096_depth101_batchSize4_lr0.0001_frac1.0/"
+experiment_name = "rotated_f_redux"
+experiment_dir = "/home/jacob/Development/reports/rotated_f_redux_size400_prop4096_depth101_batchSize8_lr0.002_frac1.0/inference/"
 output_dir = "./"
 cuts = ["single_comp", "multi_comp", "size15.0_flux10.0"]
 labels = ["Single", "Multi", "Jelle"]
-title = ["Rotated Variable"]
+title = ["Rotated Fixed"]
 colors = ["blue", "green", "black", "orange", "red"]
 metrics_files = ["metrics"]
 
@@ -26,6 +24,27 @@ generation_dirs = []
 generation_filenames = []
 experiment_dirs = []
 titles = []
+
+for i, f in enumerate(recall_files):
+    plot_cutoffs(recall_path=f, vac_catalog=vac_catalog, bins=10)
+    plot_compared_axis_recall(
+        recall_path=f,
+        recall_path_2=baseline,
+        vac_catalog=vac_catalog,
+        bins=4,
+        jelle_cut=False,
+        limit=recall_limits[i],
+        output_dir="./"
+    )
+    plot_compared_axis_recall(
+        recall_path=f,
+        recall_path_2=baseline,
+        vac_catalog=vac_catalog,
+        bins=4,
+        jelle_cut=True,
+        limit=recall_limits[i],
+    )
+exit()
 for path, subdirs, files in os.walk(report_dir):
     for name in files:
         if "limit1.pkl" in name:
@@ -59,9 +78,23 @@ for i, item in enumerate(experiment_dirs):
         print(f"Failed: {e}")
 for i, item in enumerate(generation_filenames):
     limit = "t1" if "train" in item else "v1"
-    plot_axis_recall(recall_path=item, vac_catalog=vac_catalog, bins=6, jelle_cut=False, limit=limit, output_dir=generation_dirs[i])
-    plot_axis_recall(recall_path=item, vac_catalog=vac_catalog, bins=6, jelle_cut=True, limit=limit, output_dir=generation_dirs[i])
+    plot_axis_recall(
+        recall_path=item,
+        vac_catalog=vac_catalog,
+        bins=4,
+        jelle_cut=False,
+        limit=limit,
+        output_dir=generation_dirs[i],
+    )
+    plot_axis_recall(
+        recall_path=item,
+        vac_catalog=vac_catalog,
+        bins=4,
+        jelle_cut=True,
+        limit=limit,
+        output_dir=generation_dirs[i],
+    )
 exit()
-#for i, f in enumerate(recall_files):
+# for i, f in enumerate(recall_files):
 #    plot_axis_recall(recall_path=f, vac_catalog=vac_catalog, bins=6, jelle_cut=False, limit=recall_limits[i])
 #    plot_axis_recall(recall_path=f, vac_catalog=vac_catalog, bins=6, jelle_cut=True, limit=recall_limits[i])
