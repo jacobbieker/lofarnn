@@ -149,11 +149,12 @@ def setup(args):
                 thing_classes=["Optical source"]
             )
 
-    cfg.DATASETS.TRAIN = (f"{args.experiment}_train",)
+    cfg.DATASETS.TRAIN = (f"{args.experiment}_train",f"{args.experiment}_val",) # Now train on val too
     cfg.DATASETS.VAL = (f"{args.experiment}_test",)
     cfg.DATASETS.TEST = (
         f"{args.experiment}_val",
         f"{args.experiment}_train_test",
+        f"{args.experiment}_test",
     )  # Swapped because TEST is used for eval, and val is not, but can be used later
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     cfg.freeze()

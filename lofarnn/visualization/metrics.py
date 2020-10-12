@@ -22,6 +22,8 @@ def plot_cutoffs(recall_path, recall_path_2, vac_catalog, bins=30):
     pred_source_recall = []
     pred_source_names2 = []
     pred_source_recall2 = []
+    #vac_catalog = vac_catalog[vac_catalog["LGZ_Size"] > 15.0]
+    #vac_catalog = vac_catalog[vac_catalog["Total_flux"] > 10.0]
     for key in data.keys():
         if key in vac_catalog["Source_Name"].data:
             pred_source_names.append(key)
@@ -289,7 +291,7 @@ def plot_compared_axis_recall(
                         str(n_sources[i, j]),
                         ha="center",
                         va="center",
-                        color="white",
+                        color="black",
                         fontsize=5,
                     )
 
