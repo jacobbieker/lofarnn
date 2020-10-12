@@ -8,7 +8,7 @@ recall_files = [
 "/home/jacob/Development/test_lofarnn/lofarnn/Test_source_recall_epoch92.pkl"
 ]
 baseline = "/home/jacob/Development/test_lofarnn/lofarnn/analysis/train_closest_baseline_recall.pkl"
-recall_limits = ["BaseCompClassNeg", "t1", "v2", "t2", "v5", "t5"]
+recall_limits = ["BaseComp", "t1", "v2", "t2", "v5", "t5"]
 vac_catalog = "/home/jacob/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
 experiment_name = "rotated_f_redux"
 experiment_dir = "/home/jacob/Development/reports/rotated_f_redux_size400_prop4096_depth101_batchSize8_lr0.002_frac1.0/inference/"
@@ -26,7 +26,7 @@ experiment_dirs = []
 titles = []
 
 for i, f in enumerate(recall_files):
-    plot_cutoffs(recall_path=f, vac_catalog=vac_catalog, bins=10)
+    plot_cutoffs(recall_path=f, recall_path_2=baseline, vac_catalog=vac_catalog, bins=10)
     plot_compared_axis_recall(
         recall_path=f,
         recall_path_2=baseline,

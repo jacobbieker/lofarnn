@@ -14,15 +14,24 @@ def load_json_arr(json_path):
     return lines
 
 
-def plot_cutoffs(recall_path, vac_catalog, bins=30):
+def plot_cutoffs(recall_path, recall_path_2, vac_catalog, bins=30):
     data = pickle.load(open(recall_path, "rb"), fix_imports=True)
+    data2 = pickle.load(open(recall_path_2, "rb"), fix_imports=True)
     vac_catalog = get_lotss_objects(vac_catalog)
     pred_source_names = []
     pred_source_recall = []
+    pred_source_names2 = []
+    pred_source_recall2 = []
     for key in data.keys():
         if key in vac_catalog["Source_Name"].data:
             pred_source_names.append(key)
             pred_source_recall.append(data[key])
+    for key in data2.keys():
+        if key in vac_catalog["Source_Name"].data:
+            pred_source_names2.append(key)
+            pred_source_recall2.append(data2[key])
+    pred_source_recall = np.asarray(pred_source_recall)
+    pred_source_recall2 = np.asarray(pred_source_recall2)#[:1630]
     radio_apparent_size = np.zeros(len(pred_source_names))
     radio_apparent_width = np.zeros(len(pred_source_names))
     radio_total_flux = np.zeros(len(pred_source_names))
@@ -45,11 +54,35 @@ def plot_cutoffs(recall_path, vac_catalog, bins=30):
         "z": radio_z,
         "Number of Components": radio_comp,
     }
-    pred_source_recall = np.asarray(pred_source_recall)
+    radio_apparent_size2 = np.zeros(len(pred_source_names2))
+    radio_apparent_width2 = np.zeros(len(pred_source_names2))
+    radio_total_flux2 = np.zeros(len(pred_source_names2))
+    radio_z2 = np.zeros(len(pred_source_names2))
+    radio_comp2 = np.zeros(len(pred_source_names2))
+    for i, source_name in enumerate(pred_source_names2):#[:1630]):
+        mask = source_name == vac_catalog["Source_Name"]
+
+        # get values
+        radio_apparent_size2[i] = vac_catalog[mask]["LGZ_Size"].data
+        radio_apparent_width2[i] = vac_catalog[mask]["LGZ_Width"].data
+        radio_total_flux2[i] = vac_catalog[mask]["Total_flux"].data
+        radio_z2[i] = vac_catalog[mask]["z_best"].data
+        radio_comp2[i] = vac_catalog[mask]["LGZ_Assoc"].data
+    radio_axis_ratio2 = radio_apparent_size2 / radio_apparent_width2
+    data_dict2 = {
+        "Axis ratio": radio_axis_ratio2,
+        "Total flux [mJy]": radio_total_flux2,
+        "Apparent size [arcsec]": radio_apparent_size2,
+        "z": radio_z2,
+        "Number of Components": radio_comp2,
+    }
+    pred_source_recall = np.array(pred_source_recall)
+    pred_source_recall2 = np.array(pred_source_recall2)
 
     # Now plot recall cutoffs
     for ylabel in ["Apparent size [arcsec]", "Total flux [mJy]", "Axis ratio", "z", "Number of Components"]:
         Y = data_dict[ylabel]
+        Y2 = data_dict2[ylabel]
         # x_bin_edges = np.linspace(np.nanmin(X)-0.00001, np.nanpercentile(X, 98), bins+1)
         y_bin_edges = np.linspace(
             np.nanpercentile(Y, 1) - 0.00001, np.nanpercentile(Y, 95), bins + 1
@@ -60,19 +93,25 @@ def plot_cutoffs(recall_path, vac_catalog, bins=30):
         y_bin_centers = y_bin_edges[1:] - y_bin_width / 2
         # now obtain recall
         recall = np.zeros((y_bin_centers.shape[0]))
+        recall2 = np.zeros((y_bin_centers.shape[0]))
         for j in range(len(y_bin_centers)):
             # get the prediction errors in a bin
             bin_contents = pred_source_recall[
                 (Y > y_bin_edges[j])
                 & (Y < y_bin_edges[j + 1])
                 ]
-
+            bin_contents2 = pred_source_recall2[
+                (Y2 > y_bin_edges[j])
+                & (Y2 < y_bin_edges[j + 1])
+                ]
             # determine recall
             # print(f"Bin Sum: {np.nansum(bin_contents > 0.95)}, len: {len(bin_contents)}")
             recall[j] = np.nansum(bin_contents > 0.95) / len(bin_contents)
+            recall2[j] = np.nansum(bin_contents2 > 0.95) / len(bin_contents2)
 
         # Now plot
         plt.plot(y_bin_centers, recall)
+        plt.plot(y_bin_centers, recall2, linestyle="--", label='Baseline')
         plt.title(ylabel)
         plt.ylabel("Recall")
         plt.xlabel(ylabel)

@@ -6,16 +6,12 @@ try:
 except:
     os.environ["LOFARNN_ARCH"] = "XPS"
     environment = os.environ["LOFARNN_ARCH"]
-from lofarnn.models.base.cnn import (
-    RadioSingleSourceModel,
-    RadioMultiSourceModel,
-    f1_loss,
-)
-from lofarnn.models.base.utils import default_argument_parser, setup, test, train
-from torch.optim.lr_scheduler import ReduceLROnPlateau, CyclicLR
+
+from lofarnn.models.base.utils import default_argument_parser, setup
 from torch.utils.data import dataset, dataloader
 import torch
 import pickle
+
 
 def main(args):
     train_dataset, train_test_dataset, val_dataset = setup(args)
@@ -49,7 +45,6 @@ def main(args):
     else:
         output_dir = os.path.join("/home/s2153246/data/", "reports", experiment_name)
     os.makedirs(output_dir, exist_ok=True)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     named_recalls = {}
     flux_named_recall = {}
     with torch.no_grad():
@@ -61,7 +56,7 @@ def main(args):
                 data["names"],
             )
             output = closest_point_model(source)
-            out2 = flux_weighted_model(source)
+            out2 = flux_weighted_model(names)
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
             label = labels.argmax(dim=1, keepdim=True)
