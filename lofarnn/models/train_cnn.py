@@ -42,7 +42,7 @@ def main(args):
     )
     experiment_name = (
         args.experiment
-        + f"_lr{args.lr}_b{args.batch}_single{args.single}_sources{args.num_sources}_norm{args.norm}_loss{args.loss}_scheduler{args.lr_type}"
+        + f"final_eval_test"
     )
     if environment == "XPS":
         output_dir = os.path.join("/home/jacob/", "reports", experiment_name)

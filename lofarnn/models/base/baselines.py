@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from astropy.io import fits
 
-from analysis.plot_data_stats import get_lotss_objects
+from lofarnn.models.dataloaders.utils import get_lotss_objects
 from lofarnn.utils.fits import determine_visible_catalogue_source_and_separation
 
 """
@@ -55,17 +55,21 @@ def flux_weighted_model(names):
                        "w2Flux",
                        "w3Flux",
                        "w4Flux", ]
-        flux = 0
+
         opticals = []
         for j, obj in enumerate(objects):
+            flux = 0.
             for layer in flux_layers:
                 value = np.nan_to_num(obj[layer])
-                flux = np.nansum(flux, value)
-            weighted = distances[j] * (1/flux+1e-7) # Larger flux = smaller value = chosen first
+                if value is not np.nan:
+                    flux += value
+            weighted = distances[j].value * (1/flux+1e-7) # Larger flux = smaller value = chosen first
             opticals.append(weighted) # In same order as distance, so should be the same
+        print(opticals)
         soln.append(np.argmin(opticals))
 
     # Return the smallest value, so smallest distance * 1/total flux
+    print(soln)
     return torch.from_numpy(np.array(soln))
 
 

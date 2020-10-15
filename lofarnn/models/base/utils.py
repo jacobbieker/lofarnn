@@ -139,7 +139,7 @@ def setup(args):
     Setup dataset and dataloaders for these new datasets
     """
     train_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"),
+        [os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"), os.path.join(args.dataset, f"cnn_val_norm{args.norm}_extra.pkl")],
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         norm=not args.norm,
@@ -147,14 +147,14 @@ def setup(args):
         transform=only_image_transforms if args.augment else None,
     )
     train_test_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"),
+        [os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"), os.path.join(args.dataset, f"cnn_val_norm{args.norm}_extra.pkl")],
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         norm=not args.norm,
         num_sources=args.num_sources,
     )
     val_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_val_norm{args.norm}_extra.pkl"),
+        os.path.join(args.dataset, f"cnn_test_norm{args.norm}_extra.pkl"),
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         norm=not args.norm,

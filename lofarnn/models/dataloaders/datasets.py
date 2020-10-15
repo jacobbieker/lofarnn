@@ -23,7 +23,12 @@ class RadioSourceDataset(Dataset):
             json_file (string): Path to the json file with annotations
             single_source_per_img (bool, optional): Whether to give all sources with an image, or a single source per image
         """
-        self.annotations = pickle.load(open(json_file, "rb"), fix_imports=True)
+        if isinstance(json_file, str):
+            self.annotations = pickle.load(open(json_file, "rb"), fix_imports=True)
+        else:
+            self.annotations = pickle.load(open(json_file[0], "rb"), fix_imports=True)
+            for f in json_file[1:]:
+                self.annotations.extend(pickle.load(open(f, "rb"), fix_imports=True))
         self.norm = norm
         self.transform = transform
         # Remove any non-standard files

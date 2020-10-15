@@ -60,13 +60,17 @@ def main(args):
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
             label = labels.argmax(dim=1, keepdim=True)
-            pred2 = out2.argmax(dim=1, keepdim=True)
+            pred2 = out2.numpy()
+            pred2 += 1 # Adds the 1 because of the 0 size default
             # Now get named recall ones
             if not args.single:
                 for i in range(len(names)):
                     # Assumes testing is with batch size of 1
                     named_recalls[names[i]] = pred.eq(label.view_as(pred)).sum().item()
-                    flux_named_recall[names[i]] = pred2.eq(label.view_as(pred2)).sum().item()
+                    if pred2 == label.numpy():
+                        flux_named_recall[names[i]] = 1
+                    else:
+                        flux_named_recall[names[i]] = 0
             else:
                 for i in range(len(names)):
                     if (
@@ -102,17 +106,21 @@ def main(args):
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
             label = labels.argmax(dim=1, keepdim=True)
-            pred2 = out2.argmax(dim=1, keepdim=True)
+            pred2 = out2.numpy()
+            pred2 += 1 # Adds the 1 because of the 0 size default
             # Now get named recall ones
             if not args.single:
                 for i in range(len(names)):
                     # Assumes testing is with batch size of 1
                     named_recalls[names[i]] = pred.eq(label.view_as(pred)).sum().item()
-                    flux_named_recall[names[i]] = pred2.eq(label.view_as(pred2)).sum().item()
+                    if pred2 == label.numpy():
+                        flux_named_recall[names[i]] = 1
+                    else:
+                        flux_named_recall[names[i]] = 0
             else:
                 for i in range(len(names)):
                     if (
-                        label.item() == 0
+                            label.item() == 0
                     ):  # Label is source, don't care about the many negative examples
                         if pred.item() == 0:  # Prediction is source
                             named_recalls[names[i]] = 1  # Value is correct
