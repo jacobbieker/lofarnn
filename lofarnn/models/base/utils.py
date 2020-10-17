@@ -266,6 +266,57 @@ def test(
     else:
         return test_loss
 
+def test2(
+        args,
+        model,
+        device,
+        test_loader,
+        wanted_names,
+        name="Test",
+        output_dir="./",
+        config={"loss": "cross-entropy"},
+):
+
+    model.eval()
+    test_loss = 0
+    correct = 0
+    loss_fn = BinaryFocalLoss(
+        alpha=[config["alpha_1"], config["alpha_2"]],
+        gamma=config["gamma"],
+        reduction="mean",
+    )
+    mydict = pickle.load(open("/home/jacob/reports/eval_final_testfinal_eval_test/Test_source_recall_epoch39.pkl", "rb"), fix_imports=True)
+
+    with torch.no_grad():
+        for data in test_loader:
+            image, source, labels, names = (
+                data["images"],
+                data["sources"],
+                data["labels"],
+                data["names"],
+            )
+            for names in names:
+                if mydict[name] == 0:
+                    output = model(image, source)
+                    # sum up batch loss
+                    if config["loss"] == "cross-entropy":
+                        try:
+                            test_loss += F.binary_cross_entropy(
+                                F.softmax(output, dim=-1), labels
+                            ).item()
+                        except RuntimeError:
+                            print(output)
+                    elif config["loss"] == "f1":
+                        test_loss += f1_loss(
+                            output, labels.argmax(dim=1), is_training=False
+                        ).item()
+                    elif config["loss"] == "focal":
+                        test_loss += loss_fn(output, labels).item()
+                    # get the index of the max log-probability
+                    pred = output.argmax(dim=1, keepdim=True)
+                    label = labels.argmax(dim=1, keepdim=True)
+                    correct += pred.eq(label.view_as(pred)).sum().item()
+
 
 def train(
     args,

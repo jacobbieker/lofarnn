@@ -47,6 +47,50 @@ def main(args):
     os.makedirs(output_dir, exist_ok=True)
     named_recalls = {}
     flux_named_recall = {}
+
+    with torch.no_grad():
+        for data in test_loader:
+            image, source, labels, names = (
+                data["images"],
+                data["sources"],
+                data["labels"],
+                data["names"],
+            )
+            output = closest_point_model(source)
+            #out2 = flux_weighted_model(names)
+            # get the index of the max log-probability
+            pred = output.argmax(dim=1, keepdim=True)
+            pred = torch.add(pred, 1)
+            label = labels.argmax(dim=1, keepdim=True)
+            print(pred)
+            print(label)
+            #pred2 = out2.numpy()
+            #pred2 += 1 # Adds the 1 because of the 0 size default
+            # Now get named recall ones
+            if not args.single:
+                for i in range(len(names)):
+                    # Assumes testing is with batch size of 1
+                    named_recalls[names[i]] = pred.eq(label.view_as(pred)).sum().item()
+            else:
+                for i in range(len(names)):
+                    if (
+                            label.item() == 0
+                    ):  # Label is source, don't care about the many negative examples
+                        if pred.item() == 0:  # Prediction is source
+                            named_recalls[names[i]] = 1  # Value is correct
+                        else:  # Prediction is not correct
+                            named_recalls[names[i]] = 0  # Value is incorrect
+    pickle.dump(
+        named_recalls,
+        open(os.path.join("./", f"final_test_closest_baseline_recall.pkl"), "wb"),
+    )
+    pickle.dump(
+        flux_named_recall,
+        open(os.path.join("./", f"final_test_flux_baseline_recall.pkl"), "wb"),
+    )
+
+    named_recalls = {}
+    flux_named_recall = {}
     with torch.no_grad():
         for data in test_loader:
             image, source, labels, names = (
