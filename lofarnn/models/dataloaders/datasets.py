@@ -121,11 +121,7 @@ class RadioSourceDataset(Dataset):
             anno["optical_sources"][i][1] = anno["optical_sources"][i][1].value / (
                 2 * np.pi
             )
-            anno["optical_sources"][i][2] = (
-                np.clip(anno["optical_sources"][i][2], 0.0, 7.0) - 0.0
-            ) / (
-                7.0 - 0.0
-            )  # Redshift
+            anno["optical_sources"][i][2] = 0.0 # Remove redshift
             if self.norm:
                 for j in range(3, len(anno["optical_sources"][i])):
                     value = anno["optical_sources"][i][j]

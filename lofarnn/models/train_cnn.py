@@ -98,7 +98,7 @@ def main(args):
         )
         test(args, model, device, test_loader, epoch, "Test", output_dir, config)
         if epoch % 5 == 0:  # Save every 5 epochs
-            torch.save(model, os.path.join(output_dir, "model.pth"))
+            torch.save(model, os.path.join(output_dir, f"model_{epoch}.pth"))
 
 
 if __name__ == "__main__":

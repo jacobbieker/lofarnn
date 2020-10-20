@@ -65,11 +65,9 @@ def flux_weighted_model(names):
                     flux += value
             weighted = distances[j].value * (1/flux+1e-7) # Larger flux = smaller value = chosen first
             opticals.append(weighted) # In same order as distance, so should be the same
-        print(opticals)
         soln.append(np.argmin(opticals))
 
     # Return the smallest value, so smallest distance * 1/total flux
-    print(soln)
     return torch.from_numpy(np.array(soln))
 
 
