@@ -1,4 +1,4 @@
-from lofarnn.models.base.baselines import closest_point_model, flux_weighted_model
+from lofarnn.models.base.baselines import closest_point_model#, flux_weighted_model
 import os
 
 try:
@@ -56,7 +56,7 @@ def main(args):
                 data["names"],
             )
             output = closest_point_model(source)
-            out2 = flux_weighted_model(names)
+            #out2 = flux_weighted_model(names)
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
             label = labels.argmax(dim=1, keepdim=True)
@@ -80,10 +80,10 @@ def main(args):
                             named_recalls[names[i]] = 1  # Value is correct
                         else:  # Prediction is not correct
                             named_recalls[names[i]] = 0  # Value is incorrect
-                        if pred2.item() == 0:
-                            flux_named_recall[names[i]] = 1
-                        else:
-                            flux_named_recall[names[i]] = 0
+             #           if pred2.item() == 0:
+             #               flux_named_recall[names[i]] = 1
+             #           else:
+             #               flux_named_recall[names[i]] = 0
     pickle.dump(
         named_recalls,
         open(os.path.join(output_dir, f"test_closest_baseline_recall.pkl"), "wb"),
@@ -102,7 +102,7 @@ def main(args):
                 data["names"],
             )
             output = closest_point_model(source)
-            out2 = flux_weighted_model(source)
+            #out2 = flux_weighted_model(source)
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
             label = labels.argmax(dim=1, keepdim=True)
@@ -126,10 +126,10 @@ def main(args):
                             named_recalls[names[i]] = 1  # Value is correct
                         else:  # Prediction is not correct
                             named_recalls[names[i]] = 0  # Value is incorrect
-                        if pred2.item() == 0:
-                            flux_named_recall[names[i]] = 1
-                        else:
-                            flux_named_recall[names[i]] = 0
+             #           if pred2.item() == 0:
+             #               flux_named_recall[names[i]] = 1
+             #           else:
+             #               flux_named_recall[names[i]] = 0
     pickle.dump(
         named_recalls,
         open(os.path.join(output_dir, f"train_closest_baseline_recall.pkl"), "wb"),

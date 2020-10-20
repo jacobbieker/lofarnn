@@ -142,6 +142,7 @@ def make_single_cnn_set(
                 seg_box_five,
                 segmentation_maps_three,
                 seg_box_three,
+                wcs
             ) = np.load(
                 image_name, allow_pickle=True
             )  # mmap_mode might allow faster read
@@ -320,15 +321,6 @@ def make_single_cnn_set(
                 "w3Mag",
                 "w4Mag",
             ]
-            flux_layers = ["iFApFlux",
-                           "w1Flux",
-                           "gFApFlux",
-                           "rFApFlux",
-                           "zFApFlux",
-                           "yFApFlux",
-                           "w2Flux",
-                           "w3Flux",
-                           "w4Flux", ]
             optical_sources = []
             optical_labels = []
             for j, obj in enumerate(objects):
@@ -340,6 +332,10 @@ def make_single_cnn_set(
                     optical_labels.append(1)  # Optical Source
                 else:
                     optical_labels.append(0)
+                optical_sources[-1].append(obj["objID"])
+                optical_sources[-1].append(obj["AllWISE"])
+                optical_sources[-1].append(obj["ra"])
+                optical_sources[-1].append(obj["dec"])
                 optical_sources[-1].append(distances[j])
                 optical_sources[-1].append(angles[j])
                 optical_sources[-1].append(obj["z_best"])
@@ -348,10 +344,6 @@ def make_single_cnn_set(
                     if normalize:  # Scale to between 0 and 1 for 10 to 28 magnitude
                         value = np.clip(value, 10.0, 28.0)
                         value = (value - 10.0) / (28.0 - 10.0)
-                    optical_sources[-1].append(value)
-                for layer in flux_layers:
-                    value = np.nan_to_num(obj[layer])
-                    value = np.clip(value, a_min=0.0, a_max=(np.nanpercentile(pan_wise_catalog[layer], 99)))
                     optical_sources[-1].append(value)
             record["optical_sources"] = optical_sources
             record["optical_labels"] = optical_labels

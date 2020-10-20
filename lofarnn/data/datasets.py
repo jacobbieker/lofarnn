@@ -692,6 +692,11 @@ def create_cutouts(
             sem_seg_three = np.array(sem_seg_three)
             sem_seg_prop_three = np.array(sem_seg_prop_three)
             sem_seg_prop_five = np.array(sem_seg_prop_five)
+
+            # Save out the IDs of the cutout catalog and other catalog, for reverse indexing into optical catalogs from
+            # results
+
+
             if verbose:
                 print(bounding_boxes)
             combined_array = [
@@ -702,6 +707,7 @@ def create_cutouts(
                 sem_seg_prop_five,
                 sem_seg_three,
                 sem_seg_prop_three,
+                wcs,
             ]
             try:
                 np.save(

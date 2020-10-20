@@ -17,7 +17,7 @@ if environment == "ALICE":
     )
     vac = "/home/s2153246/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
     comp_cat = "/home/s2153246/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
-    cutout_directory = "/home/s2153246/data/processed/fixed_lgz_rotated_redux/"
+    cutout_directory = "/home/s2153246/data/processed/fixed_lgz_cnn_final/"
     pan_wise_location = "/home/s2153246/data/combined_panstarr_allwise.fits"
     multi_process = True
 else:
@@ -31,7 +31,7 @@ else:
 rotation = 180
 size = (300.0 / 3600.0) * np.sqrt(2)
 print(size)
-"""
+
 create_variable_source_dataset(
     cutout_directory=cutout_directory,
     pan_wise_location=pan_wise_location,
@@ -48,7 +48,7 @@ create_variable_source_dataset(
     verbose=False,
     gaussian=False,
 )
-"""
+
 create_cnn_dataset(
     root_directory=cutout_directory,
     pan_wise_catalog=pan_wise_location,
