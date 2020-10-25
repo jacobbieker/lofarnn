@@ -116,8 +116,8 @@ def determine_visible_catalogue_source_and_separation(
     SkyCoord of their world coordinates
     """
     try:
-        ra_array = np.array(catalogue["ra"], dtype=float)
-        dec_array = np.array(catalogue["dec"], dtype=float)
+        ra_array = np.array(catalogue["RA"], dtype=float)
+        dec_array = np.array(catalogue["DEC"], dtype=float)
     except:
         ra_array = np.array(catalogue["ID_ra"], dtype=float)
         dec_array = np.array(catalogue["ID_dec"], dtype=float)
@@ -131,8 +131,8 @@ def determine_visible_catalogue_source_and_separation(
     objects = catalogue[idxcatalog]
 
     try:
-        ra_array = np.array(objects["ra"], dtype=float)
-        dec_array = np.array(objects["dec"], dtype=float)
+        ra_array = np.array(objects["RA"], dtype=float)
+        dec_array = np.array(objects["DEC"], dtype=float)
     except:
         ra_array = np.array(objects["ID_ra"], dtype=float)
         dec_array = np.array(objects["ID_dec"], dtype=float)

@@ -311,34 +311,28 @@ def make_single_cnn_set(
             angles = angles[idx]
             sky_coords = sky_coords[idx]
             layers = [
-                "iFApMag",
-                "w1Mag",
-                "gFApMag",
-                "rFApMag",
-                "zFApMag",
-                "yFApMag",
-                "w2Mag",
-                "w3Mag",
-                "w4Mag",
+                "MAG_R",
+                "MAG_W1",
+                "MAG_W2",
             ]
             optical_sources = []
             optical_labels = []
             for j, obj in enumerate(objects):
                 optical_sources.append([])
                 if (
-                        obj["objID"] == source["objID"]
-                        and obj["AllWISE"] == source["AllWISE"]
+                        obj["ID"] == source["ID"]
+                        and obj["UNWISE_OBJID"] == source["UNWISE_OBJID"]
                 ):
                     optical_labels.append(1)  # Optical Source
                 else:
                     optical_labels.append(0)
-                optical_sources[-1].append(obj["objID"])
-                optical_sources[-1].append(obj["AllWISE"])
-                optical_sources[-1].append(obj["ra"])
-                optical_sources[-1].append(obj["dec"])
+                optical_sources[-1].append(obj["ID"])
+                optical_sources[-1].append(obj["UNWISE_OBJID"])
+                optical_sources[-1].append(obj["RA"])
+                optical_sources[-1].append(obj["DEC"])
                 optical_sources[-1].append(distances[j])
                 optical_sources[-1].append(angles[j])
-                optical_sources[-1].append(obj["z_best"])
+                #optical_sources[-1].append(obj["z_best"])
                 for layer in layers:
                     value = np.nan_to_num(obj[layer])
                     if normalize:  # Scale to between 0 and 1 for 10 to 28 magnitude
