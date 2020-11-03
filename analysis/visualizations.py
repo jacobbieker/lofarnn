@@ -49,10 +49,10 @@ def main(args):
     #    model = RadioSingleSourceModel(1, 12, config=config).to(device)
     # else:
     #    model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
-    model = torch.load(os.path.join(directory, "model.pth"))
+    model = torch.load(os.path.join("/home/jacob/reports/eval_final_test_Resave_40_Fixed_Redshiftfinal_eval_test/", "model_15.pth"))
     model = model.to(device)
 
-    for data in train_test_loader:
+    for data in test_loader:
         image, source, labels, names = (
             data["images"].to(device),
             data["sources"].to(device),

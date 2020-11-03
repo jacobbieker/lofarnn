@@ -5,7 +5,13 @@ import numpy as np
 from lofarnn.models.dataloaders.utils import get_lotss_objects
 
 dat = get_lotss_objects("/home/jacob/combined_panstarr_allwise_flux.fits")
-
+print(dat.columns)
+# Get Mag_R values
+r_mag = np.nan_to_num(dat["rFApMag"])
+frac_value = len(r_mag[r_mag > 0]) / len(r_mag)
+print(f"Frac: {frac_value}")
+print(f"Percentiles: {np.nanpercentile(r_mag, [1,5,25,50,75,95,99])}")
+exit()
 for col in ["iFApFlux",
             "w1Flux",
             "gFApFlux",

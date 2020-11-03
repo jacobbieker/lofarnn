@@ -17,6 +17,7 @@ class RadioSourceDataset(Dataset):
         norm=True,
         transform=None,
         remove_no_source=True,
+        fraction=1.0,
     ):
         """
         Args:
@@ -29,6 +30,10 @@ class RadioSourceDataset(Dataset):
             self.annotations = pickle.load(open(json_file[0], "rb"), fix_imports=True)
             for f in json_file[1:]:
                 self.annotations.extend(pickle.load(open(f, "rb"), fix_imports=True))
+        if fraction < 1.0:
+            import random
+            random.shuffle(self.annotations)
+            self.annotations = self.annotations[:int(len(self.annotations)*fraction)]
         self.norm = norm
         self.transform = transform
         # Remove any non-standard files
@@ -109,7 +114,7 @@ class RadioSourceDataset(Dataset):
         Given single index, get all the sources and labels, shuffling the order
         """
         anno = self.annotations[idx]
-        image = np.load(anno["file_name"], fix_imports=True)
+        image = np.load(anno["file_name"].replace("/run/media/jacob/T7", "/home/jacob"), fix_imports=True)
         image = image.reshape((1, anno["height"], anno["width"]))
         # print(image.shape)
         for i, item in enumerate(anno["optical_sources"]):
@@ -121,12 +126,18 @@ class RadioSourceDataset(Dataset):
             anno["optical_sources"][i][1] = anno["optical_sources"][i][1].value / (
                 2 * np.pi
             )
-            anno["optical_sources"][i][2] = 0.0 # Remove redshift
+            anno["optical_sources"][i][2] = (
+                                                    np.clip(anno["optical_sources"][i][2], 0.0, 7.0) - 0.0
+                                            ) / (
+                                                    7.0 - 0.0
+                                            )  # Redshift
             if self.norm:
                 for j in range(3, len(anno["optical_sources"][i])):
                     value = anno["optical_sources"][i][j]
                     value = np.clip(value, 10.0, 28.0)
                     anno["optical_sources"][i][j] = (value - 10.0) / (28.0 - 10.0)
+            #for j in [3,5,7,8,10,11]: #i,g,z,y,W3,W4
+            #    anno["optical_sources"][i][j] = 0.0 # Not in new one
         anno["optical_sources"].insert(
             0, [0 for _ in range(len(anno["optical_sources"][0]))]
         )

@@ -64,14 +64,16 @@ def visuaize_maps(
     output = model(inputs[0], inputs[1])
     output = F.softmax(output, dim=-1).argmax(dim=1, keepdim=True)
     labels = F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True)
-    if use_label:
+    if np.all(labels.cpu().numpy() == 1):
+        return
+    if True:
         targets = labels
     else:
         targets = output
     print(targets)
     correct = targets.cpu().numpy() == labels.cpu().numpy()
-    # if correct:
-    #    return
+    #if correct:
+    #   return
     occ_out = occ.attribute(
         inputs,
         baselines=baselines,

@@ -84,6 +84,7 @@ def default_argument_parser():
         help="learning rate type: None (default), 'plataeu', or 'cyclical' ",
     )
     parser.add_argument("--batch", type=int, default=32, help="batch size")
+    parser.add_argument("--fraction", type=float, default=1.0, help="batch size")
     parser.add_argument("--epochs", type=int, default=200, help="number of epochs")
     parser.add_argument(
         "--log-interval",
@@ -144,6 +145,7 @@ def setup(args):
         shuffle=args.shuffle,
         norm=not args.norm,
         num_sources=args.num_sources,
+        fraction=args.fraction,
         transform=only_image_transforms if args.augment else None,
     )
     train_test_dataset = RadioSourceDataset(
