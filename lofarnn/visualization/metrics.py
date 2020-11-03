@@ -14,14 +14,18 @@ def load_json_arr(json_path):
     return lines
 
 
-def plot_cutoffs(recall_path, recall_path_2, vac_catalog, bins=30):
+def plot_cutoffs(recall_path, recall_path_2, baseline_path, vac_catalog, bins=30, name="", recall_names=["CNN", "FRCNN"]):
     data = pickle.load(open(recall_path, "rb"), fix_imports=True)
     data2 = pickle.load(open(recall_path_2, "rb"), fix_imports=True)
+    baseline_data = pickle.load(open(baseline_path, "rb"), fix_imports=True)
     vac_catalog = get_lotss_objects(vac_catalog)
+    qual = vac_catalog["LGZ_ID_Qual"]
     pred_source_names = []
     pred_source_recall = []
     pred_source_names2 = []
     pred_source_recall2 = []
+    baseline_names = []
+    baseline_recalls = []
     #vac_catalog = vac_catalog[vac_catalog["LGZ_Size"] > 15.0]
     #vac_catalog = vac_catalog[vac_catalog["Total_flux"] > 10.0]
     for key in data.keys():
@@ -32,16 +36,22 @@ def plot_cutoffs(recall_path, recall_path_2, vac_catalog, bins=30):
         if key in vac_catalog["Source_Name"].data:
             pred_source_names2.append(key)
             pred_source_recall2.append(data2[key])
+    for key in baseline_data.keys():
+        if key in vac_catalog["Source_Name"].data:
+            baseline_names.append(key)
+            baseline_recalls.append(baseline_data[key])
     pred_source_recall = np.asarray(pred_source_recall)
-    pred_source_recall2 = np.asarray(pred_source_recall2)#[:1630]
+    pred_source_recall2 = np.asarray(pred_source_recall2)
+    baseline_recalls = np.asarray(baseline_recalls)#[:1630]
     radio_apparent_size = np.zeros(len(pred_source_names))
     radio_apparent_width = np.zeros(len(pred_source_names))
     radio_total_flux = np.zeros(len(pred_source_names))
     radio_z = np.zeros(len(pred_source_names))
     radio_comp = np.zeros(len(pred_source_names))
+    quality = np.zeros(len(pred_source_names))
     for i, source_name in enumerate(pred_source_names):
         mask = source_name == vac_catalog["Source_Name"]
-
+        quality[i] = np.nan_to_num(vac_catalog[mask]["LGZ_ID_Qual"].data)
         # get values
         radio_apparent_size[i] = vac_catalog[mask]["LGZ_Size"].data
         radio_apparent_width[i] = vac_catalog[mask]["LGZ_Width"].data
@@ -55,13 +65,36 @@ def plot_cutoffs(recall_path, recall_path_2, vac_catalog, bins=30):
         "Apparent size [arcsec]": radio_apparent_size,
         "z": radio_z,
         "Number of Components": radio_comp,
+        "quality": quality
     }
-    radio_apparent_size2 = np.zeros(len(pred_source_names2))
-    radio_apparent_width2 = np.zeros(len(pred_source_names2))
-    radio_total_flux2 = np.zeros(len(pred_source_names2))
-    radio_z2 = np.zeros(len(pred_source_names2))
-    radio_comp2 = np.zeros(len(pred_source_names2))
-    for i, source_name in enumerate(pred_source_names2):#[:1630]):
+    radio_apparent_size3 = np.zeros(len(pred_source_names2))
+    radio_apparent_width3 = np.zeros(len(pred_source_names2))
+    radio_total_flux3 = np.zeros(len(pred_source_names2))
+    radio_z3 = np.zeros(len(pred_source_names2))
+    radio_comp3 = np.zeros(len(pred_source_names2))
+    for i, source_name in enumerate(pred_source_names2):
+        mask = source_name == vac_catalog["Source_Name"]
+
+        # get values
+        radio_apparent_size3[i] = vac_catalog[mask]["LGZ_Size"].data
+        radio_apparent_width3[i] = vac_catalog[mask]["LGZ_Width"].data
+        radio_total_flux3[i] = vac_catalog[mask]["Total_flux"].data
+        radio_z3[i] = vac_catalog[mask]["z_best"].data
+        radio_comp3[i] = vac_catalog[mask]["LGZ_Assoc"].data
+    radio_axis_ratio3 = radio_apparent_size3 / radio_apparent_width3
+    data_dict2 = {
+        "Axis ratio": radio_axis_ratio3,
+        "Total flux [mJy]": radio_total_flux3,
+        "Apparent size [arcsec]": radio_apparent_size3,
+        "z": radio_z3,
+        "Number of Components": radio_comp3,
+    }
+    radio_apparent_size2 = np.zeros(len(baseline_names))
+    radio_apparent_width2 = np.zeros(len(baseline_names))
+    radio_total_flux2 = np.zeros(len(baseline_names))
+    radio_z2 = np.zeros(len(baseline_names))
+    radio_comp2 = np.zeros(len(baseline_names))
+    for i, source_name in enumerate(baseline_names):#[:1630]):
         mask = source_name == vac_catalog["Source_Name"]
 
         # get values
@@ -71,7 +104,7 @@ def plot_cutoffs(recall_path, recall_path_2, vac_catalog, bins=30):
         radio_z2[i] = vac_catalog[mask]["z_best"].data
         radio_comp2[i] = vac_catalog[mask]["LGZ_Assoc"].data
     radio_axis_ratio2 = radio_apparent_size2 / radio_apparent_width2
-    data_dict2 = {
+    baseline_data_dict = {
         "Axis ratio": radio_axis_ratio2,
         "Total flux [mJy]": radio_total_flux2,
         "Apparent size [arcsec]": radio_apparent_size2,
@@ -80,11 +113,13 @@ def plot_cutoffs(recall_path, recall_path_2, vac_catalog, bins=30):
     }
     pred_source_recall = np.array(pred_source_recall)
     pred_source_recall2 = np.array(pred_source_recall2)
+    baseline_recalls = np.array(baseline_recalls)
 
     # Now plot recall cutoffs
     for ylabel in ["Apparent size [arcsec]", "Total flux [mJy]", "Axis ratio", "z", "Number of Components"]:
         Y = data_dict[ylabel]
-        Y2 = data_dict2[ylabel]
+        Y2 = baseline_data_dict[ylabel]
+        Y3 = data_dict2[ylabel]
         # x_bin_edges = np.linspace(np.nanmin(X)-0.00001, np.nanpercentile(X, 98), bins+1)
         y_bin_edges = np.linspace(
             np.nanpercentile(Y, 1) - 0.00001, np.nanpercentile(Y, 95), bins + 1
@@ -96,30 +131,80 @@ def plot_cutoffs(recall_path, recall_path_2, vac_catalog, bins=30):
         # now obtain recall
         recall = np.zeros((y_bin_centers.shape[0]))
         recall2 = np.zeros((y_bin_centers.shape[0]))
+        recall3 = np.zeros((y_bin_centers.shape[0]))
+        qualities = np.zeros((y_bin_centers.shape[0]))
+        num_sources = np.zeros((y_bin_centers.shape[0]))
         for j in range(len(y_bin_centers)):
             # get the prediction errors in a bin
+            bin_mask = (Y > y_bin_edges[j]) & (Y < y_bin_edges[j + 1])
             bin_contents = pred_source_recall[
-                (Y > y_bin_edges[j])
-                & (Y < y_bin_edges[j + 1])
+                    bin_mask
                 ]
-            bin_contents2 = pred_source_recall2[
+            bin_quality = data_dict["quality"][bin_mask]
+            bin_contents2 = baseline_recalls[
                 (Y2 > y_bin_edges[j])
                 & (Y2 < y_bin_edges[j + 1])
+                ]
+            bin_contents3 = pred_source_recall2[
+                (Y3 > y_bin_edges[j])
+                & (Y3 < y_bin_edges[j + 1])
                 ]
             # determine recall
             # print(f"Bin Sum: {np.nansum(bin_contents > 0.95)}, len: {len(bin_contents)}")
             recall[j] = np.nansum(bin_contents > 0.95) / len(bin_contents)
             recall2[j] = np.nansum(bin_contents2 > 0.95) / len(bin_contents2)
-
+            recall3[j] = np.nansum(bin_contents3 > 0.95) / len(bin_contents3)
+            qualities[j] = np.nansum(bin_quality) / len(bin_quality)
+            num_sources[j] = len(bin_contents)
         # Now plot
-        plt.plot(y_bin_centers, recall)
-        plt.plot(y_bin_centers, recall2, linestyle="--", label='Baseline')
-        plt.title(ylabel)
-        plt.ylabel("Recall")
-        plt.xlabel(ylabel)
-        plt.savefig(f"{ylabel}_Recall.png", dpi=300)
+        fig, (ax3, ax1, ax2) = plt.subplots(3, 1, sharex='all', gridspec_kw={'height_ratios': [1, 3, 1], 'hspace': 0})
+        #gs = fig.add_gridspec(3, hspace=0)
+        #ax2, ax1, ax3 = gs.subplots(sharex=True, sharey=False)
+        ax1.plot(y_bin_centers, recall, label=f"{recall_names[0]}")
+        ax1.plot(y_bin_centers, recall3, label=f"{recall_names[1]}")
+        ax1.plot(y_bin_centers, recall2, linestyle="--", label='Baseline')
+        fig.suptitle(f"Recall vs {ylabel}")
+        ax1.set_ylabel("Recall")
+        ax1.set_xlabel(ylabel)
+        #ax2 = ax1.twinx()
+        ax2.set_xlabel(ylabel)
+        ax3.plot(y_bin_centers, np.cumsum(num_sources), c='black')
+        ax3.set_ylabel("# Sources")
+        ax3.set_xlabel(ylabel)
+        num_sources = num_sources / sum(num_sources)
+        ax2.bar(y_bin_centers, num_sources, width=(max(y_bin_centers) - min(y_bin_centers)) / len(y_bin_centers), edgecolor='black', color='none',
+               zorder=10)
+        ax2.set_ylabel("% Sources")
+        if ylabel == "Apparent size [arcsec]":
+            ax1.axvline(x=70., linestyle='dashed', color='black')
+            ax2.axvline(x=70., linestyle='dashed', color='black')
+            ax3.axvline(x=70., linestyle='dashed', color='black')
+            mask = y_bin_centers <= 70
+            s = f"Baseline: {np.round(np.nanmean(recall2[mask]), 3)}\n" \
+                f"{recall_names[0]}: {np.round(np.nanmean(recall[mask]), 3)}\n" \
+                f"{recall_names[1]}: {np.round(np.nanmean(recall3[mask]), 3)}\n "
+            ax1.text(x=1, y=0.5, s=s, size=8)
+            mask = y_bin_centers > 70
+            s = f"Baseline: {np.round(np.nanmean(recall2[mask]), 3)}\n" \
+                f"{recall_names[0]}: {np.round(np.nanmean(recall[mask]), 3)}\n" \
+                f"{recall_names[1]}: {np.round(np.nanmean(recall3[mask]), 3)}\n "
+            ax1.text(x=72, y=0.5, s=s, size=8)
+        ax1.legend(loc='best')
+        fig.savefig(f"{ylabel}_Recall_{name}.png", dpi=300)
         plt.clf()
         plt.cla()
+        # Now read out recalls for apparent size
+        if ylabel == "Apparent size [arcsec]":
+            # Size cut
+            mask = y_bin_centers <= 70
+            print(f"Baseline Mean Recall <= 70 arcseconds: {np.nanmean(recall2[mask])}")
+            print(f"CNN Mean Recall <= 70 arcseconds: {np.nanmean(recall[mask])}")
+            print(f"FRCNN Mean Recall <= 70 arcseconds: {np.nanmean(recall3[mask])}")
+            mask = y_bin_centers > 70
+            print(f"Baseline Mean Recall > 70 arcseconds: {np.mean(recall2[mask])}")
+            print(f"CNN Mean Recall > 70 arcseconds: {np.mean(recall[mask])}")
+            print(f"FRCNN Mean Recall > 70 arcseconds: {np.mean(recall3[mask])}")
+
 
 def plot_compared_axis_recall(
     recall_path, recall_path_2, vac_catalog, limit, jelle_cut=False, bins=10, output_dir="./"
@@ -307,12 +392,12 @@ def plot_compared_axis_recall(
             ax.set_xlabel(xlabel)
             ax.set_ylabel(ylabel)
 
-            ax.set_title(f"Recall for {xlabel} vs {ylabel}, limit: {limit}")
+            ax.set_title(f"{limit} recall vs Baseline for {xlabel} vs {ylabel}")
             fig.savefig(
                 os.path.join(
-                    output_dir, f"{xlabel}-{ylabel}_limit{limit}_jelle{jelle_cut}.png"
+                    output_dir, f"{xlabel}-{ylabel}_jelle{jelle_cut}_{limit}.png"
                 ),
-                dpi=200,
+                dpi=300,
                 bbox_inches="tight",
             )
             plt.close()

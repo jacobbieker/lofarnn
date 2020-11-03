@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from lofarnn.models.dataloaders.utils import get_lotss_objects
 
+<<<<<<< Updated upstream
 dat = get_lotss_objects("/home/jacob/combined_panstarr_allwise_flux.fits")
 print(dat.columns)
 # Get Mag_R values
@@ -21,6 +22,13 @@ for col in ["iFApFlux",
             "w2Flux",
             "w3Flux",
             "w4Flux", ]:
+=======
+dat = get_lotss_objects("/home/s2153246/data/dr2_combined.fits")
+
+for col in ["MAG_R",
+            "MAG_W1",
+            "MAG_W2"]:
+>>>>>>> Stashed changes
     plt.hist(np.nan_to_num(dat[col]), bins=np.arange(np.nanpercentile(dat[col], 2), np.nanpercentile(dat[col], 98), 0.5))
     plt.title(col)
     plt.show()
