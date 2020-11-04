@@ -46,7 +46,7 @@ def convert_to_image_multi(inputs):
 
 
 def visuaize_maps(
-    model, inputs, labels, title, second_occlusion=(1, 2, 2), baselines=(0, 0)
+    model, inputs, labels, title, second_occlusion=(1, 2, 2), baselines=(0, 0), closest=False
 ):
     """
     Visualizes the average of the inputs, or the single input, using various different XAI approaches
@@ -64,7 +64,7 @@ def visuaize_maps(
     output = model(inputs[0], inputs[1])
     output = F.softmax(output, dim=-1).argmax(dim=1, keepdim=True)
     labels = F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True)
-    if np.all(labels.cpu().numpy() == 1):
+    if np.all(labels.cpu().numpy() == 1) and not closest:
         return
     if True:
         targets = labels
@@ -201,6 +201,95 @@ def visuaize_maps(
 
     fig.suptitle(
         title + f" Label: {labels.cpu().numpy()} Pred: {targets.cpu().numpy()}"
+    )
+    plt.savefig(
+        f"{title}_{'single' if single else 'multi'}_{'Failed' if correct else 'Success'}_baseline{baselines[0]}.png",
+        dpi=300,
+    )
+    plt.clf()
+    plt.cla()
+
+
+def fancy_visuaize_maps(
+    model, inputs, labels, title, second_occlusion=(1, 2, 2), baselines=(0, 0), closest=False
+):
+    """
+    Visualizes the average of the inputs, or the single input, using various different XAI approaches
+    """
+    single = inputs[1].ndim == 2
+    model.zero_grad()
+    model.eval()
+    occ = Occlusion(model)
+    output = model(inputs[0], inputs[1])
+    output = F.softmax(output, dim=-1).argmax(dim=1, keepdim=True)
+    labels = F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True)
+    if np.all(labels.cpu().numpy() == 1) and not closest:
+        return
+    elif closest and not np.all(labels.cpu().numpy() == 1):
+        return
+    if True:
+        targets = labels
+    else:
+        targets = output
+    print(targets)
+    correct = targets.cpu().numpy() == labels.cpu().numpy()
+    #if correct:
+    #   return
+    occ_out = occ.attribute(
+        inputs,
+        baselines=baselines,
+        sliding_window_shapes=((1, 5, 5), second_occlusion),
+        target=targets,
+    )
+
+    if single:
+        inputs = convert_to_image(inputs)
+        occ_out = convert_to_image(occ_out)
+        #grad_shap_out = convert_to_image(grad_shap_out)
+    else:
+        inputs = convert_to_image_multi(inputs)
+        occ_out = convert_to_image_multi(occ_out)
+    fig, axes = plt.subplots(2, 2)
+    (fig, axes[0, 0]) = visualization.visualize_image_attr(
+        occ_out[0][0],
+        inputs[0][0],
+        title="Occlusion (5x5)",
+        method="blended_heat_map",
+        show_colorbar=True,
+        plt_fig_axis=(fig, axes[0, 0]),
+        use_pyplot=False,
+    )
+    (fig, axes[0, 1]) = visualization.visualize_image_attr(
+        occ_out[0][0],
+        None,
+        sign="all",
+        title="Occ (5x5)",
+        show_colorbar=True,
+        plt_fig_axis=(fig, axes[0, 1]),
+        use_pyplot=False,
+    )
+    ##### Second Input Labels #########################################################################################
+    (fig, axes[1, 0]) = visualization.visualize_image_attr(
+        occ_out[1],
+        inputs[1],
+        title="Aux Occ (1x1)",
+        method="blended_heat_map",
+        show_colorbar=True,
+        plt_fig_axis=(fig, axes[1, 0]),
+        use_pyplot=False,
+    )
+    (fig, axes[1, 1]) = visualization.visualize_image_attr(
+        occ_out[1],
+        None,
+        sign="all",
+        title="Occ (1x1)",
+        show_colorbar=True,
+        plt_fig_axis=(fig, axes[1, 1]),
+        use_pyplot=False,
+    )
+
+    fig.suptitle(
+        title + f" Label: {labels.cpu().numpy()}"
     )
     plt.savefig(
         f"{title}_{'single' if single else 'multi'}_{'Failed' if correct else 'Success'}_baseline{baselines[0]}.png",
