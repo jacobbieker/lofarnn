@@ -879,3 +879,42 @@ def plot_plots(
     # Plot recall for different models
 
     # Plot precision for different models
+
+
+def plot_wcs(filename, name, pred, target, aux):
+    """
+    Plot the radio images with the WCS for proper RA and DEC in the images
+    :param aux: CNN Aux data for this source
+    :param name: Name of the source
+    """
+    from matplotlib import pyplot as plt
+    from astropy import units as u
+    from astropy.coordinates import SkyCoord
+
+    (
+        img_array,
+        bounding_boxes,
+        proposal_boxes,
+        sem_seg_five,
+        sem_seg_prop_five,
+        sem_seg_three,
+        sem_seg_prop_three,
+        wcs,
+    ) = np.load(filename, fix_imports=True, allow_pickle=True)
+    ra_array = np.array(aux[1:,2], dtype=float)
+    dec_array = np.array(aux[1:,3], dtype=float)
+    sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
+    pixel_coords = sky_coords.to_pixel(wcs)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection=wcs)
+    im = plt.imshow(np.clip(img_array[:, :, 0], 0., 1000.), origin='lower', cmap=plt.cm.viridis)
+    ax.scatter(pixel_coords, size=2)
+    ax.scatter(pixel_coords[pred-1], size=5, c='red', marker='*', label='Predicted')
+    ax.scatter(pixel_coords[target - 1], size=5, c='green', marker='x', label='Actual')
+    ax.scatter(pixel_coords[1], size=5, c='orange', marker='1', label='Baseline')
+    cbar = plt.colorbar(im, ax=ax)
+    cbar.ax.set_ylabel("Flux (mJy)")
+    plt.title(name)
+    plt.xlabel('RA')
+    plt.ylabel('Dec')
+    plt.show()

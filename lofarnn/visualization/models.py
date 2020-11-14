@@ -211,7 +211,7 @@ def visuaize_maps(
 
 
 def fancy_visuaize_maps(
-    model, inputs, labels, title, second_occlusion=(1, 2, 2), baselines=(0, 0), closest=False
+    model, inputs, labels, title, second_occlusion=(1, 2, 2), baselines=(0, 0), closest=True
 ):
     """
     Visualizes the average of the inputs, or the single input, using various different XAI approaches
@@ -219,24 +219,24 @@ def fancy_visuaize_maps(
     single = inputs[1].ndim == 2
     model.zero_grad()
     model.eval()
+    outputs = model(inputs[0], inputs[1])
+    outputs = F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True)
     occ = Occlusion(model)
-    output = model(inputs[0], inputs[1])
-    output = F.softmax(output, dim=-1).argmax(dim=1, keepdim=True)
     labels = F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True)
-    if np.all(labels.cpu().numpy() == 1) and not closest:
-        return
-    elif closest and not np.all(labels.cpu().numpy() == 1):
-        return
     if True:
         targets = labels
-    else:
-        targets = output
     print(targets)
-    correct = targets.cpu().numpy() == labels.cpu().numpy()
-    #if correct:
+    correct = outputs.cpu().numpy() == labels.cpu().numpy()
+    #if not correct.all():
     #   return
+    print(inputs)
+    targets = targets.squeeze()
+    #inputs = (inputs[0].squeeze(), inputs[1].squeeze())
+    print(targets.size())
+    print(inputs[0].size())
+    print(inputs[1].size())
     occ_out = occ.attribute(
-        inputs,
+        (inputs[0], inputs[1]),
         baselines=baselines,
         sliding_window_shapes=((1, 5, 5), second_occlusion),
         target=targets,
@@ -255,6 +255,7 @@ def fancy_visuaize_maps(
         inputs[0][0],
         title="Occlusion (5x5)",
         method="blended_heat_map",
+        alpha_overlay=0.25,
         show_colorbar=True,
         plt_fig_axis=(fig, axes[0, 0]),
         use_pyplot=False,
@@ -265,7 +266,7 @@ def fancy_visuaize_maps(
         sign="all",
         title="Occ (5x5)",
         show_colorbar=True,
-        plt_fig_axis=(fig, axes[0, 1]),
+        plt_fig_axis=(fig, axes[1, 0]),
         use_pyplot=False,
     )
     ##### Second Input Labels #########################################################################################
@@ -273,9 +274,10 @@ def fancy_visuaize_maps(
         occ_out[1],
         inputs[1],
         title="Aux Occ (1x1)",
+        alpha_overlay=0.25,
         method="blended_heat_map",
         show_colorbar=True,
-        plt_fig_axis=(fig, axes[1, 0]),
+        plt_fig_axis=(fig, axes[0, 1]),
         use_pyplot=False,
     )
     (fig, axes[1, 1]) = visualization.visualize_image_attr(
@@ -289,10 +291,10 @@ def fancy_visuaize_maps(
     )
 
     fig.suptitle(
-        title + f" Label: {labels.cpu().numpy()}"
+        title + f""
     )
     plt.savefig(
-        f"{title}_{'single' if single else 'multi'}_{'Failed' if correct else 'Success'}_baseline{baselines[0]}.png",
+        f"{title}_multi_baseline{baselines[0]}.png",
         dpi=300,
     )
     plt.clf()
