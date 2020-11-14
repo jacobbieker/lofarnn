@@ -25,7 +25,7 @@ else:
     dr_two = "/run/media/jacob/SSD_Backup/mosaics/"
     comp_cat = "/home/jacob/Downloads/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
     vac = "/home/jacob/Downloads/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2b_restframe.fits"
-    cutout_directory = "/run/media/jacob/768E313E8E30F7E7/lgz_noop/"
+    cutout_directory = "/home/jacob/fixed_lgz_rotated/"
     multi_process = True
 
 rotation = 180
