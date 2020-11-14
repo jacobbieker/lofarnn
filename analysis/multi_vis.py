@@ -2,6 +2,7 @@ from lofarnn.visualization.models import visuaize_maps, fancy_visuaize_maps
 from lofarnn.models.base.cnn import RadioMultiSourceModel, RadioSingleSourceModel
 from lofarnn.models.base.utils import setup, default_argument_parser
 from torch.utils.data import dataset, dataloader
+from lofarnn.visualization.metrics import plot_wcs
 import os
 import torch
 import torch.nn.functional as F
@@ -30,7 +31,7 @@ def main(args):
     )
     test_loader = dataloader.DataLoader(
         val_dataset,
-        batch_size=5,
+        batch_size=1,
         shuffle=False,
         num_workers=os.cpu_count(),
         pin_memory=True,
@@ -63,22 +64,24 @@ def main(args):
         )
         print(source.ndim)
         print(F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy())
-        if np.all(F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy() == 1):
-            fancy_visuaize_maps(
-                model=model,
-                inputs=(image, source),
-                labels=labels,
-                title=data["names"][0],
-                second_occlusion=(1, 1, 1),
-            )
-            fancy_visuaize_maps(
-                model=model,
-                inputs=(image, source),
-                labels=labels,
-                title=data["names"][0],
-                second_occlusion=(1, 1, 1),
-                baselines=(1, 1),
-            )
+        if np.all(F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy() != 1):
+
+        #if np.all(F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy() == 1):
+        fancy_visuaize_maps(
+            model=model,
+            inputs=(image, source),
+            labels=labels,
+            title=data["names"][0],
+            second_occlusion=(1, 1, 1),
+        )
+        fancy_visuaize_maps(
+            model=model,
+            inputs=(image, source),
+            labels=labels,
+            title=data["names"][0],
+            second_occlusion=(1, 1, 1),
+            baselines=(1, 1),
+        )
 
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()

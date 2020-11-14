@@ -157,7 +157,7 @@ def setup(args):
     )
     val_dataset = RadioSourceDataset(
         os.path.join(args.dataset, f"cnn_test_norm{args.norm}_extra.pkl"),
-        single_source_per_img=args.single,
+        single_source_per_img=False,
         shuffle=args.shuffle,
         norm=not args.norm,
         num_sources=args.num_sources,
