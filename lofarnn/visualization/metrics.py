@@ -1218,7 +1218,7 @@ def plot_combo_plots(
     # Plot precision for different models
 
 
-def plot_wcs(filename, name, pred, target, aux):
+def plot_wcs(filename, name, pred, target, aux, comp_catalog):
     """
     Plot the radio images with the WCS for proper RA and DEC in the images
     :param aux: CNN Aux data for this source
@@ -1242,18 +1242,41 @@ def plot_wcs(filename, name, pred, target, aux):
     dec_array = np.array(aux[1:,3], dtype=float)
     sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
     pixel_coords = sky_coords.to_pixel(wcs)
+    components = comp_catalog[comp_catalog["Source_Name"] == name]
+    print(components)
+    if len(components) > 1:
+        coords = SkyCoord(components["RA"], components["DEC"], unit="deg")
+        fluxes = components["Total_flux"].data
+        comp_coords = coords.to_pixel(wcs)
+        # Now need flux weighted center
+        center_x = 0
+        center_y = 0
+        fluxes = fluxes / np.sum(fluxes)
+        for c in range(len(comp_coords[0])):
+            center_x += comp_coords[0][c]*fluxes[c]
+            center_y += comp_coords[1][c]*fluxes[c]
+    else:
+        center_x = img_array[:, :, 0].shape[0]/2
+        center_y = img_array[:, :, 0].shape[1]/2
+
+    # Get Baseline
+    source_coord = SkyCoord.from_pixel(xp=center_x, yp=center_y, wcs=wcs)
+    d2d = source_coord.separation(sky_coords)
+    baseline_pred = np.argmin(d2d.data)  # Need to convert back from Angle to non-Angle
     fig = plt.figure()
     ax = fig.add_subplot(111, projection=wcs)
     im = plt.imshow(np.clip(img_array[:, :, 0], 0., 1000.), origin='lower', cmap=plt.cm.viridis)
-    ax.scatter(pixel_coords, size=2)
+    ax.scatter(pixel_coords, size=2, label='Optical Source')
     ax.scatter(pixel_coords[pred-1], size=5, c='red', marker='*', label='Predicted')
     ax.scatter(pixel_coords[target - 1], size=5, c='green', marker='x', label='Actual')
-    ax.scatter(pixel_coords[1], size=5, c='orange', marker='1', label='Baseline')
+    ax.scatter(pixel_coords[1], size=5, c='orange', marker='1', label='Closest')
+    ax.scatter(pixel_coords[baseline_pred], size=5, c='purple', marker='2', label='Baseline')
     cbar = plt.colorbar(im, ax=ax)
     cbar.ax.set_ylabel("Flux (mJy)")
     plt.title(name)
     plt.xlabel('RA')
     plt.ylabel('Dec')
+    plt.legend(loc='best')
     plt.savefig(f"{name}_prediction_plot.png", dpi=300)
     plt.cla()
     plt.clf()

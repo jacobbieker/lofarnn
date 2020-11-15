@@ -3,6 +3,8 @@ from lofarnn.models.base.cnn import RadioMultiSourceModel, RadioSingleSourceMode
 from lofarnn.models.base.utils import setup, default_argument_parser
 from torch.utils.data import dataset, dataloader
 from lofarnn.visualization.metrics import plot_wcs
+from lofarnn.models.dataloaders.utils import get_lotss_objects
+
 import os
 import torch
 import torch.nn.functional as F
@@ -56,6 +58,7 @@ def main(args):
     images = []
     sources = []
     all_dir = "/home/jacob/fixed_lgz_rotated/COCO/all/"
+    comp_catalog = get_lotss_objects("/home/jacob/Downloads/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits")
     for data in test_loader:
         image, source, labels, names = (
             data["images"].to(device),
@@ -67,12 +70,14 @@ def main(args):
         target = F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy()[0]
         if target != 1:
             # Remove extra fields and then do it
-            aux = np.delete(sources.numpy(), [2,3])
+            aux = np.delete(sources.numpy(), [0,3]) # removes IDs, RA and Decs
             output = model(image, torch.from_numpy(aux).to(device))
             predicted = F.softmax(output, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy()[0]
             print(predicted)
             print(target)
-            plot_wcs(os.path.join(all_dir,names[0] +".npy"), names[0], pred=predicted, target=target, aux=sources.numpy())
+            plot_wcs(os.path.join(all_dir,names[0] +".npy"), names[0],
+                     pred=predicted, target=target,
+                     aux=sources.numpy(), comp_catalog=comp_catalog)
 
 
 if __name__ == "__main__":
