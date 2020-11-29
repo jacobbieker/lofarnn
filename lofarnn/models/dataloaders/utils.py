@@ -1,11 +1,12 @@
 import pickle
-import numpy as np
+from typing import Dict, Tuple, Any, Optional
 
+import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 
 
-def get_lotss_objects(fname, verbose=False):
+def get_lotss_objects(fname: str, verbose: bool = False) -> Table:
     """
     Load the LoTSS objects from a file
     """
@@ -20,14 +21,14 @@ def get_lotss_objects(fname, verbose=False):
     return Table(table)
 
 
-def get_source_from_dict(source):
+def get_source_from_dict(source: Dict[str, Any]) -> str:
     if ".npy" in source["file_name"]:
         return source["file_name"].split("/")[-1].split(".npy")[0]
     else:
         return source["file_name"].split("/")[-1].split(".png")[0]
 
 
-def get_lofar_dicts(annotation_filepath, fraction=1.0):
+def get_lofar_dicts(annotation_filepath: str, fraction: float = 1.0) -> Dict[str, str]:
     with open(annotation_filepath, "rb") as f:
         dataset_dicts = pickle.load(f)
     if fraction < 0.99999:
@@ -42,7 +43,9 @@ def get_lofar_dicts(annotation_filepath, fraction=1.0):
     return dataset_dicts
 
 
-def get_only_mutli_dicts(annotation_filepath, multi=True, vac=".."):
+def get_only_mutli_dicts(
+    annotation_filepath: str, multi: bool = True, vac: str = ".."
+) -> list:
     """
     Only get the multi or single component sources, whichever is wanted
     """
@@ -65,7 +68,13 @@ def get_only_mutli_dicts(annotation_filepath, multi=True, vac=".."):
     return dataset_dicts
 
 
-def make_physical_dict(vac_catalog, size_cut=0.0, flux_cut=0.0, multi=False, lgz=True):
+def make_physical_dict(
+    vac_catalog: str,
+    size_cut: float = 0.0,
+    flux_cut: float = 0.0,
+    multi: bool = False,
+    lgz: bool = True,
+) -> Dict[str, str]:
     """
     Makes cuts in the value added catalog for the size, flux, and multi vs single component
     :param vac_catalog: Value-added catalog location
@@ -170,7 +179,9 @@ def make_physical_dict(vac_catalog, size_cut=0.0, flux_cut=0.0, multi=False, lgz
     return physical_cut
 
 
-def get_physical_dicts(annotation_filepath, size=0, vac_catalog=None):
+def get_physical_dicts(
+    annotation_filepath: str, size: float = 0, vac_catalog: Optional[str] = None
+) -> Tuple[list, list, list, list]:
     """
         Takes a subset of the annotation path based on criteria, such as multi component sources or image size, and
         returns four list[dict], split along multi- vs single component sources and size

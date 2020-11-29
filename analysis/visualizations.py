@@ -1,10 +1,11 @@
-from lofarnn.visualization.models import visuaize_maps
-from lofarnn.models.base.cnn import RadioMultiSourceModel, RadioSingleSourceModel
-from lofarnn.models.base.utils import setup, default_argument_parser
-from torch.utils.data import dataset, dataloader
 import os
+
 import torch
 import torch.nn.functional as F
+from torch.utils.data import dataloader
+
+from lofarnn.models.base.utils import setup, default_argument_parser
+from lofarnn.visualization.models import visualize_maps
 
 directory = "/home/jacob/reports/test_crossentropy_lr0.00057_b6_singleTrue_sources4_normTrue_lossfocal_schedulerplateau/"
 directory = "/run/media/jacob/SSD_Backup/all_best_lr0.00024128_b8_singleFalse_sources41_normTrue_losscross-entropy_schedulercyclical/"
@@ -49,7 +50,12 @@ def main(args):
     #    model = RadioSingleSourceModel(1, 12, config=config).to(device)
     # else:
     #    model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
-    model = torch.load(os.path.join("/home/jacob/reports/eval_final_test_Resave_40_Fixed_Redshiftfinal_eval_test/", "model_15.pth"))
+    model = torch.load(
+        os.path.join(
+            "/home/jacob/reports/eval_final_test_Resave_40_Fixed_Redshiftfinal_eval_test/",
+            "model_15.pth",
+        )
+    )
     model = model.to(device)
 
     for data in test_loader:
@@ -67,14 +73,14 @@ def main(args):
             [0]
         ]:  # Only take positive ones for single one
             print(source)
-            visuaize_maps(
+            visualize_maps(
                 model=model,
                 inputs=(image, source),
                 labels=labels,
                 title=data["names"][0],
                 second_occlusion=(1,),
             )
-            visuaize_maps(
+            visualize_maps(
                 model=model,
                 inputs=(image, source),
                 labels=labels,
@@ -83,14 +89,14 @@ def main(args):
                 baselines=(1, 1),
             )
         elif source.ndim > 2:  # Take it all for multi ones
-            visuaize_maps(
+            visualize_maps(
                 model=model,
                 inputs=(image, source),
                 labels=labels,
                 title=data["names"][0],
                 second_occlusion=(1, 1, 1),
             )
-            visuaize_maps(
+            visualize_maps(
                 model=model,
                 inputs=(image, source),
                 labels=labels,
@@ -98,6 +104,7 @@ def main(args):
                 second_occlusion=(1, 1, 1),
                 baselines=(1, 1),
             )
+
 
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()

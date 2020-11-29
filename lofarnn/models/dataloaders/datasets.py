@@ -1,8 +1,9 @@
-from torch.utils.data import Dataset
-import torch
-import json
 import pickle
+from typing import List, Union
+
 import numpy as np
+import torch
+from torch.utils.data import Dataset
 
 
 class RadioSourceDataset(Dataset):
@@ -10,14 +11,14 @@ class RadioSourceDataset(Dataset):
 
     def __init__(
         self,
-        json_file,
-        single_source_per_img=True,
-        num_sources=40,
-        shuffle=False,
-        norm=True,
+        json_file: Union[str, List[str]],
+        single_source_per_img: bool = True,
+        num_sources: int = 40,
+        shuffle: bool = False,
+        norm: bool = True,
         transform=None,
-        remove_no_source=True,
-        fraction=1.0,
+        remove_no_source: bool = True,
+        fraction: float = 1.0,
     ):
         """
         Args:
@@ -32,8 +33,9 @@ class RadioSourceDataset(Dataset):
                 self.annotations.extend(pickle.load(open(f, "rb"), fix_imports=True))
         if fraction < 1.0:
             import random
+
             random.shuffle(self.annotations)
-            self.annotations = self.annotations[:int(len(self.annotations)*fraction)]
+            self.annotations = self.annotations[: int(len(self.annotations) * fraction)]
         self.norm = norm
         self.transform = transform
         # Remove any non-standard files
@@ -114,7 +116,10 @@ class RadioSourceDataset(Dataset):
         Given single index, get all the sources and labels, shuffling the order
         """
         anno = self.annotations[idx]
-        image = np.load(anno["file_name"].replace("/run/media/jacob/T7", "/home/jacob"), fix_imports=True)
+        image = np.load(
+            anno["file_name"].replace("/run/media/jacob/T7", "/home/jacob"),
+            fix_imports=True,
+        )
         image = image.reshape((1, anno["height"], anno["width"]))
         # print(image.shape)
         for i, item in enumerate(anno["optical_sources"]):
@@ -127,17 +132,15 @@ class RadioSourceDataset(Dataset):
                 2 * np.pi
             )
             anno["optical_sources"][i][2] = (
-                                                    np.clip(anno["optical_sources"][i][2], 0.0, 7.0) - 0.0
-                                            ) / (
-                                                    7.0 - 0.0
-                                            )  # Redshift
+                np.clip(anno["optical_sources"][i][2], 0.0, 7.0) - 0.0
+            ) / (
+                7.0 - 0.0
+            )  # Redshift
             if self.norm:
                 for j in range(3, len(anno["optical_sources"][i])):
                     value = anno["optical_sources"][i][j]
                     value = np.clip(value, 10.0, 28.0)
                     anno["optical_sources"][i][j] = (value - 10.0) / (28.0 - 10.0)
-            #for j in [3,5,7,8,10,11]: #i,g,z,y,W3,W4
-            #    anno["optical_sources"][i][j] = 0.0 # Not in new one
         anno["optical_sources"].insert(
             0, [0 for _ in range(len(anno["optical_sources"][0]))]
         )

@@ -1,7 +1,4 @@
-import torch
 import torch.nn as nn
-import numpy as np
-import torch.nn.functional as F
 from antialiased_cnns import BlurPool
 
 """
@@ -159,11 +156,21 @@ class AntiAliasedResNet(nn.Module):
 
         if pool_only:
             self.conv1 = nn.Conv2d(
-                num_channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+                num_channels,
+                self.inplanes,
+                kernel_size=7,
+                stride=2,
+                padding=3,
+                bias=False,
             )
         else:
             self.conv1 = nn.Conv2d(
-                num_channels, self.inplanes, kernel_size=7, stride=1, padding=3, bias=False
+                num_channels,
+                self.inplanes,
+                kernel_size=7,
+                stride=1,
+                padding=3,
+                bias=False,
             )
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)

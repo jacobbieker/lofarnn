@@ -1,8 +1,10 @@
-import numpy as np
-import pickle
 import json
 import os
+import pickle
+
 import matplotlib.pyplot as plt
+import numpy as np
+
 from lofarnn.models.dataloaders.utils import get_lotss_objects
 
 
@@ -14,8 +16,15 @@ def load_json_arr(json_path):
     return lines
 
 
-def plot_cutoffs(recall_path, recall_path_2, baseline_path, vac_catalog, bins=30, name="",
-                 recall_names=["CNN", "Fast RCNN"]):
+def plot_cutoffs(
+    recall_path,
+    recall_path_2,
+    baseline_path,
+    vac_catalog,
+    bins=30,
+    name="",
+    recall_names=["CNN", "Fast RCNN"],
+):
     data = pickle.load(open(recall_path, "rb"), fix_imports=True)
     data2 = pickle.load(open(recall_path_2, "rb"), fix_imports=True)
     baseline_data = pickle.load(open(baseline_path, "rb"), fix_imports=True)
@@ -66,7 +75,7 @@ def plot_cutoffs(recall_path, recall_path_2, baseline_path, vac_catalog, bins=30
         "Apparent size [arcsec]": radio_apparent_size,
         "z": radio_z,
         "Number of Components": radio_comp,
-        "quality": quality
+        "quality": quality,
     }
     radio_apparent_size3 = np.zeros(len(pred_source_names2))
     radio_apparent_width3 = np.zeros(len(pred_source_names2))
@@ -117,7 +126,13 @@ def plot_cutoffs(recall_path, recall_path_2, baseline_path, vac_catalog, bins=30
     baseline_recalls = np.array(baseline_recalls)
 
     # Now plot recall cutoffs
-    for ylabel in ["Apparent size [arcsec]", "Total flux [mJy]", "Axis ratio", "z", "Number of Components"]:
+    for ylabel in [
+        "Apparent size [arcsec]",
+        "Total flux [mJy]",
+        "Axis ratio",
+        "z",
+        "Number of Components",
+    ]:
         Y = data_dict[ylabel]
         Y2 = baseline_data_dict[ylabel]
         Y3 = data_dict2[ylabel]
@@ -138,18 +153,14 @@ def plot_cutoffs(recall_path, recall_path_2, baseline_path, vac_catalog, bins=30
         for j in range(len(y_bin_centers)):
             # get the prediction errors in a bin
             bin_mask = (Y > y_bin_edges[j]) & (Y < y_bin_edges[j + 1])
-            bin_contents = pred_source_recall[
-                bin_mask
-            ]
+            bin_contents = pred_source_recall[bin_mask]
             bin_quality = data_dict["quality"][bin_mask]
             bin_contents2 = baseline_recalls[
-                (Y2 > y_bin_edges[j])
-                & (Y2 < y_bin_edges[j + 1])
-                ]
+                (Y2 > y_bin_edges[j]) & (Y2 < y_bin_edges[j + 1])
+            ]
             bin_contents3 = pred_source_recall2[
-                (Y3 > y_bin_edges[j])
-                & (Y3 < y_bin_edges[j + 1])
-                ]
+                (Y3 > y_bin_edges[j]) & (Y3 < y_bin_edges[j + 1])
+            ]
             # determine recall
             # print(f"Bin Sum: {np.nansum(bin_contents > 0.95)}, len: {len(bin_contents)}")
             recall[j] = np.nansum(bin_contents > 0.95) / len(bin_contents)
@@ -158,40 +169,51 @@ def plot_cutoffs(recall_path, recall_path_2, baseline_path, vac_catalog, bins=30
             qualities[j] = np.nansum(bin_quality) / len(bin_quality)
             num_sources[j] = len(bin_contents)
         # Now plot
-        fig, (ax3, ax1, ax2) = plt.subplots(3, 1, sharex='all', gridspec_kw={'height_ratios': [1, 3, 1], 'hspace': 0})
+        fig, (ax3, ax1, ax2) = plt.subplots(
+            3, 1, sharex="all", gridspec_kw={"height_ratios": [1, 3, 1], "hspace": 0}
+        )
         # gs = fig.add_gridspec(3, hspace=0)
         # ax2, ax1, ax3 = gs.subplots(sharex=True, sharey=False)
         ax1.plot(y_bin_centers, recall, label=f"{recall_names[0]}")
         ax1.plot(y_bin_centers, recall3, label=f"{recall_names[1]}")
-        ax1.plot(y_bin_centers, recall2, linestyle="--", label='Baseline')
+        ax1.plot(y_bin_centers, recall2, linestyle="--", label="Baseline")
         fig.suptitle(f"Recall vs {ylabel}")
         ax1.set_ylabel("Recall")
         ax1.set_xlabel(ylabel)
         # ax2 = ax1.twinx()
         ax2.set_xlabel(ylabel)
-        ax2.bar(y_bin_centers, num_sources, width=(max(y_bin_centers) - min(y_bin_centers)) / len(y_bin_centers),
-                edgecolor='black', color='none',
-                zorder=10)
+        ax2.bar(
+            y_bin_centers,
+            num_sources,
+            width=(max(y_bin_centers) - min(y_bin_centers)) / len(y_bin_centers),
+            edgecolor="black",
+            color="none",
+            zorder=10,
+        )
         ax2.set_ylabel("# Sources")
         num_sources = num_sources / sum(num_sources)
-        ax3.plot(y_bin_centers, np.cumsum(num_sources), c='black')
+        ax3.plot(y_bin_centers, np.cumsum(num_sources), c="black")
         ax3.set_ylabel("% Sources")
         ax3.set_xlabel(ylabel)
         if ylabel == "Apparent size [arcsec]":
-            ax1.axvline(x=70., linestyle='dashed', color='black')
-            ax2.axvline(x=70., linestyle='dashed', color='black')
-            ax3.axvline(x=70., linestyle='dashed', color='black')
+            ax1.axvline(x=70.0, linestyle="dashed", color="black")
+            ax2.axvline(x=70.0, linestyle="dashed", color="black")
+            ax3.axvline(x=70.0, linestyle="dashed", color="black")
             mask = y_bin_centers <= 70
-            s = f"Baseline: {np.round(np.nanmean(recall2[mask]), 3)}\n" \
-                f"{recall_names[0]}: {np.round(np.nanmean(recall[mask]), 3)}\n" \
+            s = (
+                f"Baseline: {np.round(np.nanmean(recall2[mask]), 3)}\n"
+                f"{recall_names[0]}: {np.round(np.nanmean(recall[mask]), 3)}\n"
                 f"{recall_names[1]}: {np.round(np.nanmean(recall3[mask]), 3)}\n "
+            )
             ax1.text(x=1, y=0.5, s=s, size=8)
             mask = y_bin_centers > 70
-            s = f"Baseline: {np.round(np.nanmean(recall2[mask]), 3)}\n" \
-                f"{recall_names[0]}: {np.round(np.nanmean(recall[mask]), 3)}\n" \
+            s = (
+                f"Baseline: {np.round(np.nanmean(recall2[mask]), 3)}\n"
+                f"{recall_names[0]}: {np.round(np.nanmean(recall[mask]), 3)}\n"
                 f"{recall_names[1]}: {np.round(np.nanmean(recall3[mask]), 3)}\n "
+            )
             ax1.text(x=72, y=0.5, s=s, size=8)
-        ax1.legend(loc='best')
+        ax1.legend(loc="best")
         fig.savefig(f"{ylabel}_Recall_{name}.png", dpi=300)
         plt.clf()
         plt.cla()
@@ -209,7 +231,13 @@ def plot_cutoffs(recall_path, recall_path_2, baseline_path, vac_catalog, bins=30
 
 
 def plot_compared_axis_recall(
-        recall_path, recall_path_2, vac_catalog, limit, jelle_cut=False, bins=10, output_dir="./"
+    recall_path,
+    recall_path_2,
+    vac_catalog,
+    limit,
+    jelle_cut=False,
+    bins=10,
+    output_dir="./",
 ):
     """
     Plot recall of apparent size to axis ratio
@@ -321,13 +349,13 @@ def plot_compared_axis_recall(
                         & (X < x_bin_edges[i + 1])
                         & (Y > y_bin_edges[j])
                         & (Y < y_bin_edges[j + 1])
-                        ]
+                    ]
                     bin_2 = pred_source_recall2[
                         (X2 > x_bin_edges[i])
                         & (X2 < x_bin_edges[i + 1])
                         & (Y2 > y_bin_edges[j])
                         & (Y2 < y_bin_edges[j + 1])
-                        ]
+                    ]
 
                     # determine recall
                     # print(f"Bin Sum: {np.nansum(bin_contents > 0.95)}, len: {len(bin_contents)}")
@@ -344,7 +372,7 @@ def plot_compared_axis_recall(
 
             # get the desired aspect ratio such that the plot is square
             aspectratio = (np.max(x_bin_centers) - np.min(x_bin_centers)) / (
-                    np.max(y_bin_centers) - np.min(y_bin_centers)
+                np.max(y_bin_centers) - np.min(y_bin_centers)
             )
             im = ax.imshow(
                 recall_2D.T,
@@ -406,7 +434,7 @@ def plot_compared_axis_recall(
 
 
 def plot_axis_recall(
-        recall_path, vac_catalog, limit, jelle_cut=False, bins=10, output_dir="./"
+    recall_path, vac_catalog, limit, jelle_cut=False, bins=10, output_dir="./"
 ):
     """
     Plot recall of apparent size to axis ratio
@@ -485,7 +513,7 @@ def plot_axis_recall(
                         & (X < x_bin_edges[i + 1])
                         & (Y > y_bin_edges[j])
                         & (Y < y_bin_edges[j + 1])
-                        ]
+                    ]
                     # determine recall
                     recall_2D[i][j] = np.sum(bin_contents > 0.95) / len(bin_contents)
                     # also determine the number of sources
@@ -496,7 +524,7 @@ def plot_axis_recall(
 
             # get the desired aspect ratio such that the plot is square
             aspectratio = (np.max(x_bin_centers) - np.min(x_bin_centers)) / (
-                    np.max(y_bin_centers) - np.min(y_bin_centers)
+                np.max(y_bin_centers) - np.min(y_bin_centers)
             )
             im = ax.imshow(
                 recall_2D.T,
@@ -558,14 +586,14 @@ def plot_axis_recall(
 
 
 def plot_plots(
-        metrics_files,
-        experiment_name,
-        experiment_dir,
-        cuts,
-        labels,
-        title,
-        output_dir,
-        colors,
+    metrics_files,
+    experiment_name,
+    experiment_dir,
+    cuts,
+    labels,
+    title,
+    output_dir,
+    colors,
 ):
     """
     Plot a variety of different metrics, including recall, precision, loss, etc.
@@ -742,7 +770,7 @@ def plot_plots(
 
     plt.legend(loc="lower left")
     plt.title(f"Total Training Loss {title}")
-    #plt.xlim(0,200000)
+    # plt.xlim(0,200000)
     plt.xlabel("Iteration")
     plt.ylabel("Total Loss")
     plt.yscale("log")
@@ -893,14 +921,15 @@ def plot_plots(
 
 
 def plot_combo_plots(
-        metrics_files,
-        experiment_name,
-        experiment_dir,
-        cuts,
-        labels,
-        title,
-        output_dir,
-        colors, ):
+    metrics_files,
+    experiment_name,
+    experiment_dir,
+    cuts,
+    labels,
+    title,
+    output_dir,
+    colors,
+):
     """
         Plot a variety of different metrics, including recall, precision, loss, etc.
         :param metrics_files:
@@ -1225,7 +1254,6 @@ def plot_wcs(filename, name, pred, target, aux, comp_catalog):
     :param name: Name of the source
     """
     from matplotlib import pyplot as plt
-    from astropy import units as u
     from astropy.coordinates import SkyCoord
 
     (
@@ -1238,8 +1266,8 @@ def plot_wcs(filename, name, pred, target, aux, comp_catalog):
         sem_seg_prop_three,
         wcs,
     ) = np.load(filename, fix_imports=True, allow_pickle=True)
-    ra_array = np.array(aux[1:,2], dtype=float)
-    dec_array = np.array(aux[1:,3], dtype=float)
+    ra_array = np.array(aux[1:, 2], dtype=float)
+    dec_array = np.array(aux[1:, 3], dtype=float)
     sky_coords = SkyCoord(ra_array, dec_array, unit="deg")
     pixel_coords = sky_coords.to_pixel(wcs)
     components = comp_catalog[comp_catalog["Source_Name"] == name]
@@ -1253,11 +1281,11 @@ def plot_wcs(filename, name, pred, target, aux, comp_catalog):
         center_y = 0
         fluxes = fluxes / np.sum(fluxes)
         for c in range(len(comp_coords[0])):
-            center_x += comp_coords[0][c]*fluxes[c]
-            center_y += comp_coords[1][c]*fluxes[c]
+            center_x += comp_coords[0][c] * fluxes[c]
+            center_y += comp_coords[1][c] * fluxes[c]
     else:
-        center_x = img_array[:, :, 0].shape[0]/2
-        center_y = img_array[:, :, 0].shape[1]/2
+        center_x = img_array[:, :, 0].shape[0] / 2
+        center_y = img_array[:, :, 0].shape[1] / 2
 
     # Get Baseline
     source_coord = SkyCoord.from_pixel(xp=center_x, yp=center_y, wcs=wcs)
@@ -1265,18 +1293,22 @@ def plot_wcs(filename, name, pred, target, aux, comp_catalog):
     baseline_pred = np.argmin(d2d.data)  # Need to convert back from Angle to non-Angle
     fig = plt.figure()
     ax = fig.add_subplot(111, projection=wcs)
-    im = plt.imshow(np.clip(img_array[:, :, 0], 0., 1000.), origin='lower', cmap=plt.cm.viridis)
-    ax.scatter(pixel_coords, size=2, label='Optical Source')
-    ax.scatter(pixel_coords[pred-1], size=5, c='red', marker='*', label='Predicted')
-    ax.scatter(pixel_coords[target - 1], size=5, c='green', marker='x', label='Actual')
-    ax.scatter(pixel_coords[1], size=5, c='orange', marker='1', label='Closest')
-    ax.scatter(pixel_coords[baseline_pred], size=5, c='purple', marker='2', label='Baseline')
+    im = plt.imshow(
+        np.clip(img_array[:, :, 0], 0.0, 1000.0), origin="lower", cmap=plt.cm.viridis
+    )
+    ax.scatter(pixel_coords, size=2, label="Optical Source")
+    ax.scatter(pixel_coords[pred - 1], size=5, c="red", marker="*", label="Predicted")
+    ax.scatter(pixel_coords[target - 1], size=5, c="green", marker="x", label="Actual")
+    ax.scatter(pixel_coords[1], size=5, c="orange", marker="1", label="Closest")
+    ax.scatter(
+        pixel_coords[baseline_pred], size=5, c="purple", marker="2", label="Baseline"
+    )
     cbar = plt.colorbar(im, ax=ax)
     cbar.ax.set_ylabel("Flux (mJy)")
     plt.title(name)
-    plt.xlabel('RA')
-    plt.ylabel('Dec')
-    plt.legend(loc='best')
+    plt.xlabel("RA")
+    plt.ylabel("Dec")
+    plt.legend(loc="best")
     plt.savefig(f"{name}_prediction_plot.png", dpi=300)
     plt.cla()
     plt.clf()

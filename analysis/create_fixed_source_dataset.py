@@ -1,8 +1,6 @@
 import os
-import numpy as np
-from lofarnn.data.datasets import create_variable_source_dataset
+
 from lofarnn.utils.coco import create_coco_dataset
-from lofarnn.data.datasets import create_variable_source_dataset
 
 os.environ["LOFARNN_ARCH"] = "XPS"
 
@@ -33,7 +31,7 @@ create_coco_dataset(
     resize=200,
 )
 """
-create_variable_source_dataset(cutout_directory=cutout_directory,
+create_source_dataset(cutout_directory=cutout_directory,
                                pan_wise_location=pan_wise_location,
                                value_added_catalog_location=vac,
                                dr_two_location=dr_two,

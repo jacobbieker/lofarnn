@@ -8,16 +8,15 @@ except:
 from lofarnn.models.base.cnn import (
     RadioSingleSourceModel,
     RadioMultiSourceModel,
-    f1_loss,
 )
 from lofarnn.models.base.utils import default_argument_parser, setup, test, train
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CyclicLR
-from torch.utils.data import dataset, dataloader
+from torch.utils.data import dataloader
 import torch
 
 
 def main(args):
-    for frac in [0.1,0.25,0.5,0.75,0.9,1.0]:
+    for frac in [0.1, 0.25, 0.5, 0.75, 0.9, 1.0]:
         args.fraction = frac
         train_dataset, train_test_dataset, val_dataset = setup(args)
         train_loader = dataloader.DataLoader(
@@ -42,14 +41,13 @@ def main(args):
             num_workers=os.cpu_count(),
             pin_memory=True,
         )
-        experiment_name = (
-            args.experiment
-            + f"frac_{frac}"
-        )
+        experiment_name = args.experiment + f"frac_{frac}"
         if environment == "XPS":
             output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
         else:
-            output_dir = os.path.join("/home/s2153246/data/", "reports", experiment_name)
+            output_dir = os.path.join(
+                "/home/s2153246/data/", "reports", experiment_name
+            )
         os.makedirs(output_dir, exist_ok=True)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         config = {
@@ -71,7 +69,9 @@ def main(args):
             scheduler = ReduceLROnPlateau(optimizer, "min", patience=3)
         elif args.lr_type == "cyclical":
             scheduler = CyclicLR(
-                optimizer, base_lr=args.lr, max_lr=0.1 if args.lr < 0.1 else 10 * args.lr
+                optimizer,
+                base_lr=args.lr,
+                max_lr=0.1 if args.lr < 0.1 else 10 * args.lr,
             )
         else:
             scheduler = None
@@ -98,9 +98,13 @@ def main(args):
                 output_dir,
                 config,
             )
-            test(args, model, device, test_loader, epoch, "Val_Test", output_dir, config)
+            test(
+                args, model, device, test_loader, epoch, "Val_Test", output_dir, config
+            )
             if epoch % 5 == 0:  # Save every 5 epochs
-                torch.save(model, os.path.join(output_dir, f"model_{epoch}_frac{frac}.pth"))
+                torch.save(
+                    model, os.path.join(output_dir, f"model_{epoch}_frac{frac}.pth")
+                )
         torch.save(model, os.path.join(output_dir, f"model_final.pth"))
 
 

@@ -1,11 +1,13 @@
-from lofarnn.visualization.metrics import plot_axis_recall, plot_plots, plot_compared_axis_recall, plot_cutoffs
 import pickle
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
+
 from lofarnn.models.dataloaders.utils import get_lotss_objects
+
 recall_dir = "/home/jacob/Development/reports/rotated_f_redux_size400_prop4096_depth101_batchSize8_lr0.002_frac1.0/"
 recall_files = [
-"/home/jacob/Development/test_lofarnn/lofarnn/analysis/eval_final_testfinal_eval_test/Test_source_recall_epoch39.pkl"
+    "/home/jacob/Development/test_lofarnn/lofarnn/analysis/eval_final_testfinal_eval_test/Test_source_recall_epoch39.pkl"
 ]
 baseline = "/home/jacob/Development/test_lofarnn/lofarnn/analysis/final_test_closest_baseline_recall.pkl"
 recall_limits = ["FinalBaseComp40", "t1", "v2", "t2", "v5", "t5"]
@@ -31,7 +33,9 @@ Plot failed prediction images, don't actually have what the prediction was, but 
 """
 
 
-vac_catalog = get_lotss_objects("/home/jacob/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits")
+vac_catalog = get_lotss_objects(
+    "/home/jacob/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
+)
 json_file = "cnn_test_normTrue_extra.pkl"
 
 annotations = pickle.load(open(json_file, "rb"), fix_imports=True)
@@ -39,6 +43,7 @@ annotations = pickle.load(open(json_file, "rb"), fix_imports=True)
 qual = vac_catalog["LGZ_ID_Qual"]
 
 qual_vals = np.unique(np.round(np.nan_to_num(qual), 1))
+
 
 def get_image(name, annotations):
     for anno in annotations:
@@ -80,8 +85,8 @@ for key in qual_vals:
     if key != 0.0:
         if counts[key] != 0:
             x.append(key)
-            y.append(recalls[key]/counts[key])
-            y2.append(misses[key]/counts[key])
+            y.append(recalls[key] / counts[key])
+            y2.append(misses[key] / counts[key])
         else:
             x.append(key)
             y.append(recalls[key] / 1)
@@ -89,16 +94,23 @@ for key in qual_vals:
 
 fig, ax1 = plt.subplots()
 
-heights,bins = np.histogram(all_quals,bins=20)
-heights = heights/sum(heights)
+heights, bins = np.histogram(all_quals, bins=20)
+heights = heights / sum(heights)
 ax2 = ax1.twinx()
-ax2.bar(bins[:-1],heights,width=(max(bins) - min(bins))/len(bins), edgecolor='black', color='none', zorder=10)
+ax2.bar(
+    bins[:-1],
+    heights,
+    width=(max(bins) - min(bins)) / len(bins),
+    edgecolor="black",
+    color="none",
+    zorder=10,
+)
 ax2.set_ylabel("Percentage of Sources")
 fig.suptitle("Recall vs LGZ Quality")
 ax1.plot(x, y, label=f"Correct: Median Quality: {np.round(np.median(y), 3)}")
 ax1.plot(x, y2, label=f"Incorrect: Median Quality: {np.round(np.median(y2), 3)}")
 ax1.set_ylabel("Recall")
 ax1.set_xlabel("LGZ Quality")
-ax1.legend(loc='best')
+ax1.legend(loc="best")
 fig.tight_layout()
 plt.show()

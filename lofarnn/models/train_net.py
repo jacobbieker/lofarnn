@@ -149,7 +149,10 @@ def setup(args):
                 thing_classes=["Optical source"]
             )
 
-    cfg.DATASETS.TRAIN = (f"{args.experiment}_train",f"{args.experiment}_val",) # Now train on val too
+    cfg.DATASETS.TRAIN = (
+        f"{args.experiment}_train",
+        f"{args.experiment}_val",
+    )  # Now train on val too
     cfg.DATASETS.VAL = (f"{args.experiment}_test",)
     cfg.DATASETS.TEST = (
         f"{args.experiment}_val",

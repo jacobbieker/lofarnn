@@ -1,9 +1,10 @@
 import os
+
 import numpy as np
 
-# from lofarnn.data.datasets import create_variable_source_dataset
+from lofarnn.data.datasets import create_source_dataset
+# from lofarnn.data.datasets import create_source_dataset
 from lofarnn.utils.coco import create_coco_dataset
-from lofarnn.data.datasets import create_variable_source_dataset
 
 try:
     environment = os.environ["LOFARNN_ARCH"]
@@ -31,7 +32,7 @@ else:
 rotation = 180
 size = (300.0 / 3600.0) * np.sqrt(2)
 print(size)
-create_variable_source_dataset(
+create_source_dataset(
     cutout_directory=cutout_directory,
     pan_wise_location=pan_wise_location,
     value_added_catalog_location=vac,

@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from lofarnn.models.base.resnet import ResNet, Bottleneck
-#from lofarnn.models.base.antialiased import AntiAliasedResNet
-#from lofarnn.models.base.antialiased import Bottleneck as AliasedBottleneck
 
 """
 

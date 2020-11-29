@@ -1,13 +1,18 @@
-from lofarnn.visualization.metrics import plot_axis_recall, plot_plots, plot_compared_axis_recall, plot_cutoffs
 import os
-import pickle
+
 import numpy as np
-import csv
+
+from lofarnn.visualization.metrics import (
+    plot_axis_recall,
+    plot_plots,
+    plot_compared_axis_recall,
+    plot_cutoffs,
+)
 
 recall_dir = "/home/jacob/Development/reports/rotated_f_redux_size400_prop4096_depth101_batchSize8_lr0.002_frac1.0/"
 recall_files = [
-"/home/jacob/Development/test_lofarnn/lofarnn/analysis/eval_final_testfinal_eval_test/Test_source_recall_epoch39.pkl",
-"/home/jacob/Development/test_lofarnn/lofarnn/final_eval_test_size400_prop4096_depth101_batchSize8_lr0.001_frac1.0/inference/final_eval_test_test_recall_limit1.pkl"
+    "/home/jacob/Development/test_lofarnn/lofarnn/analysis/eval_final_testfinal_eval_test/Test_source_recall_epoch39.pkl",
+    "/home/jacob/Development/test_lofarnn/lofarnn/final_eval_test_size400_prop4096_depth101_batchSize8_lr0.001_frac1.0/inference/final_eval_test_test_recall_limit1.pkl",
 ]
 baseline = "/home/jacob/Development/test_lofarnn/lofarnn/analysis/final_test_closest_baseline_recall.pkl"
 recall_limits = ["CNN Test", "Fast RCNN Test", "v2", "t2", "v5", "t5"]
@@ -38,22 +43,22 @@ import matplotlib.pyplot as plt
 
 for i, fol in enumerate(folds):
     train = genfromtxt(os.path.join(b, fol, "Train_test_loss.csv"))
-    num_per_epoch = int(len(train)/15)
+    num_per_epoch = int(len(train) / 15)
     avg_loss = []
     for j in epochs:
-        avg_loss.append(np.mean(train[j*num_per_epoch:(j+1)*num_per_epoch]))
+        avg_loss.append(np.mean(train[j * num_per_epoch : (j + 1) * num_per_epoch]))
     val = genfromtxt(os.path.join(b, fol, "Val_Test_loss.csv"))
     avg_val = []
     num_per_epoch = int(len(val) / 15)
     for j in epochs:
-        avg_val.append(np.mean(val[j*num_per_epoch:(j+1)*num_per_epoch]))
+        avg_val.append(np.mean(val[j * num_per_epoch : (j + 1) * num_per_epoch]))
     plt.plot(epochs, avg_loss, c=cs[i], label=fol)
-    plt.plot(epochs, avg_val, c=cs[i], linestyle='--')
+    plt.plot(epochs, avg_val, c=cs[i], linestyle="--")
 plt.title("Recall vs Training Dataset Size")
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
-plt.legend(loc='best')
-#plt.ylim(0.7,0.85)
+plt.legend(loc="best")
+# plt.ylim(0.7,0.85)
 plt.show()
 exit()
 
@@ -65,7 +70,7 @@ for i, f in enumerate(recall_files):
         bins=4,
         jelle_cut=False,
         limit=recall_limits[i],
-        output_dir="./"
+        output_dir="./",
     )
     plot_compared_axis_recall(
         recall_path=f,
@@ -76,26 +81,50 @@ for i, f in enumerate(recall_files):
         limit=recall_limits[i],
     )
 exit()
-plot_cutoffs(recall_path=f,
-             recall_path_2="/home/jacob/Development/test_lofarnn/lofarnn/final_eval_test_size400_prop4096_depth101_batchSize8_lr0.001_frac1.0/inference/final_eval_test_test_recall_limit1.pkl",
-             baseline_path=baseline, vac_catalog=vac_catalog, bins=10, name="baseline_95")
-plot_cutoffs(recall_path=f,
-             recall_path_2="/home/jacob/Development/test_lofarnn/noZ_rest/Test_source_recall_epoch35.pkl",
-             baseline_path=baseline, vac_catalog=vac_catalog, bins=10, name="compare_z_effect_99",
-             recall_names=["Z", "No Z"])
-plot_cutoffs(recall_path=f,
-             recall_path_2="/home/jacob/Development/test_lofarnn/eval_final_test_Resave_40_LEGAC_With_Redshiftfinal_eval_test/Test_source_recall_epoch10.pkl",
-             baseline_path=baseline, vac_catalog=vac_catalog, bins=10, name="legac_with_z_99",
-             recall_names=["CNN", "Legacy w/ Z"])
-plot_cutoffs(recall_path=f,
-             recall_path_2="/home/jacob/Development/test_lofarnn/Legac_current_final_eval_test/Test_source_recall_epoch15.pkl",
-             baseline_path=baseline, vac_catalog=vac_catalog, bins=10, name="legac_no_z_99",
-             recall_names=["CNN", "Legacy w/o Z"])
+plot_cutoffs(
+    recall_path=f,
+    recall_path_2="/home/jacob/Development/test_lofarnn/lofarnn/final_eval_test_size400_prop4096_depth101_batchSize8_lr0.001_frac1.0/inference/final_eval_test_test_recall_limit1.pkl",
+    baseline_path=baseline,
+    vac_catalog=vac_catalog,
+    bins=10,
+    name="baseline_95",
+)
+plot_cutoffs(
+    recall_path=f,
+    recall_path_2="/home/jacob/Development/test_lofarnn/noZ_rest/Test_source_recall_epoch35.pkl",
+    baseline_path=baseline,
+    vac_catalog=vac_catalog,
+    bins=10,
+    name="compare_z_effect_99",
+    recall_names=["Z", "No Z"],
+)
+plot_cutoffs(
+    recall_path=f,
+    recall_path_2="/home/jacob/Development/test_lofarnn/eval_final_test_Resave_40_LEGAC_With_Redshiftfinal_eval_test/Test_source_recall_epoch10.pkl",
+    baseline_path=baseline,
+    vac_catalog=vac_catalog,
+    bins=10,
+    name="legac_with_z_99",
+    recall_names=["CNN", "Legacy w/ Z"],
+)
+plot_cutoffs(
+    recall_path=f,
+    recall_path_2="/home/jacob/Development/test_lofarnn/Legac_current_final_eval_test/Test_source_recall_epoch15.pkl",
+    baseline_path=baseline,
+    vac_catalog=vac_catalog,
+    bins=10,
+    name="legac_no_z_99",
+    recall_names=["CNN", "Legacy w/o Z"],
+)
 plot_cutoffs(
     recall_path="/home/jacob/Development/test_lofarnn/eval_final_test_Resave_40_LEGAC_With_Redshiftfinal_eval_test/Test_source_recall_epoch10.pkl",
     recall_path_2="/home/jacob/Development/test_lofarnn/Legac_current_final_eval_test/Test_source_recall_epoch15.pkl",
-    baseline_path=baseline, vac_catalog=vac_catalog, bins=10, name="legac_compare_99",
-    recall_names=["Legacy w/ Z", "Legacy w/o Z"])
+    baseline_path=baseline,
+    vac_catalog=vac_catalog,
+    bins=10,
+    name="legac_compare_99",
+    recall_names=["Legacy w/ Z", "Legacy w/o Z"],
+)
 exit()
 for path, subdirs, files in os.walk(report_dir):
     for name in files:

@@ -1,8 +1,7 @@
 import os
-import numpy as np
-from lofarnn.data.datasets import create_variable_source_dataset
+
+from lofarnn.data.datasets import create_source_dataset
 from lofarnn.utils.coco import create_coco_dataset
-from lofarnn.data.datasets import create_variable_source_dataset
 
 os.environ["LOFARNN_ARCH"] = "XPS"
 
@@ -25,7 +24,7 @@ else:
     cutout_directory = "/home/jacob/gaussian_all/"
     multi_process = True
 
-create_variable_source_dataset(
+create_source_dataset(
     cutout_directory=cutout_directory,
     pan_wise_location=pan_wise_location,
     value_added_catalog_location=vac,

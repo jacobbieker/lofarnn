@@ -1,26 +1,27 @@
+from typing import Union, Optional, List, Tuple, Any
+
+import imgaug as ia
+import imgaug.augmenters as iaa
 import numpy as np
-from skimage.transform import rotate
 from astropy.visualization import (
     MinMaxInterval,
     SqrtStretch,
     ManualInterval,
     ImageNormalize,
 )
-import imgaug.augmenters as iaa
-import imgaug as ia
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
-from imgaug.augmentables.segmaps import SegmentationMapOnImage, SegmentationMapsOnImage
+from skimage.transform import rotate
 
 
 def convert_to_valid_color(
-    image_color,
-    clip=False,
-    lower_clip=0.0,
-    upper_clip=1.0,
-    normalize=False,
-    scaling=None,
-    simple_norm=False,
-):
+    image_color: np.ndarray,
+    clip: bool = False,
+    lower_clip: float = 0.0,
+    upper_clip: float = 1.0,
+    normalize: bool = False,
+    scaling: Optional[str] = None,
+    simple_norm: bool = False,
+) -> np.ndarray:
     """
     Convert the channel to a valid 0-1 range for RGB images
     """
@@ -46,7 +47,9 @@ def convert_to_valid_color(
     return image_color
 
 
-def rotate_image_stacks(image_stack, rotation_angle=0):
+def rotate_image_stacks(
+    image_stack: np.ndarray, rotation_angle: Union[float, int] = 0
+) -> np.ndarray:
     image_stack = rotate(
         image_stack,
         -rotation_angle,
@@ -61,11 +64,19 @@ def rotate_image_stacks(image_stack, rotation_angle=0):
     return image_stack
 
 
-def make_bounding_box(source_location):
+def make_bounding_box(
+    source_location: Union[List[List[Union[float, int]]], np.ndarray]
+) -> Tuple[
+    int,
+    int,
+    int,
+    int,
+    Union[List[Union[float, int]], Any],
+    Union[List[Union[float, int]], Any],
+]:
     """
     Creates a bounding box and returns it in (xmin, ymin, xmax, ymax, class_name, source location) format
     for use with the source location in pixel values
-    :param class_name: Class name for the bounding box
     :return: Bounding box coordinates for COCO style annotation
     """
     # Now create box, which will be accomplished by taking int to get xmin, ymin, and int + 1 for xmax, ymax
@@ -77,20 +88,14 @@ def make_bounding_box(source_location):
     return xmin, ymin, xmax, ymax, source_location[4], source_location[5]
 
 
-import matplotlib.pyplot as plt
-
-
 def augment_image_and_bboxes(
-    image,
-    cutouts,
-    proposal_boxes,
-    segmentation_maps,
-    segmentation_proposals,
-    angle,
-    new_size=None,
-    crop_size=None,
-    verbose=False,
-):
+    image: np.ndarray,
+    cutouts: Union[List[Tuple[float]], np.ndarray],
+    proposal_boxes: Union[List[Tuple[float]], np.ndarray],
+    angle: Optional[Union[float, int]],
+    new_size: Optional[Union[int, Tuple[int]]],
+    verbose: bool = False,
+) -> Tuple[Any, Union[List[Tuple[float]], np.ndarray], np.ndarray]:
     bounding_boxes = []
     prop_boxes = []
     seg_boxes = []
@@ -113,19 +118,12 @@ def augment_image_and_bboxes(
         prop_boxes.append(
             BoundingBox(pbox[1] + 0.5, pbox[0] + 0.5, pbox[3] + 0.5, pbox[2] + 0.5)
         )
-    for i, sbox in enumerate(segmentation_proposals):
-        seg_boxes.append(
-            BoundingBox(float(sbox[0]), float(sbox[1]), float(sbox[2]), float(sbox[3]))
-        )
 
     bbs = BoundingBoxesOnImage(bounding_boxes, shape=image.shape)
     pbbs = BoundingBoxesOnImage(prop_boxes, shape=image.shape)
     if seg_boxes:
         sbbs = BoundingBoxesOnImage(seg_boxes, shape=image.shape)
         _, sbbs = seq(image=image, bounding_boxes=sbbs)
-    if segmentation_maps.any():
-        segmaps = SegmentationMapsOnImage(segmentation_maps, shape=image.shape)
-        _, segmaps_rescaled = seq(image=image, segmentation_maps=segmaps)
     _, bbs = seq(image=image, bounding_boxes=bbs)
     image, pbbs = seq(image=image, bounding_boxes=pbbs)
     # Rescale image and bounding boxes
@@ -142,42 +140,12 @@ def augment_image_and_bboxes(
         sbbs_rescaled = sbbs_rescaled.remove_out_of_image(
             partly=False
         ).clip_out_of_image()
-    if segmentation_maps.any():
-        segmaps_rescaled = segmaps.resize(
-            (image_rescaled.shape[0], image_rescaled.shape[1])
-        )
 
     # Remove bounding boxes that go out of bounds
     pbbs_rescaled = pbbs_rescaled.remove_out_of_image(partly=False).clip_out_of_image()
     # But only clip source bounding boxes that are partly out of frame, so that no sources are lost
     bbs_rescaled = bbs_rescaled.remove_out_of_image(partly=False).clip_out_of_image()
     # Also remove those and clip of segmentation maps
-    # Draw image before/after rescaling and with rescaled bounding boxes
-    if verbose:
-        image = image[:, :, :3]
-        image_rescaled = image_rescaled[:, :, :3]
-        image_bbs = bbs.draw_on_image(image, size=1, alpha=1)
-        # image_bbs = sbbs.draw_on_image(image_bbs, size=1, alpha=1)
-        # image_bbs = segmaps.draw_on_image(image_bbs)[0]
-        image_rescaled_bbs = bbs_rescaled.draw_on_image(
-            image_rescaled, size=1, alpha=1, color=(255, 255, 255)
-        )
-        # image_rescaled_bbs = sbbs_rescaled.draw_on_image(
-        #    image_rescaled_bbs, size=1, alpha=1, color=(0, 255, 255)
-        # )
-        # image_rescaled_bbs = segmaps_rescaled.draw_on_image(image_rescaled_bbs)[0]
-        plt.imshow(image_bbs)
-        plt.title("Before")
-        plt.show()
-        # plt.savefig("before_rot.png")
-        # plt.cla()
-        # plt.clf()
-        plt.imshow(image_rescaled_bbs)
-        plt.title("After")
-        # plt.savefig("after_rot.png")
-        # plt.cla()
-        # plt.clf()
-        plt.show()
     for index, bbox in enumerate(bbs_rescaled):
         cutouts[index][0] = bbox.x1
         cutouts[index][1] = bbox.y1
@@ -196,7 +164,4 @@ def augment_image_and_bboxes(
         if verbose:
             print("Empty sbbs_rescaled")
     sbs = np.asarray(sbs)
-    if segmentation_maps.any():
-        return image_rescaled, cutouts, pbs, segmaps_rescaled.get_arr(), sbs
-    else:
-        return image_rescaled, cutouts, pbs, np.asarray([]), sbs
+    return image_rescaled, cutouts, pbs

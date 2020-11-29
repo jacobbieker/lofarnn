@@ -1,11 +1,23 @@
+from typing import Any, Tuple
+
 import numpy as np
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
+from astropy.table import Table
 from astropy.wcs import WCS
 
 
-def flatten(f, x, y, size, hduid=0, channel=0, freqaxis=3, verbose=True):
+def flatten(
+    f: fits.HDUList,
+    x: float,
+    y: float,
+    size: float,
+    hduid: int = 0,
+    channel: int = 0,
+    freqaxis: int = 3,
+    verbose: bool = True,
+) -> fits.HDUList:
     """
     Flatten a fits file so that it becomes a 2D image. Return new header and
     data
@@ -80,7 +92,14 @@ def flatten(f, x, y, size, hduid=0, channel=0, freqaxis=3, verbose=True):
     return hdulist
 
 
-def extract_subimage(filename, ra, dec, size, hduid=0, verbose=True):
+def extract_subimage(
+    filename: str,
+    ra: float,
+    dec: float,
+    size: float,
+    hduid: int = 0,
+    verbose: bool = True,
+) -> fits.HDUList:
     if verbose:
         print("Opening", filename)
     orighdu = fits.open(filename)
@@ -102,8 +121,8 @@ def extract_subimage(filename, ra, dec, size, hduid=0, verbose=True):
 
 
 def determine_visible_catalogue_source_and_separation(
-    ra, dec, size, catalogue, verbose=False
-):
+    ra: float, dec: float, size: float, catalogue: Table, verbose=False
+) -> Tuple[Any, Any, Any, SkyCoord, SkyCoord]:
     """
     Find the sources in the catalogue that are visible in the cutout, and returns a smaller catalogue for that
     :param ra: Radio RA
@@ -143,7 +162,9 @@ def determine_visible_catalogue_source_and_separation(
     return objects, d2d, angles, source_coord, sky_coords
 
 
-def determine_visible_catalogue_sources(ra, dec, size, catalogue, verbose=False):
+def determine_visible_catalogue_sources(
+    ra: float, dec: float, size: float, catalogue: Table, verbose=False
+) -> Table:
     """
     Find the sources in the catalogue that are visible in the cutout, and returns a smaller catalogue for that
     :param ra: Radio RA

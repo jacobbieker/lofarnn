@@ -1,5 +1,6 @@
-from lofarnn.models.base.baselines import closest_point_model#, flux_weighted_model
 import os
+
+from lofarnn.models.base.baselines import closest_point_model  # , flux_weighted_model
 
 try:
     environment = os.environ["LOFARNN_ARCH"]
@@ -8,7 +9,7 @@ except:
     environment = os.environ["LOFARNN_ARCH"]
 
 from lofarnn.models.base.utils import default_argument_parser, setup
-from torch.utils.data import dataset, dataloader
+from torch.utils.data import dataloader
 import torch
 import pickle
 
@@ -37,9 +38,7 @@ def main(args):
         num_workers=os.cpu_count(),
         pin_memory=True,
     )
-    experiment_name = (
-        "baselines"
-    )
+    experiment_name = "baselines"
     if environment == "XPS":
         output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
     else:
@@ -57,15 +56,15 @@ def main(args):
                 data["names"],
             )
             output = closest_point_model(source)
-            #out2 = flux_weighted_model(names)
+            # out2 = flux_weighted_model(names)
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
             pred = torch.add(pred, 1)
             label = labels.argmax(dim=1, keepdim=True)
             print(pred)
             print(label)
-            #pred2 = out2.numpy()
-            #pred2 += 1 # Adds the 1 because of the 0 size default
+            # pred2 = out2.numpy()
+            # pred2 += 1 # Adds the 1 because of the 0 size default
             # Now get named recall ones
             if not args.single:
                 for i in range(len(names)):
@@ -74,7 +73,7 @@ def main(args):
             else:
                 for i in range(len(names)):
                     if (
-                            label.item() == 0
+                        label.item() == 0
                     ):  # Label is source, don't care about the many negative examples
                         if pred.item() == 0:  # Prediction is source
                             named_recalls[names[i]] = 1  # Value is correct
@@ -100,12 +99,12 @@ def main(args):
                 data["names"],
             )
             output = closest_point_model(source)
-            #out2 = flux_weighted_model(names)
+            # out2 = flux_weighted_model(names)
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
             label = labels.argmax(dim=1, keepdim=True)
             pred2 = out2.numpy()
-            pred2 += 1 # Adds the 1 because of the 0 size default
+            pred2 += 1  # Adds the 1 because of the 0 size default
             # Now get named recall ones
             if not args.single:
                 for i in range(len(names)):
@@ -124,10 +123,10 @@ def main(args):
                             named_recalls[names[i]] = 1  # Value is correct
                         else:  # Prediction is not correct
                             named_recalls[names[i]] = 0  # Value is incorrect
-             #           if pred2.item() == 0:
-             #               flux_named_recall[names[i]] = 1
-             #           else:
-             #               flux_named_recall[names[i]] = 0
+            #           if pred2.item() == 0:
+            #               flux_named_recall[names[i]] = 1
+            #           else:
+            #               flux_named_recall[names[i]] = 0
     pickle.dump(
         named_recalls,
         open(os.path.join(output_dir, f"test_closest_baseline_recall.pkl"), "wb"),
@@ -146,12 +145,12 @@ def main(args):
                 data["names"],
             )
             output = closest_point_model(source)
-            #out2 = flux_weighted_model(source)
+            # out2 = flux_weighted_model(source)
             # get the index of the max log-probability
             pred = output.argmax(dim=1, keepdim=True)
             label = labels.argmax(dim=1, keepdim=True)
             pred2 = out2.numpy()
-            pred2 += 1 # Adds the 1 because of the 0 size default
+            pred2 += 1  # Adds the 1 because of the 0 size default
             # Now get named recall ones
             if not args.single:
                 for i in range(len(names)):
@@ -164,16 +163,16 @@ def main(args):
             else:
                 for i in range(len(names)):
                     if (
-                            label.item() == 0
+                        label.item() == 0
                     ):  # Label is source, don't care about the many negative examples
                         if pred.item() == 0:  # Prediction is source
                             named_recalls[names[i]] = 1  # Value is correct
                         else:  # Prediction is not correct
                             named_recalls[names[i]] = 0  # Value is incorrect
-             #           if pred2.item() == 0:
-             #               flux_named_recall[names[i]] = 1
-             #           else:
-             #               flux_named_recall[names[i]] = 0
+            #           if pred2.item() == 0:
+            #               flux_named_recall[names[i]] = 1
+            #           else:
+            #               flux_named_recall[names[i]] = 0
     pickle.dump(
         named_recalls,
         open(os.path.join(output_dir, f"train_closest_baseline_recall.pkl"), "wb"),
@@ -182,6 +181,7 @@ def main(args):
         flux_named_recall,
         open(os.path.join(output_dir, f"train_flux_baseline_recall.pkl"), "wb"),
     )
+
 
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()

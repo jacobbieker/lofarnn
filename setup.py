@@ -2,10 +2,10 @@ from setuptools import setup, find_packages
 
 setup(
     name="lofarnn",
-    version="0.6",
+    version="0.7",
     license="GPLv3",
     author="Jacob Bieker",
-    authoer_email="jacob.bieker@gmail.com",
+    authoer_email="jacob@bieker.tech",
     url="https://github.com/jacobbieker/lofarnn",
     download_url="https://github.com/jacobbieker/lofarnn/archive/v0.6.0.tar.gz",
     keywords=["Radio Astronomy", "PyTorch", "Machine Learning"],

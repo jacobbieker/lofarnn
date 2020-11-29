@@ -1,5 +1,3 @@
-from lofarnn.visualization.models import visuaize_maps, fancy_visuaize_maps
-from lofarnn.models.base.cnn import RadioMultiSourceModel, RadioSingleSourceModel
 from lofarnn.models.base.utils import setup, default_argument_parser
 from torch.utils.data import dataset, dataloader
 from lofarnn.visualization.metrics import plot_wcs
@@ -53,12 +51,19 @@ def main(args):
     #    model = RadioSingleSourceModel(1, 12, config=config).to(device)
     # else:
     #    model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
-    model = torch.load(os.path.join("/home/jacob/reports/eval_final_test_Resave_40_Fixed_Redshiftfinal_eval_test/", "model_15.pth"))
+    model = torch.load(
+        os.path.join(
+            "/home/jacob/reports/eval_final_test_Resave_40_Fixed_Redshiftfinal_eval_test/",
+            "model_15.pth",
+        )
+    )
     model = model.to(device)
     images = []
     sources = []
     all_dir = "/home/jacob/fixed_lgz_rotated/COCO/all/"
-    comp_catalog = get_lotss_objects("/home/jacob/Downloads/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits")
+    comp_catalog = get_lotss_objects(
+        "/home/jacob/Downloads/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
+    )
     for data in test_loader:
         image, source, labels, names = (
             data["images"].to(device),
@@ -70,14 +75,21 @@ def main(args):
         target = F.softmax(labels, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy()[0]
         if target != 1:
             # Remove extra fields and then do it
-            aux = np.delete(sources.numpy(), [0,3]) # removes IDs, RA and Decs
+            aux = np.delete(sources.numpy(), [0, 3])  # removes IDs, RA and Decs
             output = model(image, torch.from_numpy(aux).to(device))
-            predicted = F.softmax(output, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy()[0]
+            predicted = (
+                F.softmax(output, dim=-1).argmax(dim=1, keepdim=True).cpu().numpy()[0]
+            )
             print(predicted)
             print(target)
-            plot_wcs(os.path.join(all_dir,names[0] +".npy"), names[0],
-                     pred=predicted, target=target,
-                     aux=sources.numpy(), comp_catalog=comp_catalog)
+            plot_wcs(
+                os.path.join(all_dir, names[0] + ".npy"),
+                names[0],
+                pred=predicted,
+                target=target,
+                aux=sources.numpy(),
+                comp_catalog=comp_catalog,
+            )
 
 
 if __name__ == "__main__":

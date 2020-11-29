@@ -1,7 +1,8 @@
-import optuna
 import pickle
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
+import optuna
 
 json_file = "/home/jacob/Development/test_lofarnn/lofarnn/cnn_test_normTrue.pkl"
 annotations = pickle.load(open(json_file, "rb"), fix_imports=True)
@@ -17,6 +18,7 @@ def _get_source_name(name):
     source_name = name.split("/")[-1].split(".cnn")[0]
     return source_name
 
+
 for anno in annotations:
     if isinstance(anno, np.ndarray):
         anno = anno.item()
@@ -30,17 +32,16 @@ for anno in annotations:
         elif i == 0:
             named_recalls[_get_source_name(anno["file_name"])] = 0
 pickle.dump(
-    named_recalls,
-    open(f"train_closest_baseline_recall.pkl", "wb"),
+    named_recalls, open(f"train_closest_baseline_recall.pkl", "wb"),
 )
-    # nonz = np.count_nonzero(anno["optical_labels"])
-    # if nonz == 0:
-    #    print("No Optical Source")
-    #    print(anno["optical_labels"])
-    # if nonz > 2:
-    #    print("Extra Ones")
-    #    print(anno["optical_labels"])
-    # count += nonz - 1
+# nonz = np.count_nonzero(anno["optical_labels"])
+# if nonz == 0:
+#    print("No Optical Source")
+#    print(anno["optical_labels"])
+# if nonz > 2:
+#    print("Extra Ones")
+#    print(anno["optical_labels"])
+# count += nonz - 1
 # print(count)
 print(f"Recall for First Source: {first_source/len(annotations)}")
 exit()

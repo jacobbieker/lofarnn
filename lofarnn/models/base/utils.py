@@ -1,18 +1,17 @@
 import argparse
 import os
 import pickle
-from torchvision import transforms
-import torchvision.transforms.functional as TF
+from typing import List, Tuple, Dict
+
 import numpy as np
-from lofarnn.models.dataloaders.datasets import RadioSourceDataset
-import torch.nn.functional as F
-from lofarnn.models.base.cnn import (
-    RadioSingleSourceModel,
-    RadioMultiSourceModel,
-    f1_loss,
-)
-from lofarnn.models.base.resnet import BinaryFocalLoss
 import torch
+import torch.nn.functional as F
+from torch.utils.data import dataloader
+from torchvision import transforms
+
+from lofarnn.models.base.cnn import f1_loss
+from lofarnn.models.base.resnet import BinaryFocalLoss
+from lofarnn.models.dataloaders.datasets import RadioSourceDataset
 
 
 def default_argument_parser():
@@ -96,7 +95,9 @@ def default_argument_parser():
     return parser
 
 
-def only_image_transforms(image, sources):
+def only_image_transforms(
+    image: np.ndarray, sources: List[str]
+) -> Tuple[np.ndarray, List[str]]:
     """
     Only applies transforms to the image, and leaves the sources as they are
     """
@@ -113,34 +114,15 @@ def only_image_transforms(image, sources):
     return sequence(image), sources
 
 
-def radio_transforms(image, sources):
-    if np.random.random() > 0.5:
-        angle = np.random.randint(-180, 180)
-        image = TF.rotate(image, angle)
-        # Add that angle, in radians, to the sources
-        if sources.ndim == 1:  # Single source
-            sources[1] = sources[1] + (
-                np.deg2rad(angle) / (2 * np.pi)
-            )  # Add radians to source in 0 to 1 scale
-            sources[1] = (sources[1] + 1.0) % 1.0  # keep between 0 and 1
-        elif sources.ndim == 2:
-            for i, item in enumerate(sources):
-                sources[i][1] = sources[i][1] + (
-                    np.deg2rad(angle) / (2 * np.pi)
-                )  # Add radians to source
-                sources[i][1] = (sources[i][1] + 1.0) % 1.0
-    # Random flips
-    # image = TF.hflip(image)
-    # image = TF.vflip(image)
-    return image, sources
-
-
-def setup(args):
+def setup(args) -> Tuple[RadioSourceDataset, RadioSourceDataset, RadioSourceDataset]:
     """
     Setup dataset and dataloaders for these new datasets
     """
     train_dataset = RadioSourceDataset(
-        [os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"), os.path.join(args.dataset, f"cnn_val_norm{args.norm}_extra.pkl")],
+        [
+            os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"),
+            os.path.join(args.dataset, f"cnn_val_norm{args.norm}_extra.pkl"),
+        ],
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         norm=not args.norm,
@@ -149,7 +131,10 @@ def setup(args):
         transform=only_image_transforms if args.augment else None,
     )
     train_test_dataset = RadioSourceDataset(
-        [os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"), os.path.join(args.dataset, f"cnn_val_norm{args.norm}_extra.pkl")],
+        [
+            os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"),
+            os.path.join(args.dataset, f"cnn_val_norm{args.norm}_extra.pkl"),
+        ],
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         norm=not args.norm,
@@ -168,19 +153,18 @@ def setup(args):
 
 def test(
     args,
-    model,
-    device,
-    test_loader,
-    epoch,
-    name="Test",
-    output_dir="./",
-    config={"loss": "cross-entropy"},
-):
+    model: torch.nn.Module,
+    device: torch.device,
+    test_loader: dataloader,
+    epoch: int,
+    name: str = "Test",
+    output_dir: str = "./",
+    config: Dict[str, str] = {"loss": "cross-entropy"},
+) -> float:
     save_test_loss = []
     save_correct = []
     save_recalls = []
     recall = 0
-    precision = 0
 
     named_recalls = {}
 
@@ -268,69 +252,18 @@ def test(
     else:
         return test_loss
 
-def test2(
-        args,
-        model,
-        device,
-        test_loader,
-        wanted_names,
-        name="Test",
-        output_dir="./",
-        config={"loss": "cross-entropy"},
-):
-
-    model.eval()
-    test_loss = 0
-    correct = 0
-    loss_fn = BinaryFocalLoss(
-        alpha=[config["alpha_1"], config["alpha_2"]],
-        gamma=config["gamma"],
-        reduction="mean",
-    )
-    mydict = pickle.load(open("/home/jacob/reports/eval_final_testfinal_eval_test/Test_source_recall_epoch39.pkl", "rb"), fix_imports=True)
-
-    with torch.no_grad():
-        for data in test_loader:
-            image, source, labels, names = (
-                data["images"],
-                data["sources"],
-                data["labels"],
-                data["names"],
-            )
-            for names in names:
-                if mydict[name] == 0:
-                    output = model(image, source)
-                    # sum up batch loss
-                    if config["loss"] == "cross-entropy":
-                        try:
-                            test_loss += F.binary_cross_entropy(
-                                F.softmax(output, dim=-1), labels
-                            ).item()
-                        except RuntimeError:
-                            print(output)
-                    elif config["loss"] == "f1":
-                        test_loss += f1_loss(
-                            output, labels.argmax(dim=1), is_training=False
-                        ).item()
-                    elif config["loss"] == "focal":
-                        test_loss += loss_fn(output, labels).item()
-                    # get the index of the max log-probability
-                    pred = output.argmax(dim=1, keepdim=True)
-                    label = labels.argmax(dim=1, keepdim=True)
-                    correct += pred.eq(label.view_as(pred)).sum().item()
-
 
 def train(
     args,
-    model,
-    device,
-    train_loader,
+    model: torch.nn.Module,
+    device: torch.device,
+    train_loader: dataloader,
     optimizer,
     scheduler,
-    epoch,
-    output_dir="./",
-    config={"loss": "cross-entropy"},
-):
+    epoch: int,
+    output_dir: str = "./",
+    config: Dict[str, str] = {"loss": "cross-entropy"},
+) -> None:
     save_loss = []
     total_loss = 0
     model.train()
