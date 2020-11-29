@@ -842,7 +842,7 @@ def create_cnn_dataset(
     vac_catalog: str = "",
     normalize: bool = True,
     subset: str = "",
-    multi_rotate_only: Optional[Union[List[float], float]] = None,
+    multi_rotate_only: Optional[Union[List[str], str]] = None,
     verbose: bool = False,
 ):
     """

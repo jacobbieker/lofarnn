@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-# from lofarnn.data.datasets import create_source_dataset
+from lofarnn.data.datasets import create_source_dataset
 from lofarnn.utils.coco import create_cnn_dataset
 
 try:
@@ -33,7 +33,6 @@ else:
 rotation = 180
 size = (300.0 / 3600.0) * np.sqrt(2)
 print(size)
-"""
 create_source_dataset(
     cutout_directory=cutout_directory,
     pan_wise_location=pan_wise_location,
@@ -50,7 +49,6 @@ create_source_dataset(
     verbose=False,
     gaussian=False,
 )
-"""
 create_cnn_dataset(
     root_directory=cutout_directory,
     pan_wise_catalog=pan_wise_location,
@@ -59,7 +57,6 @@ create_cnn_dataset(
     all_channels=True,
     vac_catalog=vac,
     normalize=True,
-    segmentation=False,
     multi_rotate_only=vac,
     resize=None,
 )
@@ -71,7 +68,6 @@ create_cnn_dataset(
     all_channels=True,
     vac_catalog=vac,
     normalize=False,
-    segmentation=False,
     multi_rotate_only=vac,
     resize=None,
 )
