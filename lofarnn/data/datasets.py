@@ -468,14 +468,14 @@ def create_source_dataset(
         )
     else:
         create_cutouts(
-            mosaic_names,
-            l_objects,
-            pan_wise_location,
-            comp_catalog,
-            dr_two_location,
-            all_directory,
-            gaussian,
-            all_channels,
-            fixed_size,
-            verbose,
+            mosaic=mosaic_names,
+            value_added_catalog=l_objects,
+            pan_wise_catalog=pan_wise_location,
+            component_catalog=comp_catalog,
+            mosaic_location=dr_two_location,
+            save_cutout_directory=all_directory,
+            gaussian=gaussian,
+            all_channels=all_channels,
+            source_size=fixed_size,
+            verbose=verbose,
         )

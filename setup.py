@@ -2,12 +2,12 @@ from setuptools import setup, find_packages
 
 setup(
     name="lofarnn",
-    version="0.7",
+    version="0.7.1",
     license="GPLv3",
     author="Jacob Bieker",
     authoer_email="jacob@bieker.tech",
     url="https://github.com/jacobbieker/lofarnn",
-    download_url="https://github.com/jacobbieker/lofarnn/archive/v0.6.0.tar.gz",
+    download_url="https://github.com/jacobbieker/lofarnn/archive/v0.7.1.tar.gz",
     keywords=["Radio Astronomy", "PyTorch", "Machine Learning"],
     packages=find_packages(),
     install_requires=["astropy", "numpy", "scikit-image", "pillow", "pytorch", "scipy", "matplotlib"],
