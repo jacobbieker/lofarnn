@@ -1,6 +1,7 @@
 import os
-from lofarnn.models.dataloaders.datasets import collate_variable_fn
+
 from lofarnn.models.base.utils import default_argument_parser, setup, train, test
+from lofarnn.models.dataloaders.datasets import collate_variable_fn
 
 try:
     environment = os.environ["LOFARNN_ARCH"]
@@ -10,7 +11,6 @@ except:
 from lofarnn.models.base.cnn import (
     RadioSingleSourceModel,
     RadioMultiSourceModel,
-    f1_loss,
 )
 from torch.utils.data import dataloader
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CyclicLR
@@ -129,7 +129,7 @@ def objective(trial):
 def main(args):
     if environment == "XPS":
         db = os.path.join(
-            "/home/jacob/Development/lofarnn", f"lotss_dr2_{args.single}_{args.loss}.db"
+            "/", f"lotss_dr2_{args.single}_{args.loss}.db"
         )
     else:
         db = os.path.join(
