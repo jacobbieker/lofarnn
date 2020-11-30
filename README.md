@@ -9,7 +9,7 @@ Otherwise, the lastest code can be built with ```pip install git+https://github.
 
 # Usage
 
-The different PyTorch models and datasets can be easily imported from the ```lofarnn``` package. To preprocess LOFAR data into the correct format for either CNN or Detectron2 models, example code can be found under ```analysis``` folder.
+The different PyTorch models and datasets can be easily imported from the ```lofarnn``` package. To preprocess LOFAR data into the correct format for either CNN or Detectron2 models, example code can be found under ```examples``` folder.
 
 # Models
 PyTorch models used in the thesis are available here: https://drive.google.com/drive/folders/1lCFcQT7WRTiMxfd8jL2ReCoJrNAhj4BW?usp=sharing. The best performing model is the ```multi_cnn.pth``` model.

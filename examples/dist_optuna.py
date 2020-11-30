@@ -1,5 +1,6 @@
 import os
-from lofarnn.models.dataloaders.datasets import RadioSourceDataset, collate_variable_fn
+
+from lofarnn.models.dataloaders.datasets import collate_variable_fn
 
 try:
     environment = os.environ["LOFARNN_ARCH"]
@@ -9,11 +10,10 @@ except:
 from lofarnn.models.base.cnn import (
     RadioSingleSourceModel,
     RadioMultiSourceModel,
-    f1_loss,
 )
 from lofarnn.models.base.utils import default_argument_parser, setup, train, test
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CyclicLR
-from torch.utils.data import dataset, dataloader
+from torch.utils.data import dataloader
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
