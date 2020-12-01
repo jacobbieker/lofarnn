@@ -52,7 +52,7 @@ create_source_dataset(
 
 create_cnn_dataset(
     root_directory=cutout_directory,
-    pan_wise_catalog=pan_wise_location,
+    counterpart_catalog=pan_wise_location,
     rotation=rotation,
     convert=False,
     all_channels=True,
@@ -64,7 +64,7 @@ create_cnn_dataset(
 )
 create_cnn_dataset(
     root_directory=cutout_directory,
-    pan_wise_catalog=pan_wise_location,
+    counterpart_catalog=pan_wise_location,
     rotation=rotation,
     convert=False,
     all_channels=True,

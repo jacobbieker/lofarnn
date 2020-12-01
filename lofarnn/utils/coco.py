@@ -185,8 +185,6 @@ def make_single_cnn_set(
             image_none = convert_to_valid_color(
                 image_none,
                 clip=False,
-                lower_clip=0.0,
-                upper_clip=1000,
                 normalize=False,
                 scaling="sqrt",
             )
@@ -305,23 +303,16 @@ def make_single_coco_annotation_set(
 ):
     """
     For use with multiprocessing, goes through and does one rotation for the COCO annotations
-    :param box_seg: Whether to have segmentation maps and bounding boxes for sources as well as radio components. I.e. bounding boxes with 2 classes:
-    Optical source with segmentation of the entire bounding box, and radio component with bounding box of the entire? image and segmentation map inside that
     :param image_names: Image names to load and use for generating dataset
     :param record_list: Array to add the sources to
     :param set_number:
     :param image_destination_dir: The destination directory of the images
-    :param multiple_bboxes: Whether to include multiple bounding boxes and segmentation maps
     :param resize: What to resize to
     :param rotation: How much to rotate
     :param convert: Whether to convert to PNG and normalize to between 0 and 255 for all channels
     :param all_channels: Whether to use all 10 channels, or just radio, iband, W1 band
     :param precomputed_proposals: Whether to create precomputed proposals
-    :param segmentation: Whether to do segmentation or not, if True, or 5, then uses the 5 sigma segmentation maps, if 3, uses the 3 sigma maps
     :param normalize: Whether to normalize input data between 0 and 1
-    :param stats:
-    :param cut_size: If to only take center number of pixels, eg. for 200px cutout, 100px in all directrions from center point
-    :param verbose:
     :return:
     """
     for i, image_name in enumerate(image_names):
@@ -339,26 +330,7 @@ def make_single_coco_annotation_set(
                 image_dest_filename = os.path.join(
                     image_destination_dir, image_name.stem + f".npy"
                 )
-        if multiple_bboxes:
-            if rotation is not None and rotation.any() > 0:
-                segmap_dest_filename = os.path.join(
-                    image_destination_dir,
-                    image_name.stem + f".semseg.multi.{set_number}.png",
-                )
-            else:
-                segmap_dest_filename = os.path.join(
-                    image_destination_dir, image_name.stem + f".semseg.multi.png"
-                )
-        else:
-            if rotation is not None and rotation.any() > 0:
-                segmap_dest_filename = os.path.join(
-                    image_destination_dir, image_name.stem + f".semseg.{set_number}.png"
-                )
-            else:
-                segmap_dest_filename = os.path.join(
-                    image_destination_dir, image_name.stem + f".semseg.png"
-                )
-        (image, cutouts, proposal_boxes,) = np.load(
+        (image, cutouts, proposal_boxes, wcs) = np.load(
             image_name, allow_pickle=True
         )  # mmap_mode might allow faster read
         image = np.nan_to_num(image)
@@ -391,7 +363,6 @@ def make_single_coco_annotation_set(
                 verbose=False,
             )
         width, height, depth = np.shape(image)
-        # print(segmentation_maps[0].shape)
         if all_channels and depth != 10:
             continue
 
@@ -471,32 +442,30 @@ def make_single_coco_annotation_set(
             record["proposal_boxes"] = proposal_boxes
             record["proposal_objectness_logits"] = np.ones(
                 len(proposal_boxes)
-            )  # TODO Not sure this is right
+            )
             record["proposal_bbox_mode"] = BoxMode.XYXY_ABS
         record["annotations"] = objs
         record_list.append(record)
 
 
 def create_coco_annotations(
-    image_names: List[Path],
-    image_destination_dir: Optional[str],
-    json_dir: str = "",
-    json_name: str = "json_data.pkl",
-    multiple_bboxes: bool = True,
-    resize: Optional[Union[Tuple[int], int]] = None,
-    rotation: Optional[Union[List[float], float]] = None,
-    convert: bool = True,
-    all_channels: bool = False,
-    precomputed_proposals: bool = False,
-    segmentation: bool = False,
-    normalize: bool = True,
+        image_names: Union[List[Path], List[str]],
+        image_destination_dir: Optional[str],
+        json_dir: str = "",
+        json_name: str = "json_data.pkl",
+        multiple_bboxes: bool = True,
+        resize: Optional[Union[Tuple[int], int]] = None,
+        rotation: Optional[Union[List[float], float]] = None,
+        convert: bool = True,
+        all_channels: bool = False,
+        precomputed_proposals: bool = False,
+        normalize: bool = True,
     rotation_names: Optional[List[str]] = None,
     verbose: bool = False,
 ):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
     directory
-    :param segmentation: Whether to include the segmentation maps or not
     :param image_names: Image names, i.e., the source names
     :param image_destination_dir: The directory the images will end up in
     :param json_dir: The directory where to put the JSON annotation file
@@ -563,10 +532,7 @@ def create_coco_annotations(
                     convert,
                     all_channels,
                     precomputed_proposals,
-                    segmentation,
                     normalize,
-                    False,
-                    verbose,
                 ],
             )
             for m in range(num_copies)
@@ -590,11 +556,7 @@ def create_coco_annotations(
                     convert,
                     all_channels,
                     precomputed_proposals,
-                    segmentation,
                     normalize,
-                    False,
-                    [],
-                    verbose,
                 ],
             )
             for m in range(num_multi_copies)
@@ -648,16 +610,13 @@ def create_cnn_annotations(
     convert=True,
     all_channels=False,
     vac_catalog_location="",
-    segmentation=False,
     normalize=True,
-    cut_size=None,
     rotation_names=None,
     verbose=False,
 ):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
     directory
-    :param segmentation: Whether to include the segmentation maps or not
     :param image_names: Image names, i.e., the source names
     :param image_destination_dir: The directory the images will end up in
     :param json_dir: The directory where to put the JSON annotation file
@@ -716,11 +675,7 @@ def create_cnn_annotations(
                     convert,
                     all_channels,
                     vac_catalog_location,
-                    segmentation,
                     normalize,
-                    False,
-                    cut_size,
-                    verbose,
                 ],
             )
             for m in range(num_copies)
@@ -744,11 +699,7 @@ def create_cnn_annotations(
                     convert,
                     all_channels,
                     vac_catalog_location,
-                    segmentation,
                     normalize,
-                    False,
-                    cut_size,
-                    verbose,
                 ],
             )
             for m in range(num_multi_copies)
@@ -774,7 +725,6 @@ def create_cnn_annotations(
     manager = Manager()
     pool = Pool(processes=os.cpu_count())
     L = manager.list()
-    rotation = None
     [
         pool.apply_async(
             make_single_cnn_set,
@@ -789,11 +739,7 @@ def create_cnn_annotations(
                 convert,
                 all_channels,
                 vac_catalog_location,
-                segmentation,
                 normalize,
-                False,
-                cut_size,
-                verbose,
             ],
         )
         for name in image_names
@@ -804,25 +750,6 @@ def create_cnn_annotations(
     print(f"Length of L: {len(L)}")
     for element in L:
         dataset_dicts.append(element)
-    """
-    make_single_cnn_set(
-        image_names,
-        dataset_dicts,
-        0,
-        image_destination_dir,
-        pan_wise_location,
-        resize,
-        None,
-        convert,
-        all_channels,
-        vac_catalog_location,
-        segmentation,
-        normalize,
-        False,
-        cut_size,
-        verbose,
-    )
-    #"""
     # Write all image dictionaries to file as one json
     json_path = os.path.join(json_dir, json_name)
     with open(json_path, "wb") as outfile:
@@ -832,18 +759,18 @@ def create_cnn_annotations(
 
 
 def create_cnn_dataset(
-    root_directory: str,
-    pan_wise_catalog: str = "",
-    split_fraction: float = 0.2,
-    resize: Optional[Union[Tuple[int], int]] = None,
-    rotation: Optional[Union[List[float], float]] = None,
-    convert: bool = True,
-    all_channels: bool = False,
-    vac_catalog: str = "",
-    normalize: bool = True,
-    subset: str = "",
-    multi_rotate_only: Optional[Union[List[str], str]] = None,
-    verbose: bool = False,
+        root_directory: str,
+        counterpart_catalog: str = "",
+        split_fraction: float = 0.2,
+        resize: Optional[Union[Tuple[int], int]] = None,
+        rotation: Optional[Union[List[float], float]] = None,
+        convert: bool = True,
+        all_channels: bool = False,
+        vac_catalog: str = "",
+        normalize: bool = True,
+        subset: str = "",
+        multi_rotate_only: Optional[Union[List[str], str]] = None,
+        verbose: bool = False,
 ):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
@@ -888,8 +815,8 @@ def create_cnn_dataset(
             data_split["val"],
             json_dir=annotations_directory,
             image_destination_dir=val_directory,
-            json_name=f"cnn_val_norm{normalize}_extra.pkl",
-            pan_wise_location=pan_wise_catalog,
+            json_name=f"cnn_val_norm{normalize}.pkl",
+            pan_wise_location=counterpart_catalog,
             resize=resize,
             rotation=None,
             convert=convert,
@@ -903,8 +830,8 @@ def create_cnn_dataset(
         data_split["train"],
         json_dir=annotations_directory,
         image_destination_dir=train_directory,
-        json_name=f"cnn_train_test_norm{normalize}_extra.pkl",
-        pan_wise_location=pan_wise_catalog,
+        json_name=f"cnn_train_test_norm{normalize}.pkl",
+        pan_wise_location=counterpart_catalog,
         resize=resize,
         rotation=None,
         convert=convert,
@@ -918,8 +845,8 @@ def create_cnn_dataset(
         data_split["test"],
         json_dir=annotations_directory,
         image_destination_dir=test_directory,
-        json_name=f"cnn_test_norm{normalize}_extra.pkl",
-        pan_wise_location=pan_wise_catalog,
+        json_name=f"cnn_test_norm{normalize}.pkl",
+        pan_wise_location=counterpart_catalog,
         resize=resize,
         rotation=None,
         convert=convert,
@@ -933,8 +860,8 @@ def create_cnn_dataset(
         data_split["train"],
         json_dir=annotations_directory,
         image_destination_dir=train_directory,
-        json_name=f"cnn_train_norm{normalize}_extra.pkl",
-        pan_wise_location=pan_wise_catalog,
+        json_name=f"cnn_train_norm{normalize}.pkl",
+        pan_wise_location=counterpart_catalog,
         resize=resize,
         rotation=rotation,
         convert=convert,
@@ -955,7 +882,6 @@ def create_coco_dataset(
     convert: bool = True,
     all_channels: bool = False,
     precomputed_proposals: bool = False,
-    segmentation: bool = False,
     normalize: bool = True,
     subset: str = "",
     multi_rotate_only: Optional[List[str]] = None,
@@ -1003,7 +929,7 @@ def create_coco_dataset(
         data_split["train"],
         json_dir=annotations_directory,
         image_destination_dir=train_directory,
-        json_name=f"json_train_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}_norm{normalize}.pkl",
+        json_name=f"json_train_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_norm{normalize}.pkl",
         multiple_bboxes=multiple_bboxes,
         resize=resize,
         rotation=rotation,
@@ -1018,7 +944,7 @@ def create_coco_dataset(
         data_split["train"],
         json_dir=annotations_directory,
         image_destination_dir=train_directory,
-        json_name=f"json_train_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}_norm{normalize}.pkl",
+        json_name=f"json_train_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_norm{normalize}.pkl",
         multiple_bboxes=multiple_bboxes,
         resize=resize,
         rotation=None,
@@ -1034,7 +960,7 @@ def create_coco_dataset(
             data_split["val"],
             json_dir=annotations_directory,
             image_destination_dir=val_directory,
-            json_name=f"json_val_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}_norm{normalize}.pkl",
+            json_name=f"json_val_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_norm{normalize}.pkl",
             multiple_bboxes=multiple_bboxes,
             resize=resize,
             rotation=None,
@@ -1049,7 +975,7 @@ def create_coco_dataset(
         data_split["test"],
         json_dir=annotations_directory,
         image_destination_dir=test_directory,
-        json_name=f"json_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_seg{segmentation}_norm{normalize}.pkl",
+        json_name=f"json_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_norm{normalize}.pkl",
         multiple_bboxes=multiple_bboxes,
         resize=resize,
         rotation=None,
