@@ -11,7 +11,7 @@ from astropy.wcs import WCS
 from astropy.wcs.utils import skycoord_to_pixel
 
 from lofarnn.models.dataloaders.utils import get_lotss_objects
-from lofarnn.utils.coco import create_coco_style_directory_structure
+from lofarnn.utils.common import create_coco_style_directory_structure
 from lofarnn.utils.fits import extract_subimage, determine_visible_catalogue_sources
 from lofarnn.visualization.cutouts import plot_three_channel_debug
 

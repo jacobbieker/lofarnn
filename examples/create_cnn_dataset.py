@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from lofarnn.data.datasets import create_source_dataset
-from lofarnn.utils.coco import create_cnn_dataset
+from lofarnn.utils.cnn import create_cnn_dataset
 
 try:
     environment = os.environ["LOFARNN_ARCH"]
