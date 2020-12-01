@@ -9,7 +9,6 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
 from astropy.wcs.utils import skycoord_to_pixel
-from scipy.ndimage.filters import gaussian_filter
 
 from lofarnn.models.dataloaders.utils import get_lotss_objects
 from lofarnn.utils.coco import create_coco_style_directory_structure
@@ -60,7 +59,6 @@ def make_catalogue_layer(
     wcs: WCS,
     shape: Union[Tuple[int], int],
     catalogue: Table,
-    gaussian: bool = None,
     verbose: bool = False,
 ):
     """
@@ -69,7 +67,6 @@ def make_catalogue_layer(
     :param shape: Shape of the image data
     :param wcs: WCS of the Radio data, so catalog data can be translated correctly
     :param catalogue: Catalogue to query
-    :param gaussian: Whether to smooth the point values with a gaussian
     :return: A Numpy array that holds the information in the correct location
     """
 
@@ -92,19 +89,16 @@ def make_catalogue_layer(
         except Exception as e:
             if verbose:
                 print(f"Failed: {e}")
-    if gaussian is not None:
-        layer = gaussian_filter(layer, sigma=gaussian)
     return layer
 
 
-def make_proposal_boxes(wcs: WCS, catalogue: Table, gaussian: Optional[bool] = None):
+def make_proposal_boxes(wcs: WCS, catalogue: Table):
     """
    Create Faster RCNN proposal boxes for all sources in the image
 
    The sky_coords seems to be swapped x and y on the boxes, so should be swapped here too
    :param wcs: WCS of the Radio data, so catalog data can be translated correctly
    :param catalogue: Catalogue to query
-   :param gaussian: Whether to smooth the point values with a gaussian
    :return: A Numpy array that holds the information in the correct location
    """
 
@@ -123,7 +117,6 @@ def make_proposal_boxes(wcs: WCS, catalogue: Table, gaussian: Optional[bool] = N
                     dec_array[index],
                     wcs=wcs,
                     class_name="Proposal Box",
-                    gaussian=gaussian,
                 )
             )
         except Exception as e:
@@ -136,7 +129,6 @@ def make_bounding_box(
     dec: Union[float, str],
     wcs: WCS,
     class_name: str = "Optical source",
-    gaussian: Optional[bool] = None,
 ):
     """
     Creates a bounding box and returns it in (xmin, ymin, xmax, ymax, class_name) format
@@ -144,24 +136,15 @@ def make_bounding_box(
     :param ra: RA of the object to make bounding box
     :param dec: Dec of object
     :param wcs: WCS to convert to pixel coordinates
-    :param gaussian: Whether gaussian is being used, in which case the box is not int'd but left as a float, and the
-    width of the gaussian is used for the width of the bounding box, if it is being used, instead of 'None', it should
-    be the width of the Gaussian
     :return: Bounding box coordinates for COCO style annotation
     """
     source_skycoord = SkyCoord(ra, dec, unit="deg")
     box_center = skycoord_to_pixel(source_skycoord, wcs, 0)
-    if gaussian is None:
-        # Now create box, which will be accomplished by taking int to get xmin, ymin, and int + 1 for xmax, ymax
-        xmin = int(np.floor(box_center[0])) - 0.5
-        ymin = int(np.floor(box_center[1])) - 0.5
-        ymax = ymin + 1
-        xmax = xmin + 1
-    else:
-        xmin = int(np.floor(box_center[0])) - gaussian
-        ymin = int(np.floor(box_center[1])) - gaussian
-        xmax = np.ceil(int(np.floor(box_center[0])) + gaussian)
-        ymax = np.ceil(int(np.floor(box_center[1])) + gaussian)
+    # Now create box, which will be accomplished by taking int to get xmin, ymin, and int + 1 for xmax, ymax
+    xmin = int(np.floor(box_center[0])) - 0.5
+    ymin = int(np.floor(box_center[1])) - 0.5
+    ymax = ymin + 1
+    xmax = xmin + 1
 
     return xmin, ymin, xmax, ymax, class_name, box_center
 
@@ -173,7 +156,6 @@ def create_cutouts(
     component_catalog: Union[Table, str],
     mosaic_location: str,
     save_cutout_directory: str,
-    gaussian: Optional[bool] = None,
     all_channels: Optional[bool] = False,
     source_size: Optional[bool] = None,
     verbose: Optional[bool] = False,
@@ -193,8 +175,6 @@ def create_cutouts(
     """
     lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
     lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
-    if gaussian is False:
-        gaussian = None
     if type(pan_wise_catalog) == str:
         print("Trying To Open")
         pan_wise_catalog = fits.open(pan_wise_catalog, memmap=True)
@@ -291,12 +271,12 @@ def create_cutouts(
             # Now make proposal boxes
             proposal_boxes = np.asarray(
                 make_proposal_boxes(
-                    wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian
+                    wcs, img_array[0].shape, cutout_catalog,
                 )
             )
             for layer in layers:
                 tmp = make_catalogue_layer(
-                    layer, wcs, img_array[0].shape, cutout_catalog, gaussian=gaussian
+                    layer, wcs, img_array[0].shape, cutout_catalog,
                 )
                 img_array.append(tmp)
 
@@ -308,7 +288,7 @@ def create_cutouts(
             bounding_boxes = []
             try:
                 source_bbox = make_bounding_box(
-                    source["ID_ra"], source["ID_dec"], wcs, gaussian=gaussian
+                    source["ID_ra"], source["ID_dec"], wcs,
                 )
                 assert source_bbox[1] >= 0
                 assert source_bbox[0] >= 0
@@ -337,7 +317,6 @@ def create_cutouts(
                     other_source["ID_dec"],
                     wcs,
                     class_name="Other Optical Source",
-                    gaussian=gaussian,
                 )
                 if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(
                     other_bbox[1], bounding_boxes[0][1]
@@ -384,7 +363,6 @@ def create_source_dataset(
     value_added_catalog_location: str,
     component_catalog_location: str,
     dr_two_location: str,
-    gaussian: Optional[bool] = None,
     all_channels: Optional[bool] = False,
     fixed_size: Optional[Union[int, float]] = None,
     filter_lgz: bool = True,
@@ -401,7 +379,6 @@ def create_source_dataset(
     :param pan_wise_location: The location of the PanSTARRS-ALLWISE catalog
     :param value_added_catalog_location: Location of the LoTSS Value Added Catalog
     :param dr_two_location: The location of the LoTSS DR2 Mosaic Locations
-    :param gaussian: Whether to spread out data layers with Gaussian of specified width
     :param use_multiprocessing: Whether to use multiprocessing
     :param num_threads: Number of threads to use, if multiprocessing is true
     :param strict_filter: Use the same filtering as for Jelle's subsample, with total flux > 10 mJy, and size > 15 arcseconds
@@ -460,7 +437,6 @@ def create_source_dataset(
                 repeat(comp_catalog),
                 repeat(dr_two_location),
                 repeat(all_directory),
-                repeat(gaussian),
                 repeat(all_channels),
                 repeat(fixed_size),
                 repeat(verbose),
@@ -474,7 +450,6 @@ def create_source_dataset(
             component_catalog=comp_catalog,
             mosaic_location=dr_two_location,
             save_cutout_directory=all_directory,
-            gaussian=gaussian,
             all_channels=all_channels,
             source_size=fixed_size,
             verbose=verbose,
