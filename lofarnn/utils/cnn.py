@@ -20,6 +20,17 @@ def make_single_cnn_set(
     set_number: int,
     image_destination_dir: Optional[str],
     pan_wise_location: str = "",
+    bands: List[str] = (
+        "iFApMag",
+        "w1Mag",
+        "gFApMag",
+        "rFApMag",
+        "zFApMag",
+        "yFApMag",
+        "w2Mag",
+        "w3Mag",
+        "w4Mag",
+    ),
     resize: Optional[Union[int, List[int]]] = None,
     rotation: Optional[Union[List[float], float]] = None,
     convert: bool = True,
@@ -162,17 +173,6 @@ def make_single_cnn_set(
             distances = distances[idx]
             angles = angles[idx]
             sky_coords = sky_coords[idx]
-            layers = [
-                "iFApMag",
-                "w1Mag",
-                "gFApMag",
-                "rFApMag",
-                "zFApMag",
-                "yFApMag",
-                "w2Mag",
-                "w3Mag",
-                "w4Mag",
-            ]
             optical_sources = []
             optical_labels = []
             for j, obj in enumerate(objects):
@@ -191,7 +191,7 @@ def make_single_cnn_set(
                 optical_sources[-1].append(distances[j])
                 optical_sources[-1].append(angles[j])
                 optical_sources[-1].append(obj["z_best"])
-                for layer in layers:
+                for layer in bands:
                     value = np.nan_to_num(obj[layer])
                     if normalize:  # Scale to between 0 and 1 for 10 to 28 magnitude
                         value = np.clip(value, 10.0, 28.0)
@@ -222,7 +222,17 @@ def create_cnn_annotations(
     resize=None,
     rotation=None,
     convert=True,
-    all_channels=False,
+    bands: List[str] = (
+        "iFApMag",
+        "w1Mag",
+        "gFApMag",
+        "rFApMag",
+        "zFApMag",
+        "yFApMag",
+        "w2Mag",
+        "w3Mag",
+        "w4Mag",
+    ),
     vac_catalog_location="",
     normalize=True,
     rotation_names=None,
@@ -284,10 +294,10 @@ def create_cnn_annotations(
                     m,
                     image_destination_dir,
                     pan_wise_location,
+                    bands,
                     resize,
                     rotation,
                     convert,
-                    all_channels,
                     vac_catalog_location,
                     normalize,
                 ],
@@ -308,10 +318,11 @@ def create_cnn_annotations(
                     m,
                     image_destination_dir,
                     pan_wise_location,
+                    bands,
                     resize,
                     multi_rotation,
                     convert,
-                    all_channels,
+                    bands,
                     vac_catalog_location,
                     normalize,
                 ],
@@ -334,8 +345,6 @@ def create_cnn_annotations(
         return 0  # Returns to doesnt go through it again
 
     # Iterate over all cutouts and their objects (which contain bounding boxes and class labels)
-    bbox_size = []
-    # """
     manager = Manager()
     pool = Pool(processes=os.cpu_count())
     L = manager.list()
@@ -348,10 +357,10 @@ def create_cnn_annotations(
                 0,
                 image_destination_dir,
                 pan_wise_location,
+                bands,
                 resize,
                 None,
                 convert,
-                all_channels,
                 vac_catalog_location,
                 normalize,
             ],
@@ -379,7 +388,17 @@ def create_cnn_dataset(
     resize: Optional[Union[Tuple[int], int]] = None,
     rotation: Optional[Union[List[float], float]] = None,
     convert: bool = True,
-    all_channels: bool = False,
+    bands: List[str] = (
+        "iFApMag",
+        "w1Mag",
+        "gFApMag",
+        "rFApMag",
+        "zFApMag",
+        "yFApMag",
+        "w2Mag",
+        "w3Mag",
+        "w4Mag",
+    ),
     vac_catalog: str = "",
     normalize: bool = True,
     subset: str = "",
@@ -435,7 +454,7 @@ def create_cnn_dataset(
             rotation=None,
             convert=convert,
             normalize=normalize,
-            all_channels=all_channels,
+            bands=bands,
             vac_catalog_location=vac_catalog,
             rotation_names=multi_names,
             verbose=verbose,
@@ -450,7 +469,7 @@ def create_cnn_dataset(
         rotation=None,
         convert=convert,
         normalize=normalize,
-        all_channels=all_channels,
+        bands=bands,
         vac_catalog_location=vac_catalog,
         rotation_names=multi_names,
         verbose=verbose,
@@ -465,7 +484,7 @@ def create_cnn_dataset(
         rotation=None,
         convert=convert,
         normalize=normalize,
-        all_channels=all_channels,
+        bands=bands,
         vac_catalog_location=vac_catalog,
         rotation_names=multi_names,
         verbose=verbose,
@@ -480,7 +499,7 @@ def create_cnn_dataset(
         rotation=rotation,
         convert=convert,
         normalize=normalize,
-        all_channels=all_channels,
+        bands=bands,
         vac_catalog_location=vac_catalog,
         rotation_names=multi_names,
         verbose=verbose,

@@ -54,9 +54,7 @@ create_coco_dataset(
     multiple_bboxes=False,
     rotation=rotation,
     convert=True,
-    all_channels=False,
     precomputed_proposals=True,
-    segmentation=False,
     multi_rotate_only=vac,
     resize=400,
 )
@@ -65,9 +63,7 @@ create_coco_dataset(
     multiple_bboxes=False,
     rotation=rotation,
     convert=True,
-    all_channels=False,
     precomputed_proposals=False,
-    segmentation=False,
     multi_rotate_only=vac,
     resize=400,
 )
@@ -76,9 +72,7 @@ create_coco_dataset(
     multiple_bboxes=False,
     rotation=rotation,
     convert=False,
-    all_channels=True,
     precomputed_proposals=True,
-    segmentation=False,
     multi_rotate_only=vac,
     resize=400,
 )
@@ -87,9 +81,7 @@ create_coco_dataset(
     multiple_bboxes=False,
     rotation=rotation,
     convert=False,
-    all_channels=True,
     precomputed_proposals=False,
-    segmentation=False,
     multi_rotate_only=vac,
     resize=400,
 )
@@ -98,9 +90,7 @@ create_coco_dataset(
     multiple_bboxes=False,
     rotation=rotation,
     convert=True,
-    all_channels=False,
     precomputed_proposals=True,
-    segmentation=True,
     multi_rotate_only=vac,
     resize=400,
 )
@@ -109,9 +99,7 @@ create_coco_dataset(
     multiple_bboxes=False,
     rotation=rotation,
     convert=True,
-    all_channels=False,
     precomputed_proposals=False,
-    segmentation=True,
     resize=400,
     multi_rotate_only=vac,
 )
@@ -120,9 +108,7 @@ create_coco_dataset(
     multiple_bboxes=False,
     rotation=rotation,
     convert=False,
-    all_channels=True,
     precomputed_proposals=True,
-    segmentation=True,
     resize=400,
     multi_rotate_only=vac,
 )
@@ -131,9 +117,7 @@ create_coco_dataset(
     multiple_bboxes=False,
     rotation=rotation,
     convert=False,
-    all_channels=True,
     precomputed_proposals=False,
-    segmentation=True,
     resize=400,
     multi_rotate_only=vac,
 )

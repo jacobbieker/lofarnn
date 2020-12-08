@@ -26,7 +26,6 @@ create_coco_dataset(
     multiple_bboxes=True,
     rotation=None,
     convert=True,
-    all_channels=False,
     verbose=True,
     resize=200,
 )

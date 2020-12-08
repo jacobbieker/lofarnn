@@ -22,7 +22,17 @@ def make_single_coco_annotation_set(
     resize: Optional[Union[Tuple[int], int]] = None,
     rotation: Optional[Union[List[float], float]] = None,
     convert: bool = True,
-    all_channels: bool = False,
+    bands: List[str] = (
+        "iFApMag",
+        "w1Mag",
+        "gFApMag",
+        "rFApMag",
+        "zFApMag",
+        "yFApMag",
+        "w2Mag",
+        "w3Mag",
+        "w4Mag",
+    ),
     precomputed_proposals: bool = False,
     normalize: bool = True,
 ):
@@ -35,7 +45,7 @@ def make_single_coco_annotation_set(
     :param resize: What to resize to
     :param rotation: How much to rotate
     :param convert: Whether to convert to PNG and normalize to between 0 and 255 for all channels
-    :param all_channels: Whether to use all 10 channels, or just radio, iband, W1 band
+    :param bands: Whether to use all 10 channels, or just radio, iband, W1 band
     :param precomputed_proposals: Whether to create precomputed proposals
     :param normalize: Whether to normalize input data between 0 and 1
     :return:
@@ -88,7 +98,7 @@ def make_single_coco_annotation_set(
                 verbose=False,
             )
         width, height, depth = np.shape(image)
-        if all_channels and depth != 10:
+        if depth != len(bands):
             continue
 
         # First R (Radio) channel
@@ -119,7 +129,7 @@ def make_single_coco_annotation_set(
             else:
                 image = np.nan_to_num(image)
                 np.save(image_dest_filename, image)  # Save to the final destination
-        if all_channels:
+        if bands:
             rec_depth = 10
         else:
             rec_depth = 3
@@ -180,7 +190,17 @@ def create_coco_annotations(
     resize: Optional[Union[Tuple[int], int]] = None,
     rotation: Optional[Union[List[float], float]] = None,
     convert: bool = True,
-    all_channels: bool = False,
+    bands: List[str] = (
+        "iFApMag",
+        "w1Mag",
+        "gFApMag",
+        "rFApMag",
+        "zFApMag",
+        "yFApMag",
+        "w2Mag",
+        "w3Mag",
+        "w4Mag",
+    ),
     precomputed_proposals: bool = False,
     normalize: bool = True,
     rotation_names: Optional[List[str]] = None,
@@ -253,7 +273,7 @@ def create_coco_annotations(
                     resize,
                     rotation,
                     convert,
-                    all_channels,
+                    bands,
                     precomputed_proposals,
                     normalize,
                 ],
@@ -277,7 +297,7 @@ def create_coco_annotations(
                     resize,
                     multi_rotation,
                     convert,
-                    all_channels,
+                    bands,
                     precomputed_proposals,
                     normalize,
                 ],
@@ -310,7 +330,7 @@ def create_coco_annotations(
             resize=resize,
             rotation=rotation,
             convert=convert,
-            all_channels=all_channels,
+            bands=bands,
             precomputed_proposals=precomputed_proposals,
             normalize=normalize,
         )
@@ -329,11 +349,21 @@ def create_coco_dataset(
     resize: Optional[Union[Tuple[int], int]] = None,
     rotation: Optional[Union[List[float], float]] = None,
     convert: bool = True,
-    all_channels: bool = False,
+    bands: List[str] = (
+        "iFApMag",
+        "w1Mag",
+        "gFApMag",
+        "rFApMag",
+        "zFApMag",
+        "yFApMag",
+        "w2Mag",
+        "w3Mag",
+        "w4Mag",
+    ),
     precomputed_proposals: bool = False,
     normalize: bool = True,
     subset: str = "",
-    multi_rotate_only: Optional[List[str]] = None,
+    multi_rotate_only: Optional[str] = None,
     verbose: bool = False,
 ):
     """
@@ -378,13 +408,13 @@ def create_coco_dataset(
         data_split["train"],
         json_dir=annotations_directory,
         image_destination_dir=train_directory,
-        json_name=f"json_train_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_norm{normalize}.pkl",
+        json_name=f"json_train_prop{precomputed_proposals}_all{bands}_multi{multiple_bboxes}_norm{normalize}.pkl",
         multiple_bboxes=multiple_bboxes,
         resize=resize,
         rotation=rotation,
         convert=convert,
         normalize=normalize,
-        all_channels=all_channels,
+        bands=bands,
         precomputed_proposals=precomputed_proposals,
         rotation_names=multi_names,
         verbose=verbose,
@@ -393,13 +423,13 @@ def create_coco_dataset(
         data_split["train"],
         json_dir=annotations_directory,
         image_destination_dir=train_directory,
-        json_name=f"json_train_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_norm{normalize}.pkl",
+        json_name=f"json_train_test_prop{precomputed_proposals}_all{bands}_multi{multiple_bboxes}_norm{normalize}.pkl",
         multiple_bboxes=multiple_bboxes,
         resize=resize,
         rotation=None,
         convert=convert,
         normalize=normalize,
-        all_channels=all_channels,
+        bands=bands,
         precomputed_proposals=precomputed_proposals,
         rotation_names=None,
         verbose=verbose,
@@ -409,13 +439,13 @@ def create_coco_dataset(
             data_split["val"],
             json_dir=annotations_directory,
             image_destination_dir=val_directory,
-            json_name=f"json_val_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_norm{normalize}.pkl",
+            json_name=f"json_val_prop{precomputed_proposals}_all{bands}_multi{multiple_bboxes}_norm{normalize}.pkl",
             multiple_bboxes=multiple_bboxes,
             resize=resize,
             rotation=None,
             convert=convert,
             normalize=normalize,
-            all_channels=all_channels,
+            bands=bands,
             precomputed_proposals=precomputed_proposals,
             rotation_names=None,
             verbose=verbose,
@@ -424,13 +454,13 @@ def create_coco_dataset(
         data_split["test"],
         json_dir=annotations_directory,
         image_destination_dir=test_directory,
-        json_name=f"json_test_prop{precomputed_proposals}_all{all_channels}_multi{multiple_bboxes}_norm{normalize}.pkl",
+        json_name=f"json_test_prop{precomputed_proposals}_all{bands}_multi{multiple_bboxes}_norm{normalize}.pkl",
         multiple_bboxes=multiple_bboxes,
         resize=resize,
         rotation=None,
         convert=convert,
         normalize=normalize,
-        all_channels=all_channels,
+        bands=bands,
         precomputed_proposals=precomputed_proposals,
         verbose=verbose,
     )
