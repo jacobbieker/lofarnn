@@ -228,4 +228,5 @@ dependencies:
       - virtualenv==20.0.30
       - webencodings==0.5.1
       - yacs==0.1.6
+      - git+https://github.com/facebookresearch/detectron2.git@master
 
