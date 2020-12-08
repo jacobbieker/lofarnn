@@ -412,6 +412,7 @@ def create_cnn_dataset(
     subset: str = "",
     multi_rotate_only: Optional[Union[List[str], str]] = None,
     verbose: bool = False,
+    **kwargs,
 ):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct
@@ -447,7 +448,9 @@ def create_cnn_dataset(
     if multi_rotate_only:
         l_objects = get_lotss_objects(multi_rotate_only, False)
         # Get all multicomponent sources
-        l_objects = l_objects[l_objects["LGZ_Assoc"] > 1]
+        l_objects = l_objects[
+            l_objects[kwargs.get("association_name", "LGZ_Assoc")] > 1
+        ]
         multi_names = l_objects["Source_Name"].data
     else:
         multi_names = None
