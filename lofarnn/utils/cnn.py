@@ -7,6 +7,7 @@ from typing import List, Any, Optional, Union, Tuple
 import numpy as np
 from PIL import Image
 from astropy.io import fits
+from astropy.nddata import Cutout2D
 
 from lofarnn.data.cutouts import augment_image_and_bboxes, convert_to_valid_color
 from lofarnn.models.dataloaders.utils import get_lotss_objects
@@ -67,7 +68,13 @@ def make_single_cnn_set(
             (image, cutouts, proposal_boxes, wcs) = np.load(
                 image_name, allow_pickle=True
             )  # mmap_mode might allow faster read
-
+            cutout = Cutout2D(
+                image,
+                position=(int(image.shape[0] / 2), int(image.shape[1] / 2)),
+                size=int(np.sqrt(image.shape[0])),
+                wcs=wcs,
+            )
+            wcs = cutout.wcs
             image = np.nan_to_num(image)
             if rotation is not None:
                 if isinstance(rotation, (list, tuple, np.ndarray)):
@@ -143,9 +150,11 @@ def make_single_cnn_set(
                 pil_im.save(image_dest_filename)
             else:
                 image = np.nan_to_num(image)  # Only take radio
-                np.save(image_dest_filename, image)  # Save to the final destination
+                np.save(
+                    image_dest_filename, (image, cutout.wcs)
+                )  # Save to the final destination
         else:
-            image = np.load(image_dest_filename)
+            image, wcs = np.load(image_dest_filename)
             height, width, depth = np.shape(image)
 
         record = {
