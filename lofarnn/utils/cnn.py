@@ -201,6 +201,7 @@ def make_single_cnn_set(
             record["optical_labels"] = optical_labels
             record["source_skycoord"] = source_coords
             record["optical_skycoords"] = sky_coords
+            record["wcs"] = wcs
             if rotation is not None:
                 record["rotation"] = rotation[set_number]
             else:
@@ -245,9 +246,7 @@ def create_cnn_annotations(
     :param image_destination_dir: The directory the images will end up in
     :param json_dir: The directory where to put the JSON annotation file
     :param json_name: The name of the JSON file
-    :param multiple_bboxes: Whether to use multiple bounding boxes, or only the first, for
-    example, to only use the main source Optical source, or include others that fall within the
-    defined area
+    :param bands: The bands to include in the source
     :param rotation: Whether to rotate the images or not, if given as a tuple, it is taken as rotate each image by that amount,
     if a single float, then rotates images randomly between -rotation,rotation 50 times
     :param convert: Whether to convert to PNG files (default), or leave them as NPY files
@@ -410,7 +409,7 @@ def create_cnn_dataset(
     directories, and create the COCO annotation file to be loaded into Detectron2, or other similar models
     :param split_fraction: Fraction of the data for the test set. the validation set is rolled into the test set.
     :param root_directory: root directory for the COCO dataset
-    :param multiple_bboxes: Whether to include multiple bounding boxes, or only the main source
+    :param bands: The bands to include in the source
     :param resize: Image size to resize to, or None if not resizing
     :param convert: Whether to convert npy files to png, or to keep them in the original format, useful for SourceMapper
     :param verbose: Whether to print more data to stdout or not

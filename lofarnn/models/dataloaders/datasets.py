@@ -15,8 +15,8 @@ class RadioSourceDataset(Dataset):
         single_source_per_img: bool = True,
         num_sources: int = 40,
         shuffle: bool = False,
-        norm: bool = True,
         transform=None,
+        embed_source: bool = False,
         remove_no_source: bool = True,
         fraction: float = 1.0,
     ):
@@ -24,6 +24,8 @@ class RadioSourceDataset(Dataset):
         Args:
             json_file (string): Path to the json file with annotations
             single_source_per_img (bool, optional): Whether to give all sources with an image, or a single source per image
+            embed_source (bool, optional): Whether to embed single sources in the images or not, instead of returning the
+            radio image + source list, it then returns a single radio image with n channels, one for each available band
         """
         if isinstance(json_file, str):
             self.annotations = pickle.load(open(json_file, "rb"), fix_imports=True)
@@ -36,8 +38,8 @@ class RadioSourceDataset(Dataset):
 
             random.shuffle(self.annotations)
             self.annotations = self.annotations[: int(len(self.annotations) * fraction)]
-        self.norm = norm
         self.transform = transform
+        self.embed_source = embed_source
         # Remove any non-standard files
         print(f"Len Anno: {len(self.annotations)}")
         print(f"JSON File: {json_file}")
@@ -63,7 +65,7 @@ class RadioSourceDataset(Dataset):
 
         # for length and indexing in if single optical source per image
         self.mapping = {}
-        if self.single_source:
+        if self.single_source or self.embed_source:
             total = 0
             for i, annotation in enumerate(self.annotations):
                 for j, _ in enumerate(annotation["optical_sources"]):
@@ -87,6 +89,7 @@ class RadioSourceDataset(Dataset):
         image = image.reshape((1, image.shape[0], image.shape[1]))
         image = torch.from_numpy(image).float()
         source = anno["optical_sources"][self.mapping[idx][1]]
+        source = source[3:]  # Remove the IDs, etc.
         source[0] = source[0].value / (0.03)  # Distance (arcseconds)
         source[1] = source[1].value / (2 * np.pi)  # Convert to between 0 and 1
         source[2] = source[2] / 7.0  # Redshift
@@ -103,6 +106,38 @@ class RadioSourceDataset(Dataset):
             "images": image,
             "sources": torch.from_numpy(source).float(),
             "labels": torch.from_numpy(label).float(),
+            "names": self._get_source_name(anno["file_name"]),
+        }
+
+    def load_embedded_source(self, idx):
+        anno = self.annotations[self.mapping[idx][0]]
+        image = np.load(anno["file_name"], fix_imports=True)
+        source = anno["optical_sources"][self.mapping[idx][1]]
+        source = source[3:]  # Remove the IDs, etc.
+        # Encode into the image one-hot encoding, appending n channels
+        source_pix_loc = anno["optical_skycoords"][self.mapping[idx][1]].to_pixel(
+            wcs=anno["wcs"]
+        )
+        optical_channels = np.zeros(
+            (image.shape[0], image.shape[1], len(source[3:])), dtype=np.float
+        )
+        for i, band in enumerate(source[3:]):
+            optical_channels[int(source_pix_loc[0]), int(source_pix_loc[1]), i] = band
+        image = np.concatenate((image, optical_channels), axis=2)
+        image = image.reshape((1, image.shape[0], image.shape[1]))
+        image = torch.from_numpy(image).float()
+        label = anno["optical_labels"][self.mapping[idx][1]]
+        # First one is Optical, second one is Not
+        if label:
+            label = np.array([1, 0])  # True
+        else:
+            label = np.array([0, 1])  # False
+        if self.transform:
+            image, source = self.transform(image, source)
+        return {
+            "images": image,
+            "labels": torch.from_numpy(label).float(),
+            "sources": torch.from_numpy(source),
             "names": self._get_source_name(anno["file_name"]),
         }
 
@@ -123,6 +158,9 @@ class RadioSourceDataset(Dataset):
         image = image.reshape((1, anno["height"], anno["width"]))
         # print(image.shape)
         for i, item in enumerate(anno["optical_sources"]):
+            anno["optical_sources"][i] = anno["optical_sources"][i][
+                3:
+            ]  # Remove the IDs, etc.
             anno["optical_sources"][i][0] = (
                 anno["optical_sources"][i][0].value - 0.0
             ) / (
@@ -136,11 +174,6 @@ class RadioSourceDataset(Dataset):
             ) / (
                 7.0 - 0.0
             )  # Redshift
-            if self.norm:
-                for j in range(3, len(anno["optical_sources"][i])):
-                    value = anno["optical_sources"][i][j]
-                    value = np.clip(value, 10.0, 28.0)
-                    anno["optical_sources"][i][j] = (value - 10.0) / (28.0 - 10.0)
         anno["optical_sources"].insert(
             0, [0 for _ in range(len(anno["optical_sources"][0]))]
         )
@@ -179,6 +212,8 @@ class RadioSourceDataset(Dataset):
             idx = idx.tolist()
         if self.single_source:
             return self.load_single_source(idx)
+        elif self.embed_source:
+            return self.load_embedded_source(idx)
         else:
             return self.load_multi_source(idx)
 
