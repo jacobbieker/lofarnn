@@ -270,9 +270,7 @@ def create_cutouts(
 
             # Now make proposal boxes
             proposal_boxes = np.asarray(
-                make_proposal_boxes(
-                    wcs, img_array[0].shape, cutout_catalog,
-                )
+                make_proposal_boxes(wcs, img_array[0].shape, cutout_catalog, )
             )
             for layer in layers:
                 tmp = make_catalogue_layer(
@@ -287,9 +285,7 @@ def create_cutouts(
             # Include another array giving the bounding box for the source
             bounding_boxes = []
             try:
-                source_bbox = make_bounding_box(
-                    source["ID_ra"], source["ID_dec"], wcs,
-                )
+                source_bbox = make_bounding_box(source["ID_ra"], source["ID_dec"], wcs, )
                 assert source_bbox[1] >= 0
                 assert source_bbox[0] >= 0
                 assert source_bbox[3] < img_array.shape[0]

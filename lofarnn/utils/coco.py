@@ -165,9 +165,7 @@ def make_single_coco_annotation_set(
             print("No Optical source found")
         if precomputed_proposals:
             record["proposal_boxes"] = proposal_boxes
-            record["proposal_objectness_logits"] = np.ones(
-                len(proposal_boxes)
-            )
+            record["proposal_objectness_logits"] = np.ones(len(proposal_boxes))
             record["proposal_bbox_mode"] = BoxMode.XYXY_ABS
         record["annotations"] = objs
         record_list.append(record)
@@ -185,8 +183,8 @@ def create_coco_annotations(
         all_channels: bool = False,
         precomputed_proposals: bool = False,
         normalize: bool = True,
-    rotation_names: Optional[List[str]] = None,
-    verbose: bool = False,
+        rotation_names: Optional[List[str]] = None,
+        verbose: bool = False,
 ):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
@@ -436,5 +434,3 @@ def create_coco_dataset(
         precomputed_proposals=precomputed_proposals,
         verbose=verbose,
     )
-
-

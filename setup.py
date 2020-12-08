@@ -10,7 +10,15 @@ setup(
     download_url="https://github.com/jacobbieker/lofarnn/archive/v0.7.1.tar.gz",
     keywords=["Radio Astronomy", "PyTorch", "Machine Learning"],
     packages=find_packages(),
-    install_requires=["astropy", "numpy", "scikit-image", "pillow", "pytorch", "scipy", "matplotlib"],
+    install_requires=[
+        "astropy",
+        "numpy",
+        "scikit-image",
+        "pillow",
+        "pytorch",
+        "scipy",
+        "matplotlib",
+    ],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

@@ -108,10 +108,7 @@ def make_single_cnn_set(
                 scaling=None,
             )
             image_none = convert_to_valid_color(
-                image_none,
-                clip=False,
-                normalize=False,
-                scaling="sqrt",
+                image_none, clip=False, normalize=False, scaling="sqrt",
             )
             image = np.ma.filled(
                 image, fill_value=0.0

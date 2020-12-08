@@ -128,9 +128,7 @@ def objective(trial):
 
 def main(args):
     if environment == "XPS":
-        db = os.path.join(
-            "/", f"lotss_dr2_{args.single}_{args.loss}.db"
-        )
+        db = os.path.join("/", f"lotss_dr2_{args.single}_{args.loss}.db")
     else:
         db = os.path.join(
             "/home/s2153246/data/", f"lotss_dr2_{args.single}_{args.loss}.db"
