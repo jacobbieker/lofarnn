@@ -33,9 +33,9 @@ def default_argument_parser():
         help="whether to augment input data, default False",
     )
     parser.add_argument(
-        "--norm",
+        "--embed-source",
         action="store_true",
-        help="whether to normalize magnitudes or not, default False",
+        help="whether to embed the sources into the images, default False",
     )
     parser.add_argument(
         "--single",
@@ -126,41 +126,46 @@ def only_image_transforms(
     return sequence(image), sources
 
 
-def setup(args) -> Tuple[RadioSourceDataset, RadioSourceDataset, RadioSourceDataset]:
+def setup(
+    args,
+) -> Tuple[
+    RadioSourceDataset, RadioSourceDataset, RadioSourceDataset, RadioSourceDataset
+]:
     """
     Setup dataset and dataloaders for these new datasets
     """
     train_dataset = RadioSourceDataset(
-        [
-            os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"),
-            os.path.join(args.dataset, f"cnn_val_norm{args.norm}_extra.pkl"),
-        ],
+        os.path.join(args.dataset, f"cnn_train_norm{args.norm}.pkl"),
         single_source_per_img=args.single,
         shuffle=args.shuffle,
-        norm=not args.norm,
         num_sources=args.num_sources,
         fraction=args.fraction,
         transform=only_image_transforms if args.augment else None,
+        embed_source=args.embed_source,
     )
     train_test_dataset = RadioSourceDataset(
-        [
-            os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"),
-            os.path.join(args.dataset, f"cnn_val_norm{args.norm}_extra.pkl"),
-        ],
+        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
         single_source_per_img=args.single,
         shuffle=args.shuffle,
-        norm=not args.norm,
         num_sources=args.num_sources,
+        embed_source=args.embed_source,
     )
     val_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_test_norm{args.norm}_extra.pkl"),
-        single_source_per_img=False,
+        os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
+        single_source_per_img=args.single,
         shuffle=args.shuffle,
-        norm=not args.norm,
         num_sources=args.num_sources,
+        embed_source=args.embed_source,
+    )
+    test_dataset = RadioSourceDataset(
+        os.path.join(args.dataset, f"cnn_test_norm{args.norm}.pkl"),
+        single_source_per_img=args.single,
+        shuffle=args.shuffle,
+        num_sources=args.num_sources,
+        embed_source=args.embed_source,
     )
     args.world_size = args.gpus * args.nodes
-    return train_dataset, train_test_dataset, val_dataset
+    return train_dataset, train_test_dataset, val_dataset, test_dataset
 
 
 def test(
