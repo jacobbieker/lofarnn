@@ -94,13 +94,13 @@ def make_catalogue_layer(
 
 def make_proposal_boxes(wcs: WCS, catalogue: Table):
     """
-   Create Faster RCNN proposal boxes for all sources in the image
+    Create Faster RCNN proposal boxes for all sources in the image
 
-   The sky_coords seems to be swapped x and y on the boxes, so should be swapped here too
-   :param wcs: WCS of the Radio data, so catalog data can be translated correctly
-   :param catalogue: Catalogue to query
-   :return: A Numpy array that holds the information in the correct location
-   """
+    The sky_coords seems to be swapped x and y on the boxes, so should be swapped here too
+    :param wcs: WCS of the Radio data, so catalog data can be translated correctly
+    :param catalogue: Catalogue to query
+    :return: A Numpy array that holds the information in the correct location
+    """
 
     ra_array = np.array(catalogue["ra"], dtype=float)
     dec_array = np.array(catalogue["dec"], dtype=float)
@@ -156,9 +156,20 @@ def create_cutouts(
     component_catalog: Union[Table, str],
     mosaic_location: str,
     save_cutout_directory: str,
-    all_channels: Optional[bool] = False,
+    bands: List[str] = (
+        "iFApMag",
+        "w1Mag",
+        "gFApMag",
+        "rFApMag",
+        "zFApMag",
+        "yFApMag",
+        "w2Mag",
+        "w3Mag",
+        "w4Mag",
+    ),
     source_size: Optional[bool] = None,
     verbose: Optional[bool] = False,
+    **kwargs,
 ):
     """
     Create cutouts of all sources in a field
@@ -168,7 +179,7 @@ def create_cutouts(
     :param pan_wise_catalog: The PanSTARRS-ALLWISE catalogue used for Williams, 2018, the LoTSS III paper
     :param mosaic_location: The location of the LoTSS DR2 mosaics
     :param save_cutout_directory: Where to save the cutout npy files
-    :param all_channels: Whether to include all possible channels (grizy,W1,2,3,4 bands) in npy file or just (radio,i,W1)
+    :param bands: Whether to include all possible channels (grizy,W1,2,3,4 bands) in npy file or just (radio,i,W1)
     :param fixed_size: Whether to use fixed size cutouts, in arcseconds, or the LGZ size (default: LGZ)
     :param verbose: Whether to print extra information or not
     :return:
@@ -201,7 +212,7 @@ def create_cutouts(
             # Get the size of the cutout needed
             if source_size is None or source_size is False:
                 source_size = (
-                    source["LGZ_Size"] * 1.5
+                    source[kwargs.get("size_name", "LGZ_Size")] * 1.5
                 ) / 3600.0  # in arcseconds converted to archours
                 source_size *= np.sqrt(2)
             print(source_size)
@@ -242,23 +253,6 @@ def create_cutouts(
             # Now time to get the data from the catalogue and add that in their own channels
             if verbose:
                 print(f"Image Shape: {img_array[0].data.shape}")
-            # Should now be in Radio/RMS, i, W1 format, else we skip it
-            # Need from catalog ra, dec, iFApMag, w1Mag, also have a z_best, which might or might not be available for all
-            if all_channels:
-                layers = [
-                    "iFApMag",
-                    "w1Mag",
-                    "gFApMag",
-                    "rFApMag",
-                    "zFApMag",
-                    "yFApMag",
-                    "w2Mag",
-                    "w3Mag",
-                    "w4Mag",
-                ]
-            else:
-                layers = ["iFApMag", "w1Mag"]
-            # Get the catalog sources once, to speed things up
             # cuts size in two to only get sources that fall within the cutout, instead of ones that go twice as large
             cutout_catalog = determine_visible_catalogue_sources(
                 source_ra, source_dec, source_size / 2, pan_wise_catalog
@@ -269,12 +263,13 @@ def create_cutouts(
             )
 
             # Now make proposal boxes
-            proposal_boxes = np.asarray(
-                make_proposal_boxes(wcs, img_array[0].shape, cutout_catalog, )
-            )
-            for layer in layers:
+            proposal_boxes = np.asarray(make_proposal_boxes(wcs, cutout_catalog))
+            for layer in bands:
                 tmp = make_catalogue_layer(
-                    layer, wcs, img_array[0].shape, cutout_catalog,
+                    layer,
+                    wcs,
+                    img_array[0].shape,
+                    cutout_catalog,
                 )
                 img_array.append(tmp)
 
@@ -285,7 +280,11 @@ def create_cutouts(
             # Include another array giving the bounding box for the source
             bounding_boxes = []
             try:
-                source_bbox = make_bounding_box(source["ID_ra"], source["ID_dec"], wcs, )
+                source_bbox = make_bounding_box(
+                    source[kwargs.get("optical_ra", "ID_ra")],
+                    source[kwargs.get("optical_dec", "ID_dec")],
+                    wcs,
+                )
                 assert source_bbox[1] >= 0
                 assert source_bbox[0] >= 0
                 assert source_bbox[3] < img_array.shape[0]
@@ -294,7 +293,6 @@ def create_cutouts(
                 bounding_boxes.append(source_bounding_box)
             except:
                 print("Source not in bounds")
-                continue
             if verbose:
                 plot_three_channel_debug(
                     img_array, bounding_boxes, 1, bounding_boxes[0][5]
@@ -309,8 +307,8 @@ def create_cutouts(
                     component_catalog["Source_Name"] == other_source["Source_Name"]
                 ]
                 other_bbox = make_bounding_box(
-                    other_source["ID_ra"],
-                    other_source["ID_dec"],
+                    other_source[kwargs.get("optical_ra", "ID_ra")],
+                    other_source[kwargs.get("optical_dec", "ID_dec")],
                     wcs,
                     class_name="Other Optical Source",
                 )
@@ -359,7 +357,17 @@ def create_source_dataset(
     value_added_catalog_location: str,
     component_catalog_location: str,
     dr_two_location: str,
-    all_channels: Optional[bool] = False,
+    bands: List[str] = (
+        "iFApMag",
+        "w1Mag",
+        "gFApMag",
+        "rFApMag",
+        "zFApMag",
+        "yFApMag",
+        "w2Mag",
+        "w3Mag",
+        "w4Mag",
+    ),
     fixed_size: Optional[Union[int, float]] = None,
     filter_lgz: bool = True,
     verbose: bool = False,
@@ -368,6 +376,7 @@ def create_source_dataset(
     filter_optical: bool = True,
     no_source: bool = False,
     num_threads: Optional[int] = os.cpu_count(),
+    **kwargs,
 ):
     """
 
@@ -384,23 +393,23 @@ def create_source_dataset(
     """
     l_objects = get_lotss_objects(value_added_catalog_location, False)
     print(len(l_objects))
+    size_name = kwargs.get("size_name", "LGZ_Size")
+    optical_ra = kwargs.get("optical_ra", "ID_ra")
+    optical_dec = kwargs.get("optical_dec", "ID_dec")
+
     if filter_lgz:
-        l_objects = l_objects[~np.isnan(l_objects["LGZ_Size"])]
+        l_objects = l_objects[~np.isnan(l_objects[size_name])]
         print(len(l_objects))
     if filter_optical:
         if no_source:
-            l_objects = l_objects[np.isnan(l_objects["ID_ra"])]
-            l_objects = l_objects[np.isnan(l_objects["ID_dec"])]
+            l_objects = l_objects[np.isnan(l_objects[optical_ra])]
+            l_objects = l_objects[np.isnan(l_objects[optical_dec])]
         else:
-            l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]
-            l_objects = l_objects[~np.isnan(l_objects["ID_dec"])]
-        print(len(l_objects))
-    else:  # Otherwise, remove those with optical IDs
-        l_objects = l_objects[np.isnan(l_objects["ID_ra"])]
-        l_objects = l_objects[np.isnan(l_objects["ID_dec"])]
+            l_objects = l_objects[~np.isnan(l_objects[optical_ra])]
+            l_objects = l_objects[~np.isnan(l_objects[optical_dec])]
         print(len(l_objects))
     if strict_filter:
-        l_objects = l_objects[l_objects["LGZ_Size"] > 15.0]
+        l_objects = l_objects[l_objects[size_name] > 15.0]
         l_objects = l_objects[l_objects["Total_flux"] > 10.0]
         print(len(l_objects))
     mosaic_names = set(l_objects["Mosaic_ID"])
@@ -433,7 +442,7 @@ def create_source_dataset(
                 repeat(comp_catalog),
                 repeat(dr_two_location),
                 repeat(all_directory),
-                repeat(all_channels),
+                repeat(bands),
                 repeat(fixed_size),
                 repeat(verbose),
             ),
@@ -446,7 +455,8 @@ def create_source_dataset(
             component_catalog=comp_catalog,
             mosaic_location=dr_two_location,
             save_cutout_directory=all_directory,
-            all_channels=all_channels,
+            bands=bands,
             source_size=fixed_size,
             verbose=verbose,
+            **kwargs,
         )

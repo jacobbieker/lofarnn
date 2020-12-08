@@ -179,15 +179,27 @@ class AntiAliasedResNet(nn.Module):
             self.maxpool = nn.Sequential(
                 *[
                     nn.MaxPool2d(kernel_size=2, stride=1),
-                    BlurPool(planes[0], filt_size=filter_size, stride=2,),
+                    BlurPool(
+                        planes[0],
+                        filt_size=filter_size,
+                        stride=2,
+                    ),
                 ]
             )
         else:
             self.maxpool = nn.Sequential(
                 *[
-                    BlurPool(planes[0], filt_size=filter_size, stride=2,),
+                    BlurPool(
+                        planes[0],
+                        filt_size=filter_size,
+                        stride=2,
+                    ),
                     nn.MaxPool2d(kernel_size=2, stride=1),
-                    BlurPool(planes[0], filt_size=filter_size, stride=2,),
+                    BlurPool(
+                        planes[0],
+                        filt_size=filter_size,
+                        stride=2,
+                    ),
                 ]
             )
 

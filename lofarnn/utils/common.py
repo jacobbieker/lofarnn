@@ -28,23 +28,23 @@ def create_recursive_directories(prepend_path: str, current_dir: str, dictionary
 
 
 def create_coco_style_directory_structure(
-        root_directory: str, suffix: str = "", verbose: bool = False
+    root_directory: str, suffix: str = "", verbose: bool = False
 ):
     """
-     We will create a directory structure identical to that of the CLARAN
-     The root directory is the directory in which the directory named 'RGZdevkit' will be placed.
-     The structure contained will be as follows:
-     LGZ_COCOstyle{suffix}/
-        |-- Annotations/
-             |-- *.json (Annotation files)
-        |-- all/ (train,test,val split directory)
-             |-- *.png (Image files)
-        |-- train/ (train,test,val split directory)
-             |-- *.png (Image files)
-        |-- val/ (train,test,val split directory)
-             |-- *.png (Image files)
-        |-- test/ (train,test,val split directory)
-             |-- *.png (Image files)
+    We will create a directory structure identical to that of the CLARAN
+    The root directory is the directory in which the directory named 'RGZdevkit' will be placed.
+    The structure contained will be as follows:
+    LGZ_COCOstyle{suffix}/
+       |-- Annotations/
+            |-- *.json (Annotation files)
+       |-- all/ (train,test,val split directory)
+            |-- *.png (Image files)
+       |-- train/ (train,test,val split directory)
+            |-- *.png (Image files)
+       |-- val/ (train,test,val split directory)
+            |-- *.png (Image files)
+       |-- test/ (train,test,val split directory)
+            |-- *.png (Image files)
     """
     directories_to_make = {
         f"COCO{suffix}": {
@@ -85,7 +85,7 @@ def test_set_check(identifier: Any, test_ratio: float) -> float:
 
 
 def split_train_test_by_id(
-        data: Union[np.ndarray, List[str]], test_ratio: float
+    data: Union[np.ndarray, List[str]], test_ratio: float
 ) -> Tuple[Union[Union[str, List[str]], Any], Union[list, Any]]:
     in_test_set = np.asarray(
         [
@@ -97,7 +97,7 @@ def split_train_test_by_id(
 
 
 def split_data(
-        image_directory: str, val_split: float = 0.2, test_split: float = 0.2
+    image_directory: str, val_split: float = 0.2, test_split: float = 0.2
 ) -> Dict[str, List[str]]:
     """
     Split up the data and return which images should go to which train, test, val directory

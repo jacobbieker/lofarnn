@@ -15,16 +15,16 @@ from lofarnn.utils.fits import determine_visible_catalogue_source_and_separation
 
 
 def make_single_cnn_set(
-        image_names: List[Path],
-        record_list: List[Any],
-        set_number: int,
-        image_destination_dir: Optional[str],
-        pan_wise_location: str = "",
-        resize: Optional[Union[int, List[int]]] = None,
-        rotation: Optional[Union[List[float], float]] = None,
-        convert: bool = True,
-        vac_catalog_location: str = "",
-        normalize: bool = True,
+    image_names: List[Path],
+    record_list: List[Any],
+    set_number: int,
+    image_destination_dir: Optional[str],
+    pan_wise_location: str = "",
+    resize: Optional[Union[int, List[int]]] = None,
+    rotation: Optional[Union[List[float], float]] = None,
+    convert: bool = True,
+    vac_catalog_location: str = "",
+    normalize: bool = True,
 ):
     pan_wise_catalog = fits.open(pan_wise_location, memmap=True)
     pan_wise_catalog = pan_wise_catalog[1].data
@@ -108,7 +108,10 @@ def make_single_cnn_set(
                 scaling=None,
             )
             image_none = convert_to_valid_color(
-                image_none, clip=False, normalize=False, scaling="sqrt",
+                image_none,
+                clip=False,
+                normalize=False,
+                scaling="sqrt",
             )
             image = np.ma.filled(
                 image, fill_value=0.0
@@ -175,8 +178,8 @@ def make_single_cnn_set(
             for j, obj in enumerate(objects):
                 optical_sources.append([])
                 if (
-                        obj["objID"] == source["objID"]
-                        and obj["AllWISE"] == source["AllWISE"]
+                    obj["objID"] == source["objID"]
+                    and obj["AllWISE"] == source["AllWISE"]
                 ):
                     optical_labels.append(1)  # Optical Source
                 else:
@@ -211,19 +214,19 @@ def make_single_cnn_set(
 
 
 def create_cnn_annotations(
-        image_names,
-        image_destination_dir=None,
-        json_dir="",
-        json_name="json_data.pkl",
-        pan_wise_location="",
-        resize=None,
-        rotation=None,
-        convert=True,
-        all_channels=False,
-        vac_catalog_location="",
-        normalize=True,
-        rotation_names=None,
-        verbose=False,
+    image_names,
+    image_destination_dir=None,
+    json_dir="",
+    json_name="json_data.pkl",
+    pan_wise_location="",
+    resize=None,
+    rotation=None,
+    convert=True,
+    all_channels=False,
+    vac_catalog_location="",
+    normalize=True,
+    rotation_names=None,
+    verbose=False,
 ):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct
@@ -370,18 +373,18 @@ def create_cnn_annotations(
 
 
 def create_cnn_dataset(
-        root_directory: str,
-        counterpart_catalog: str = "",
-        split_fraction: float = 0.2,
-        resize: Optional[Union[Tuple[int], int]] = None,
-        rotation: Optional[Union[List[float], float]] = None,
-        convert: bool = True,
-        all_channels: bool = False,
-        vac_catalog: str = "",
-        normalize: bool = True,
-        subset: str = "",
-        multi_rotate_only: Optional[Union[List[str], str]] = None,
-        verbose: bool = False,
+    root_directory: str,
+    counterpart_catalog: str = "",
+    split_fraction: float = 0.2,
+    resize: Optional[Union[Tuple[int], int]] = None,
+    rotation: Optional[Union[List[float], float]] = None,
+    convert: bool = True,
+    all_channels: bool = False,
+    vac_catalog: str = "",
+    normalize: bool = True,
+    subset: str = "",
+    multi_rotate_only: Optional[Union[List[str], str]] = None,
+    verbose: bool = False,
 ):
     """
     Create COCO directory structure, if it doesn't already exist, split the image data, and save it to the correct

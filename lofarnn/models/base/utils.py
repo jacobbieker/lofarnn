@@ -48,10 +48,16 @@ def default_argument_parser():
         help="whether to use shuffle multisource order, no effect for single source, default False",
     )
     parser.add_argument(
-        "--num-sources", type=int, default=40, help="max number of sources to include",
+        "--num-sources",
+        type=int,
+        default=40,
+        help="max number of sources to include",
     )
     parser.add_argument(
-        "--nodes", type=int, default=1, help="max number of nodes to use",
+        "--nodes",
+        type=int,
+        default=1,
+        help="max number of nodes to use",
     )
     parser.add_argument(
         "-g", "--gpus", default=1, type=int, help="number of gpus per node"
@@ -60,10 +66,16 @@ def default_argument_parser():
         "-nr", "--nr", default=0, type=int, help="ranking within the nodes"
     )
     parser.add_argument(
-        "--num-trials", type=int, default=100, help="max number of trials to perform",
+        "--num-trials",
+        type=int,
+        default=100,
+        help="max number of trials to perform",
     )
     parser.add_argument(
-        "--classes", type=int, default=40, help="max number of sources to include",
+        "--classes",
+        type=int,
+        default=40,
+        help="max number of sources to include",
     )
     parser.add_argument(
         "--dataset", type=str, default="", help="path to dataset annotations files"

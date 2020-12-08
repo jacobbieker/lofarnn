@@ -172,19 +172,19 @@ def make_single_coco_annotation_set(
 
 
 def create_coco_annotations(
-        image_names: Union[List[Path], List[str]],
-        image_destination_dir: Optional[str],
-        json_dir: str = "",
-        json_name: str = "json_data.pkl",
-        multiple_bboxes: bool = True,
-        resize: Optional[Union[Tuple[int], int]] = None,
-        rotation: Optional[Union[List[float], float]] = None,
-        convert: bool = True,
-        all_channels: bool = False,
-        precomputed_proposals: bool = False,
-        normalize: bool = True,
-        rotation_names: Optional[List[str]] = None,
-        verbose: bool = False,
+    image_names: Union[List[Path], List[str]],
+    image_destination_dir: Optional[str],
+    json_dir: str = "",
+    json_name: str = "json_data.pkl",
+    multiple_bboxes: bool = True,
+    resize: Optional[Union[Tuple[int], int]] = None,
+    rotation: Optional[Union[List[float], float]] = None,
+    convert: bool = True,
+    all_channels: bool = False,
+    precomputed_proposals: bool = False,
+    normalize: bool = True,
+    rotation_names: Optional[List[str]] = None,
+    verbose: bool = False,
 ):
     """
     Creates the annotations for the COCO-style dataset from the npy files available, and saves the images in the correct

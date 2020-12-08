@@ -32,7 +32,8 @@ for anno in annotations:
         elif i == 0:
             named_recalls[_get_source_name(anno["file_name"])] = 0
 pickle.dump(
-    named_recalls, open(f"train_closest_baseline_recall.pkl", "wb"),
+    named_recalls,
+    open(f"train_closest_baseline_recall.pkl", "wb"),
 )
 # nonz = np.count_nonzero(anno["optical_labels"])
 # if nonz == 0:

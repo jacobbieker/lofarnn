@@ -931,13 +931,13 @@ def plot_combo_plots(
     colors,
 ):
     """
-        Plot a variety of different metrics, including recall, precision, loss, etc.
-        :param metrics_files:
-        :param experiment_name:
-        :param labels:
-        :param output_dir:
-        :return:
-        """
+    Plot a variety of different metrics, including recall, precision, loss, etc.
+    :param metrics_files:
+    :param experiment_name:
+    :param labels:
+    :param output_dir:
+    :return:
+    """
     metrics_data = []
     for f in metrics_files:
         metrics_data.append(load_json_arr(os.path.join(experiment_dir, f + ".json")))
