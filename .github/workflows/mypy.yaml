@@ -18,4 +18,4 @@ jobs:
         pip install mypy
     - name: mypy
       run: |
-        mypy src/
+        mypy lofarnn/
