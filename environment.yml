@@ -176,7 +176,6 @@ dependencies:
       - beautifulsoup4==4.8.2
       - black==19.10b0
       - bleach==3.1.1
-      - casjobs==0.0.1
       - click==7.0
       - cloudpickle==1.2.2
       - colorama==0.4.3
@@ -185,7 +184,6 @@ dependencies:
       - dicttoxml==1.7.4
       - funcsigs==1.0.2
       - fvcore==0.1.2.post20201204
-      - googledrivedownloader==0.4
       - h5py==2.10.0
       - html5lib==1.0.1
       - identify==1.4.25
@@ -197,7 +195,6 @@ dependencies:
       - keyring==21.1.0
       - llvmlite==0.31.0
       - lxml==4.5.0
-      - mastcasjobs==0.0.2
       - nodeenv==1.4.0
       - numba==0.48.0
       - numexpr==2.7.1
@@ -229,7 +226,6 @@ dependencies:
       - tables==3.6.1
       - tabulate==0.8.6
       - toml==0.10.1
-      - torch-geometric==1.4.1
       - torchsummary==1.5.1
       - twine==3.1.1
       - typed-ast==1.4.1
