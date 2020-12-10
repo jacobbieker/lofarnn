@@ -15,7 +15,6 @@ setup(
         "numpy",
         "scikit-image",
         "pillow",
-        "pytorch",
         "scipy",
         "matplotlib",
     ],

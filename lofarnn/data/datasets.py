@@ -297,34 +297,6 @@ def create_cutouts(
                 plot_three_channel_debug(
                     img_array, bounding_boxes, 1, bounding_boxes[0][5]
                 )
-            # Now segmentation map
-            source_components = component_catalog[
-                component_catalog["Source_Name"] == source["Source_Name"]
-            ]
-            # Now go through and for any other sources in the field of view, add those
-            for other_source in other_visible_sources:
-                other_components = component_catalog[
-                    component_catalog["Source_Name"] == other_source["Source_Name"]
-                ]
-                other_bbox = make_bounding_box(
-                    other_source[kwargs.get("optical_ra", "ID_ra")],
-                    other_source[kwargs.get("optical_dec", "ID_dec")],
-                    wcs,
-                    class_name="Other Optical Source",
-                )
-                if ~np.isclose(other_bbox[0], bounding_boxes[0][0]) and ~np.isclose(
-                    other_bbox[1], bounding_boxes[0][1]
-                ):  # Make sure not same one
-                    if (
-                        other_bbox[1] >= 0
-                        and other_bbox[0] >= 0
-                        and other_bbox[3] < img_array.shape[0]
-                        and other_bbox[2] < img_array.shape[1]
-                    ):
-                        bounding_boxes.append(
-                            list(other_bbox)
-                        )  # Only add the bounding box if it is within the image shape
-
             # Now save out the combined file
             bounding_boxes = np.array(bounding_boxes)
 
