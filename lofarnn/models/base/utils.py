@@ -43,6 +43,11 @@ def default_argument_parser():
         help="whether to use single source or multiple, default False",
     )
     parser.add_argument(
+        "--norm",
+        action="store_false",
+        help="whether to use normalized values, default True",
+    )
+    parser.add_argument(
         "--shuffle",
         action="store_true",
         help="whether to use shuffle multisource order, no effect for single source, default False",
