@@ -34,7 +34,7 @@ def make_single_cnn_set(
     ),
     resize: Optional[Union[int, List[int]]] = None,
     rotation: Optional[Union[List[float], float]] = None,
-    convert: bool = True,
+    convert: bool = False,
     vac_catalog_location: str = "",
     normalize: bool = True,
 ):
@@ -56,6 +56,10 @@ def make_single_cnn_set(
                     image_destination_dir,
                     image_name.stem + f".cnn.{set_number}.{normalize}.npy",
                 )
+                wcs_dest_filename = os.path.join(
+                    image_destination_dir,
+                    image_name.stem + f".cnn.{set_number}.{normalize}.wcs.npy",
+                )
                 record_dest_filename = os.path.join(
                     image_destination_dir,
                     image_name.stem + f".record.{set_number}.{normalize}.npy",
@@ -63,6 +67,9 @@ def make_single_cnn_set(
             else:
                 image_dest_filename = os.path.join(
                     image_destination_dir, image_name.stem + f".cnn.{normalize}.npy"
+                )
+                wcs_dest_filename = os.path.join(
+                    image_destination_dir, image_name.stem + f".cnn.{normalize}.wcs.npy"
                 )
         if not os.path.exists(os.path.join(image_dest_filename)):
             (image, cutouts, proposal_boxes, wcs) = np.load(
@@ -142,19 +149,12 @@ def make_single_cnn_set(
             )  # convert back from masked array to normal array
             # Now restack into 3 channel image
             image = np.dstack((image, image_clip, image_none))
-            if convert:
-                image = np.nan_to_num(image)
-                image = (255.0 * image).astype(np.uint8)
-                # If converting, only take the first one, radio
-                pil_im = Image.fromarray(image, "RGB")
-                pil_im.save(image_dest_filename)
-            else:
-                image = np.nan_to_num(image)  # Only take radio
-                np.save(
-                    image_dest_filename, (image, cutout.wcs)
-                )  # Save to the final destination
+            image = np.nan_to_num(image)  # Only take radio
+            np.save(image_dest_filename, image)  # Save to the final destination
+            np.save(wcs_dest_filename, wcs)
         else:
-            image, wcs = np.load(image_dest_filename)
+            image = np.load(image_dest_filename)
+            wcs = np.load(wcs_dest_filename)
             height, width, depth = np.shape(image)
 
         record = {
@@ -231,7 +231,7 @@ def create_cnn_annotations(
     pan_wise_location="",
     resize=None,
     rotation=None,
-    convert=True,
+    convert=False,
     bands: List[str] = (
         "iFApMag",
         "w1Mag",
