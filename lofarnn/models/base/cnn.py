@@ -14,6 +14,34 @@ goes through and adds in the optical source features, like distance from radio c
 """
 
 
+class RadioEmbeddedSourceModel(nn.Module):
+    """
+    Model for classifying whether a single optical source is the radio source's source
+    """
+
+    def __init__(self, num_image_layers, config):
+        super(RadioEmbeddedSourceModel, self).__init__()
+        self.config = config
+
+        # Image net
+        self.cnn = ResNet(
+            num_image_layers,
+            Bottleneck,
+            [3, 4, 23, 3],
+            num_classes=2,
+            zero_init_residual=False,
+            groups=32,
+            width_per_group=8,
+            keep_fc=True,
+        )
+        self.cnn.fc = nn.Linear(self.cnn.fc.in_features, 2)
+
+    def forward(self, image, data=None):
+        # Keep data to match other models, just not use it
+        x = self.cnn(image)
+        return x
+
+
 class RadioSingleSourceModel(nn.Module):
     """
     Model for classifying whether a single optical source is the radio source's source

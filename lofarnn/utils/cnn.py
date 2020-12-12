@@ -69,9 +69,9 @@ def make_single_cnn_set(
                 image_name, allow_pickle=True
             )  # mmap_mode might allow faster read
             cutout = Cutout2D(
-                image,
+                image[:, :, 0],
                 position=(int(image.shape[0] / 2), int(image.shape[1] / 2)),
-                size=int(np.sqrt(image.shape[0])),
+                size=(int(np.sqrt(image.shape[0])), int(np.sqrt(image.shape[1]))),
                 wcs=wcs,
             )
             wcs = cutout.wcs
