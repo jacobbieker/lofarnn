@@ -85,7 +85,7 @@ class RadioSourceDataset(Dataset):
         Given a single index, get the single source, image, and label for it
         """
         anno = self.annotations[self.mapping[idx][0]]
-        image = np.load(anno["file_name"], fix_imports=True)
+        image = np.load(anno["file_name"], fix_imports=True, allow_pickle=True)[0]
         image = image.reshape((1, image.shape[0], image.shape[1]))
         image = torch.from_numpy(image).float()
         source = anno["optical_sources"][self.mapping[idx][1]]
@@ -111,7 +111,7 @@ class RadioSourceDataset(Dataset):
 
     def load_embedded_source(self, idx):
         anno = self.annotations[self.mapping[idx][0]]
-        image = np.load(anno["file_name"], fix_imports=True)
+        image = np.load(anno["file_name"], fix_imports=True, allow_pickle=True)[0]
         source = anno["optical_sources"][self.mapping[idx][1]]
         source = source[3:]  # Remove the IDs, etc.
         # Encode into the image one-hot encoding, appending n channels
@@ -154,7 +154,8 @@ class RadioSourceDataset(Dataset):
         image = np.load(
             anno["file_name"].replace("/run/media/jacob/T7", "/home/jacob"),
             fix_imports=True,
-        )
+            allow_pickle=True,
+        )[0]
         image = image.reshape((1, anno["height"], anno["width"]))
         # print(image.shape)
         for i, item in enumerate(anno["optical_sources"]):
