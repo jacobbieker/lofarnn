@@ -36,7 +36,7 @@ class RadioEmbeddedSourceModel(nn.Module):
         )
         self.cnn.fc = nn.Linear(self.cnn.fc.in_features, 2)
 
-    def forward(self, image, data=None):
+    def forward(self, image):
         # Keep data to match other models, just not use it
         x = self.cnn(image)
         return x

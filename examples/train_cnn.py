@@ -17,14 +17,14 @@ import torch
 
 
 def main(args):
-    for frac in [0.1, 0.25, 0.5, 0.75, 0.9, 1.0]:
+    for frac in [1.0]:
         args.fraction = frac
         train_dataset, train_test_dataset, val_dataset, test_dataset = setup(args)
         train_loader = dataloader.DataLoader(
-            train_test_dataset,
+            train_dataset,
             batch_size=args.batch,
             shuffle=True,
-            num_workers=os.cpu_count(),
+            num_workers=1,
             pin_memory=True,
             drop_last=True,
         )
@@ -32,14 +32,14 @@ def main(args):
             val_dataset,
             batch_size=1,
             shuffle=False,
-            num_workers=os.cpu_count(),
+            num_workers=1,
             pin_memory=True,
         )
         test_loader = dataloader.DataLoader(
             test_dataset,
             batch_size=1,
             shuffle=False,
-            num_workers=os.cpu_count(),
+            num_workers=1,
             pin_memory=True,
         )
         experiment_name = args.experiment + f"frac_{frac}"
@@ -64,7 +64,7 @@ def main(args):
         if args.single and not args.embed_source:
             model = RadioSingleSourceModel(3, 12, config=config).to(device)
         elif args.embed_source:
-            model = RadioEmbeddedSourceModel(3 + 9, config=config).to(device)
+            model = RadioEmbeddedSourceModel(3 + 10, config=config).to(device)
         else:
             model = RadioMultiSourceModel(3, args.classes, config=config).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -101,6 +101,7 @@ def main(args):
                 output_dir,
                 config,
             )
+            print("Start test")
             test(args, model, device, test_loader, epoch, "Test", output_dir, config)
             if epoch % 5 == 0:  # Save every 5 epochs
                 torch.save(

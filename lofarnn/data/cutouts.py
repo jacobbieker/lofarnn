@@ -90,8 +90,8 @@ def make_bounding_box(
 
 def augment_image_and_bboxes(
     image: np.ndarray,
-    cutouts: Union[List[Tuple[float]], np.ndarray],
-    proposal_boxes: Union[List[Tuple[float]], np.ndarray],
+    cutouts: Union[List[Tuple[float]], np.ndarray, None],
+    proposal_boxes: Union[List[Tuple[float]], np.ndarray, None],
     angle: Optional[Union[float, int]],
     new_size: Optional[Union[int, Tuple[int]]],
     verbose: bool = False,

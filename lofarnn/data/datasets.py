@@ -186,6 +186,7 @@ def create_cutouts(
     """
     lofar_data_location = os.path.join(mosaic_location, mosaic, "mosaic-blanked.fits")
     lofar_rms_location = os.path.join(mosaic_location, mosaic, "mosaic.rms.fits")
+    print(mosaic)
     if type(pan_wise_catalog) == str:
         print("Trying To Open")
         pan_wise_catalog = fits.open(pan_wise_catalog, memmap=True)
@@ -215,7 +216,6 @@ def create_cutouts(
                     source[kwargs.get("size_name", "LGZ_Size")] * 1.5
                 ) / 3600.0  # in arcseconds converted to archours
                 source_size *= np.sqrt(2)
-            print(source_size)
             try:
                 lhdu = extract_subimage(
                     lofar_data_location,
@@ -247,6 +247,25 @@ def create_cutouts(
             img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
             header = lhdu[0].header
             wcs = WCS(header)
+            if kwargs.get("radio_only", False):
+                bounding_boxes = np.array([])
+                proposal_boxes = np.array([])
+                img_array = np.array(img_array)
+                combined_array = [
+                    img_array,
+                    bounding_boxes,
+                    proposal_boxes,
+                    wcs,
+                ]
+                try:
+                    np.save(
+                        os.path.join(save_cutout_directory, source["Source_Name"]),
+                        combined_array,
+                    )
+                except Exception as e:
+                    if verbose:
+                        print(f"Failed to save: {e}")
+                continue
             # Now change source_size to size of cutout, or root(2)*source_size so all possible sources are included
             # exit()
 
@@ -256,10 +275,6 @@ def create_cutouts(
             # cuts size in two to only get sources that fall within the cutout, instead of ones that go twice as large
             cutout_catalog = determine_visible_catalogue_sources(
                 source_ra, source_dec, source_size / 2, pan_wise_catalog
-            )
-            # Now determine if there are other sources in the area
-            other_visible_sources = determine_visible_catalogue_sources(
-                source_ra, source_dec, source_size / 2, mosaic_cutouts
             )
 
             # Now make proposal boxes
@@ -385,7 +400,9 @@ def create_source_dataset(
         l_objects = l_objects[l_objects["Total_flux"] > 10.0]
         print(len(l_objects))
     mosaic_names = set(l_objects["Mosaic_ID"])
-
+    print(len(l_objects))
+    print(mosaic_names)
+    #exit()
     comp_catalog = get_lotss_objects(component_catalog_location, False)
 
     # Go through each object, creating the cutout and saving to a directory
@@ -417,18 +434,20 @@ def create_source_dataset(
                 repeat(bands),
                 repeat(fixed_size),
                 repeat(verbose),
+                repeat(**kwargs)
             ),
         )
     else:
-        create_cutouts(
-            mosaic=mosaic_names,
-            value_added_catalog=l_objects,
-            pan_wise_catalog=pan_wise_location,
-            component_catalog=comp_catalog,
-            mosaic_location=dr_two_location,
-            save_cutout_directory=all_directory,
-            bands=bands,
-            source_size=fixed_size,
-            verbose=verbose,
-            **kwargs,
-        )
+        for mosaic in mosaic_names:
+            create_cutouts(
+                mosaic=mosaic,
+                value_added_catalog=l_objects,
+                pan_wise_catalog=pan_wise_location,
+                component_catalog=comp_catalog,
+                mosaic_location=dr_two_location,
+                save_cutout_directory=all_directory,
+                bands=bands,
+                source_size=fixed_size,
+                verbose=verbose,
+                **kwargs,
+            )

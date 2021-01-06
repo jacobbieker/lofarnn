@@ -10,9 +10,9 @@ import numpy as np
 
 from lofarnn.data.datasets import get_lotss_objects
 
-vac = "/home/jacob/Development/data/catalogues/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits"
-source_loc = "/run/media/jacob/34b36a2c-5b42-41cd-a1fa-7a09e5414860/lofar-surveys.org/downloads/DR2/mosaics/"
-dest_loc = "/run/media/jacob/SSD_Backup/mosaics/"
+vac = "/home/jacob/Downloads/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2b_restframe.fits"
+source_loc = "/run/media/jacob/easystore1/Research/LOFAR/mosaics/"
+dest_loc = "/run/media/jacob/768E313E8E30F7E7/mosaics/"
 l_objects = get_lotss_objects(vac, True)
 l_objects = l_objects[~np.isnan(l_objects["LGZ_Size"])]
 l_objects = l_objects[~np.isnan(l_objects["ID_ra"])]

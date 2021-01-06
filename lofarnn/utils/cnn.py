@@ -75,6 +75,8 @@ def make_single_cnn_set(
             (image, cutouts, proposal_boxes, wcs) = np.load(
                 image_name, allow_pickle=True
             )  # mmap_mode might allow faster read
+            print(image.shape)
+            image = np.moveaxis(image, 0, 2)
             cutout = Cutout2D(
                 image[:, :, 0],
                 position=(int(image.shape[0] / 2), int(image.shape[1] / 2)),
@@ -83,33 +85,15 @@ def make_single_cnn_set(
             )
             wcs = cutout.wcs
             image = np.nan_to_num(image)
-            if rotation is not None:
-                if isinstance(rotation, (list, tuple, np.ndarray)):
-                    (image, cutouts, proposal_boxes,) = augment_image_and_bboxes(
-                        image,
-                        cutouts=cutouts,
-                        proposal_boxes=proposal_boxes,
-                        angle=rotation[set_number],
-                        new_size=resize,
-                    )
-                else:
-                    (image, cutouts, proposal_boxes,) = augment_image_and_bboxes(
-                        image,
-                        cutouts=cutouts,
-                        proposal_boxes=proposal_boxes,
-                        angle=np.random.uniform(-rotation, rotation),
-                        new_size=resize,
-                    )
-            else:
-                # Need this to convert the bbox coordinates into the correct format
-                (image, cutouts, proposal_boxes,) = augment_image_and_bboxes(
-                    image,
-                    cutouts=cutouts,
-                    proposal_boxes=proposal_boxes,
-                    angle=0,
-                    new_size=resize,
-                    verbose=False,
-                )
+            # Need this to convert the bbox coordinates into the correct format
+            (image, cutouts, proposal_boxes,) = augment_image_and_bboxes(
+                image,
+                cutouts=cutouts,
+                proposal_boxes=proposal_boxes,
+                angle=0,
+                new_size=resize,
+                verbose=False,
+            )
             width, height, depth = np.shape(image)
 
             # First R (Radio) channel
@@ -154,7 +138,7 @@ def make_single_cnn_set(
             np.save(wcs_dest_filename, wcs)
         else:
             image = np.load(image_dest_filename)
-            wcs = np.load(wcs_dest_filename)
+            wcs = np.load(wcs_dest_filename, allow_pickle=True)
             height, width, depth = np.shape(image)
 
         record = {
@@ -356,10 +340,9 @@ def create_cnn_annotations(
     manager = Manager()
     pool = Pool(processes=os.cpu_count())
     L = manager.list()
-    [
-        pool.apply_async(
-            make_single_cnn_set,
-            args=[
+    for name in image_names:
+        #x = pool.apply_async(
+        make_single_cnn_set(
                 [name],
                 L,
                 0,
@@ -371,10 +354,9 @@ def create_cnn_annotations(
                 convert,
                 vac_catalog_location,
                 normalize,
-            ],
-        )
-        for name in image_names
-    ]
+            )
+        #)
+        #x.get()
     pool.close()
     pool.join()
     print(len(L))
@@ -459,7 +441,7 @@ def create_cnn_dataset(
             data_split["val"],
             json_dir=annotations_directory,
             image_destination_dir=val_directory,
-            json_name=f"cnn_val_norm{normalize}.pkl",
+            json_name=f"cnn_val_norm{normalize}_extra.pkl",
             pan_wise_location=counterpart_catalog,
             resize=resize,
             rotation=None,
@@ -474,7 +456,7 @@ def create_cnn_dataset(
         data_split["train"],
         json_dir=annotations_directory,
         image_destination_dir=train_directory,
-        json_name=f"cnn_train_test_norm{normalize}.pkl",
+        json_name=f"cnn_train_test_norm{normalize}_extra.pkl",
         pan_wise_location=counterpart_catalog,
         resize=resize,
         rotation=None,
@@ -489,7 +471,7 @@ def create_cnn_dataset(
         data_split["test"],
         json_dir=annotations_directory,
         image_destination_dir=test_directory,
-        json_name=f"cnn_test_norm{normalize}.pkl",
+        json_name=f"cnn_test_norm{normalize}_extra.pkl",
         pan_wise_location=counterpart_catalog,
         resize=resize,
         rotation=None,
@@ -504,7 +486,7 @@ def create_cnn_dataset(
         data_split["train"],
         json_dir=annotations_directory,
         image_destination_dir=train_directory,
-        json_name=f"cnn_train_norm{normalize}.pkl",
+        json_name=f"cnn_train_norm{normalize}_extra.pkl",
         pan_wise_location=counterpart_catalog,
         resize=resize,
         rotation=rotation,

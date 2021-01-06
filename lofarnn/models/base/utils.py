@@ -140,7 +140,7 @@ def setup(
     Setup dataset and dataloaders for these new datasets
     """
     train_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_train_norm{args.norm}.pkl"),
+        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         num_sources=args.num_sources,
@@ -149,14 +149,14 @@ def setup(
         embed_source=args.embed_source,
     )
     train_test_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
+        os.path.join(args.dataset, f"cnn_test_norm{args.norm}.pkl"),
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         num_sources=args.num_sources,
         embed_source=args.embed_source,
     )
     val_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_val_norm{args.norm}.pkl"),
+        os.path.join(args.dataset, f"cnn_test_norm{args.norm}.pkl"),
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         num_sources=args.num_sources,
@@ -206,7 +206,7 @@ def test(
                 data["labels"].to(device),
                 data["names"],
             )
-            output = model(image, source)
+            output = model(image)
             # sum up batch loss
             if config["loss"] == "cross-entropy":
                 try:
@@ -286,7 +286,6 @@ def train(
     output_dir: str = "./",
     config: Dict[str, str] = {"loss": "cross-entropy"},
 ) -> None:
-    save_loss = []
     total_loss = 0
     model.train()
     loss_fn = BinaryFocalLoss(
@@ -295,14 +294,13 @@ def train(
         reduction="mean",
     )
     for batch_idx, data in enumerate(train_loader):
-        image, source, labels, names = (
+        image, labels, names = (
             data["images"].to(device),
-            data["sources"].to(device),
             data["labels"].to(device),
             data["names"],
         )
         optimizer.zero_grad()
-        output = model(image, source)
+        output = model(image)
         if config["loss"] == "cross-entropy":
             loss = F.binary_cross_entropy(F.softmax(output, dim=-1), labels)
         elif config["loss"] == "f1":
@@ -312,9 +310,6 @@ def train(
         else:
             raise Exception("Loss not one of 'cross-entropy', 'focal', 'f1' ")
         loss.backward()
-
-        save_loss.append(loss.item())
-
         optimizer.step()
 
         if args.lr_type == "cyclical":
@@ -322,12 +317,12 @@ def train(
         total_loss += loss.item()
         if batch_idx % args.log_interval == 0:
             print(
-                "Train Epoch: {}\tLoss: {:.6f} \t Average loss {:.6f}".format(
-                    epoch, loss.item(), np.mean(save_loss[-args.log_interval :])
+                "Train Epoch: {}\tLoss: {:.6f}".format(
+                    epoch, loss.item(),
                 )
             )
     if args.lr_type == "plateau":
         scheduler.step(total_loss)  # LROnPlateau step is after each epoch
-    a = np.asarray(save_loss)
-    with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
-        np.savetxt(f, a, delimiter=",")
+    #a = np.asarray(save_loss)
+    #with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
+    #    np.savetxt(f, a, delimiter=",")
