@@ -245,6 +245,10 @@ def create_cutouts(
                     )
                 continue
             img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
+            # if wanted, set all those below certain value to 0, S/N, which is the above
+            sigma_cutoff = kwargs.get("sigma_cutoff", -1)
+            if sigma_cutoff >= 0:
+                img_array = np.where(img_array < sigma_cutoff, 0, img_array)
             header = lhdu[0].header
             wcs = WCS(header)
             if kwargs.get("radio_only", False):

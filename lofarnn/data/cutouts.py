@@ -237,6 +237,8 @@ for s,idx in zip(gauss_cat['Source_Name'].values, gauss_cat.index):
     gauss_dict[s].append(idx)
 """
 
+flatten = lambda t: [item for sublist in t for item in sublist]
+
 
 def remove_unresolved_sources_from_fits(
     cutout, fits_path, gauss_cat, gauss_dict, debug=False
