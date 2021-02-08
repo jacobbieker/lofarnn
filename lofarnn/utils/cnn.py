@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import List, Any, Optional, Union, Tuple
 
 import numpy as np
-from PIL import Image
 from astropy.io import fits
 from astropy.nddata import Cutout2D
 
@@ -171,8 +170,8 @@ def make_single_cnn_set(
             for j, obj in enumerate(objects):
                 optical_sources.append([])
                 if (
-                    obj["objID"] == source["objID"]
-                    and obj["AllWISE"] == source["AllWISE"]
+                    obj["objID"] == source["objID"].data
+                    and obj["AllWISE"] == source["AllWISE"].data
                 ):
                     optical_labels.append(1)  # Optical Source
                 else:
@@ -341,22 +340,22 @@ def create_cnn_annotations(
     pool = Pool(processes=os.cpu_count())
     L = manager.list()
     for name in image_names:
-        #x = pool.apply_async(
+        # x = pool.apply_async(
         make_single_cnn_set(
-                [name],
-                L,
-                0,
-                image_destination_dir,
-                pan_wise_location,
-                bands,
-                resize,
-                None,
-                convert,
-                vac_catalog_location,
-                normalize,
-            )
-        #)
-        #x.get()
+            [name],
+            L,
+            0,
+            image_destination_dir,
+            pan_wise_location,
+            bands,
+            resize,
+            None,
+            convert,
+            vac_catalog_location,
+            normalize,
+        )
+        # )
+        # x.get()
     pool.close()
     pool.join()
     print(len(L))

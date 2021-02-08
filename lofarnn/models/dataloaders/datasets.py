@@ -47,6 +47,7 @@ class RadioSourceDataset(Dataset):
         for anno in self.annotations:
             if isinstance(anno, np.ndarray):
                 anno = anno.item()
+            # print(np.count_nonzero(anno["optical_labels"][:num_sources]))
             if anno["height"] == anno["width"] == 200:
                 if (
                     remove_no_source
@@ -54,7 +55,7 @@ class RadioSourceDataset(Dataset):
                 ):
                     # Check if there is a source within the cutoff, if not, ignore it as well, unless we want non source ones
                     new_anno.append(anno)
-                else:
+                elif not remove_no_source:
                     new_anno.append(anno)
         self.annotations = new_anno
         print(f"Len Anno After Purge: {len(self.annotations)}")
@@ -111,7 +112,10 @@ class RadioSourceDataset(Dataset):
 
     def load_embedded_source(self, idx):
         anno = self.annotations[self.mapping[idx][0]]
-        image = np.load(anno["file_name"].replace("/mnt/LargeSSD/", "/home/jacob/Development/"), fix_imports=True)
+        image = np.load(
+            anno["file_name"].replace("/mnt/LargeSSD/", "/home/jacob/Development/"),
+            fix_imports=True,
+        )
         source = anno["optical_sources"][self.mapping[idx][1]]
         source = source[3:]  # Remove the IDs, etc.
         # Encode into the image one-hot encoding, appending n channels
@@ -137,7 +141,11 @@ class RadioSourceDataset(Dataset):
         return {
             "images": image,
             "labels": torch.from_numpy(label).float(),
-            "sources": torch.from_numpy(np.zeros(1,)),
+            "sources": torch.from_numpy(
+                np.zeros(
+                    1,
+                )
+            ),
             "names": self._get_source_name(anno["file_name"]),
         }
 
