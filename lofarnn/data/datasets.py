@@ -245,6 +245,10 @@ def create_cutouts(
                     )
                 continue
             img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
+            # if wanted, set all those below certain value to 0, S/N, which is the above
+            sigma_cutoff = kwargs.get("sigma_cutoff", -1)
+            if sigma_cutoff >= 0:
+                img_array = np.where(img_array < sigma_cutoff, 0, img_array)
             header = lhdu[0].header
             wcs = WCS(header)
             if kwargs.get("radio_only", False):
@@ -402,7 +406,7 @@ def create_source_dataset(
     mosaic_names = set(l_objects["Mosaic_ID"])
     print(len(l_objects))
     print(mosaic_names)
-    #exit()
+    # exit()
     comp_catalog = get_lotss_objects(component_catalog_location, False)
 
     # Go through each object, creating the cutout and saving to a directory
@@ -434,7 +438,7 @@ def create_source_dataset(
                 repeat(bands),
                 repeat(fixed_size),
                 repeat(verbose),
-                repeat(**kwargs)
+                repeat(**kwargs),
             ),
         )
     else:

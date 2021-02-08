@@ -318,11 +318,12 @@ def train(
         if batch_idx % args.log_interval == 0:
             print(
                 "Train Epoch: {}\tLoss: {:.6f}".format(
-                    epoch, loss.item(),
+                    epoch,
+                    loss.item(),
                 )
             )
     if args.lr_type == "plateau":
         scheduler.step(total_loss)  # LROnPlateau step is after each epoch
-    #a = np.asarray(save_loss)
-    #with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
+    # a = np.asarray(save_loss)
+    # with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
     #    np.savetxt(f, a, delimiter=",")

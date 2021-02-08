@@ -20,6 +20,7 @@ def main(args):
     for frac in [1.0]:
         args.fraction = frac
         train_dataset, train_test_dataset, val_dataset, test_dataset = setup(args)
+        exit()
         train_loader = dataloader.DataLoader(
             train_dataset,
             batch_size=args.batch,
