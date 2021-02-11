@@ -16,6 +16,11 @@ from astropy.visualization import PercentileInterval
 from astropy.wcs.utils import skycoord_to_pixel
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 from skimage.transform import rotate
+import pandas as pd
+from astropy.wcs import WCS
+from astropy.table import Table
+
+flatten = lambda t: [item for sublist in t for item in sublist]
 
 
 def convert_to_valid_color(
@@ -235,22 +240,18 @@ for s,idx in zip(gauss_cat['Source_Name'].values, gauss_cat.index):
     gauss_dict[s].append(idx)
 """
 
-flatten = lambda t: [item for sublist in t for item in sublist]
-
-import pandas as pd
-
 
 def remove_unresolved_sources_from_view(
-    source_name,
-    min_RA,
-    max_RA,
-    min_DEC,
-    max_DEC,
-    image,
-    wcs,
-    gauss_catalog,
-    component_catalog,
-    debug=False,
+    source_name: str,
+    min_ra: float,
+    max_ra: float,
+    min_dec: float,
+    max_dec: float,
+    image: np.ndarray,
+    wcs: WCS,
+    gauss_catalog: str,
+    component_catalog: Table,
+    debug: bool = False,
 ):
     """Given a path to a fits file and the corresponding cutout object,
     for all sources in the cutout object marked as unresolved we will find
@@ -271,10 +272,10 @@ def remove_unresolved_sources_from_view(
     # Mostly need to change input, take all those that have the same Source Name areas, and keep those, subtract out
     # All others in cutout that don't have the same Source Name as the source
     box_dim = (
-        (component_catalog["RA"] >= min_RA)
-        & (component_catalog["RA"] <= max_RA)
-        & (component_catalog["DEC"] >= min_DEC)
-        & (component_catalog["DEC"] <= max_DEC)
+        (component_catalog["RA"] >= min_ra)
+        & (component_catalog["RA"] <= max_ra)
+        & (component_catalog["DEC"] >= min_dec)
+        & (component_catalog["DEC"] <= max_dec)
     )
     # Get accompanying value added catalogue datarow
     compcat_subset = component_catalog[box_dim]
