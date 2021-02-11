@@ -5,7 +5,6 @@ import imgaug.augmenters as iaa
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.coordinates import SkyCoord
-from astropy.io import fits
 from astropy.modeling import models
 from astropy.visualization import (
     MinMaxInterval,
@@ -14,7 +13,6 @@ from astropy.visualization import (
     ImageNormalize,
 )
 from astropy.visualization import PercentileInterval
-from astropy.wcs import WCS
 from astropy.wcs.utils import skycoord_to_pixel
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 from skimage.transform import rotate
@@ -239,57 +237,62 @@ for s,idx in zip(gauss_cat['Source_Name'].values, gauss_cat.index):
 
 flatten = lambda t: [item for sublist in t for item in sublist]
 
+import pandas as pd
 
-def remove_unresolved_sources_from_fits(
-    cutout, fits_path, gauss_cat, gauss_dict, debug=False
+
+def remove_unresolved_sources_from_view(
+    source_name,
+    min_RA,
+    max_RA,
+    min_DEC,
+    max_DEC,
+    image,
+    wcs,
+    gauss_catalog,
+    component_catalog,
+    debug=False,
 ):
     """Given a path to a fits file and the corresponding cutout object,
     for all sources in the cutout object marked as unresolved we will find
     the constituent gaussian components and subtract those from the fits image.
     Finally we write the image back to the fits file."""
 
-    # Open fits
-    hdu = fits.open(fits_path)
-    image = hdu[0].data
-    cutout_wcs = WCS(hdu[0].header, naxis=2)
-
     relevant_idxs = []
+
+    # Load gaussian component cat
+    gauss_cat = pd.read_hdf(gauss_catalog)
+    # Turn Gauss cat into dict
+    gauss_dict = {s: [] for s in gauss_cat["Source_Name"].values}
+    for s, idx in zip(gauss_cat["Source_Name"].values, gauss_cat.index):
+        gauss_dict[s].append(idx)
 
     # For each unresolved source
     # UNnresolved source is from a special cutout lofarnn_things stuff, have to change for here
-    """
-    # Select all sources which fall within the bounds of the box
-            box_dim = (compcat['RA']>=min_RA) & (compcat['RA']<=max_RA) \
-                    & (compcat['DEC']>=min_DEC) & (compcat['DEC']<=max_DEC) 
-            # Get accompanying value added catalogue datarow
-            compcat_subset = compcat[box_dim]
-            # Filter out central component
-            if training_mode:
-                compcat_subset = compcat_subset[[s.c_source.sname != n 
-                    for n in compcat_subset.Component_Name.values]]
-            else:
-                compcat_subset = compcat_subset[[s.c_source.sname != n 
-                    for n in compcat_subset.Source_Name.values]]
-            # Add other radio components to cutout object
-            s.save_other_components(cutout_wcs, idx_dict, compcat_subset,
-                    unresolved_dict, remove_unresolved=remove_unresolved, training_mode=training_mode)
-    """
-    for unresolved_source in cutout.get_unresolved_sources():
+    # Mostly need to change input, take all those that have the same Source Name areas, and keep those, subtract out
+    # All others in cutout that don't have the same Source Name as the source
+    box_dim = (
+        (component_catalog["RA"] >= min_RA)
+        & (component_catalog["RA"] <= max_RA)
+        & (component_catalog["DEC"] >= min_DEC)
+        & (component_catalog["DEC"] <= max_DEC)
+    )
+    # Get accompanying value added catalogue datarow
+    compcat_subset = component_catalog[box_dim]
+    non_sources = compcat_subset[
+        compcat_subset.Source_Name != source_name
+    ]  # Select all those not part of source
+    for unresolved_source in non_sources:
         # Get relevant catalogue entries
-        relevant_idxs.append(gauss_dict[unresolved_source.sname])
+        relevant_idxs.append(gauss_dict[unresolved_source.Source_Name])
 
     # Create gaussians
     relevant_idxs = flatten(relevant_idxs)
     gaussians = extract_gaussian_parameters_from_component_catalogue(
-        gauss_cat.loc[relevant_idxs], cutout_wcs
+        gauss_cat.loc[relevant_idxs], wcs
     )
     # Subtract them from the data
     model, residual = subtract_gaussians_from_data(gaussians, image)
-    hdu[0].data = residual
-
-    # Write changes to fits file
-    hdu.writeto(fits_path, overwrite=True)
-    hdu.close()
+    image = residual
 
     # Debug visualization
     if debug:
@@ -301,3 +304,5 @@ def remove_unresolved_sources_from_fits(
         ax[1].imshow(residual, norm=norm)
         ax[2].imshow(model, norm=norm)
         plt.show()
+
+    return image
