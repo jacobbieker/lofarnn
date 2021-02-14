@@ -261,7 +261,8 @@ def remove_unresolved_sources_from_view(
     relevant_idxs = []
 
     # Load gaussian component cat
-    gauss_cat = pd.read_hdf(gauss_catalog)
+    gauss_cat = Table.read(gauss_catalog).to_pandas()
+    component_catalog = component_catalog.to_pandas()
     # Turn Gauss cat into dict
     gauss_dict = {s: [] for s in gauss_cat["Source_Name"].values}
     for s, idx in zip(gauss_cat["Source_Name"].values, gauss_cat.index):
@@ -284,7 +285,7 @@ def remove_unresolved_sources_from_view(
     ]  # Select all those not part of source
     for unresolved_source in non_sources:
         # Get relevant catalogue entries
-        relevant_idxs.append(gauss_dict[unresolved_source.Source_Name])
+        relevant_idxs.append(gauss_dict[unresolved_source["Source_Name"]])
 
     # Create gaussians
     relevant_idxs = flatten(relevant_idxs)

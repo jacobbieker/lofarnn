@@ -53,6 +53,8 @@ create_source_dataset(
     radio_only=True,
     # size_name="Predicted_Size",
     gauss_catalog=gauss_catalog,
+    remove_other_sources=True,
+    sigma_cutoff=1.5,
 )
 
 # exit()
