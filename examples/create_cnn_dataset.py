@@ -21,18 +21,20 @@ if environment == "ALICE":
     pan_wise_location = "/home/s2153246/data/combined_panstarr_allwise.fits"
     multi_process = True
 else:
-    pan_wise_location = "/home/jacob/combined_panstarr_allwise_flux.fits"
-    dr_two = "/run/media/jacob/768E313E8E30F7E7/mosaics/"
-    comp_cat = "/home/jacob/Downloads/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
+    pan_wise_location = "/data/Research/LOFAR/combined_panstarr_allwise_flux.fits"
+    dr_two = "/data/Research/LOFAR/mosaics/"
+    comp_cat = "/data/Research/LOFAR/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
     vac = (
-        "/home/jacob/Downloads/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2b_restframe.fits"
+        "/data/Research/LOFAR/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2b_restframe.fits"
     )
-    cutout_directory = "/home/jacob/LoTSS_LGZ/"
+    cutout_directory = "/data/Research/LoTSS_DR1_Cleaned/"
     multi_process = False
 
+
 rotation = 180
-size = (300.0 / 3600.0) * np.sqrt(2)
-print(size)
+
+gauss_catalog = "/data/Research/LOFAR/LOFAR_HBA_T1_DR1_catalog_v0.99.gaus.fits"
+
 
 create_source_dataset(
     cutout_directory=cutout_directory,
@@ -43,15 +45,17 @@ create_source_dataset(
     use_multiprocessing=multi_process,
     all_channels=True,
     filter_lgz=True,
-    fixed_size=size,
+    fixed_size=False,
     no_source=False,
     filter_optical=True,
     strict_filter=False,
     verbose=False,
-    radio_only=True
+    radio_only=True,
+    # size_name="Predicted_Size",
+    gauss_catalog=gauss_catalog,
 )
 
-#exit()
+# exit()
 create_cnn_dataset(
     root_directory=cutout_directory,
     counterpart_catalog=pan_wise_location,
