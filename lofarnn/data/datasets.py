@@ -14,6 +14,7 @@ from lofarnn.models.dataloaders.utils import get_lotss_objects
 from lofarnn.utils.common import create_coco_style_directory_structure
 from lofarnn.utils.fits import extract_subimage, determine_visible_catalogue_sources
 from lofarnn.visualization.cutouts import plot_three_channel_debug
+from lofarnn.data.cutouts import remove_unresolved_sources_from_view
 
 
 def pad_with(
@@ -244,13 +245,36 @@ def create_cutouts(
                         f"Failed to make rms cutout for source: {source['Source_Name']}"
                     )
                 continue
+            header = lhdu[0].header
+            wcs = WCS(header)
+            # Remove unresolved sources here
+            if kwargs.get("remove_other_sources", False):
+                if isinstance(component_catalog, str):
+                    comp_cat = Table.read(component_catalog)
+                else:
+                    comp_cat = component_catalog
+                gauss_catalog = kwargs.get("gauss_catalog", None)
+                if gauss_catalog is None:
+                    return ValueError("Missing Gaussian Catalog for removing sources")
+                lhdu[0].data = remove_unresolved_sources_from_view(
+                    source_name=source["Source_Name"],
+                    min_ra=source_ra - (source_size / 2),
+                    max_ra=source_ra + (source_size / 2),
+                    min_dec=source_dec - (source_size / 2),
+                    max_dec=source_dec + (source_size / 2),
+                    image=lhdu[0].data,
+                    wcs=wcs,
+                    gauss_catalog=gauss_catalog,
+                    component_catalog=comp_cat,
+                    debug=verbose,
+                )
+
             img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
             # if wanted, set all those below certain value to 0, S/N, which is the above
             sigma_cutoff = kwargs.get("sigma_cutoff", -1)
             if sigma_cutoff >= 0:
                 img_array = np.where(img_array < sigma_cutoff, 0, img_array)
-            header = lhdu[0].header
-            wcs = WCS(header)
+
             if kwargs.get("radio_only", False):
                 bounding_boxes = np.array([])
                 proposal_boxes = np.array([])
