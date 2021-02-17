@@ -14,7 +14,11 @@ from lofarnn.models.dataloaders.utils import get_lotss_objects
 from lofarnn.utils.common import create_coco_style_directory_structure
 from lofarnn.utils.fits import extract_subimage, determine_visible_catalogue_sources
 from lofarnn.visualization.cutouts import plot_three_channel_debug
-from lofarnn.data.cutouts import remove_unresolved_sources_from_view
+from lofarnn.data.cutouts import (
+    remove_unresolved_sources_from_view,
+    is_image_artifact,
+    get_zoomed_image,
+)
 
 
 def pad_with(
@@ -216,7 +220,6 @@ def create_cutouts(
                 source_size = (
                     source[kwargs.get("size_name", "LGZ_Size")] * 1.5
                 ) / 3600.0  # in arcseconds converted to archours
-                source_size *= np.sqrt(2)
             try:
                 lhdu = extract_subimage(
                     lofar_data_location,
@@ -269,12 +272,24 @@ def create_cutouts(
                     debug=verbose,
                 )
 
+                # Get size of where there is 90% of the flux of the image
+                if kwargs.get("zoom_image", False):
+                    lhdu[0].data, wcs, central_size, center = get_zoomed_image(
+                        lhdu[0].data, wcs=wcs, threshold=0.9
+                    )
+                    lrms[0].data = lrms[0].data[
+                        center[0] - central_size : center[0] + central_size,
+                        center[1] - central_size : center[1] + central_size,
+                    ]
+
             img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
             # if wanted, set all those below certain value to 0, S/N, which is the above
             sigma_cutoff = kwargs.get("sigma_cutoff", -1)
             if sigma_cutoff >= 0:
                 img_array[0] = np.where(img_array[0] < sigma_cutoff, 0, img_array[0])
-
+            if is_image_artifact(image=img_array[0], central_size=5):
+                print(f"Skipping b/c Artifact: {source['Source_Name']}")
+                continue
             if kwargs.get("radio_only", False):
                 bounding_boxes = np.array([])
                 proposal_boxes = np.array([])

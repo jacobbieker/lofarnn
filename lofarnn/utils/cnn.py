@@ -36,6 +36,7 @@ def make_single_cnn_set(
     convert: bool = False,
     vac_catalog_location: str = "",
     normalize: bool = True,
+    **kwargs,
 ):
     pan_wise_catalog = fits.open(pan_wise_location, memmap=True)
     pan_wise_catalog = pan_wise_catalog[1].data
@@ -79,7 +80,7 @@ def make_single_cnn_set(
             cutout = Cutout2D(
                 image[:, :, 0],
                 position=(int(image.shape[0] / 2), int(image.shape[1] / 2)),
-                size=(int(np.sqrt(image.shape[0])), int(np.sqrt(image.shape[1]))),
+                size=(int(image.shape[0]), int(image.shape[1])),
                 wcs=wcs,
             )
             wcs = cutout.wcs
@@ -157,7 +158,10 @@ def make_single_cnn_set(
                 source_coords,
                 sky_coords,
             ) = determine_visible_catalogue_source_and_separation(
-                source["RA"], source["DEC"], 150.0 / 3600, pan_wise_catalog
+                source["RA"],
+                source["DEC"],
+                source[kwargs.get("size_name", "LGZ_Size")] * 1.5 / 3600.0,
+                pan_wise_catalog,
             )
             # Sort from closest to farthest distance
             idx = np.argsort(distances)

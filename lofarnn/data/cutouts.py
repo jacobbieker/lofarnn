@@ -16,7 +16,7 @@ from astropy.visualization import PercentileInterval
 from astropy.wcs.utils import skycoord_to_pixel
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 from skimage.transform import rotate
-import pandas as pd
+from astropy.nddata import Cutout2D
 from astropy.wcs import WCS
 from astropy.table import Table
 
@@ -110,7 +110,7 @@ def augment_image_and_bboxes(
     prop_boxes = []
     seg_boxes = []
     new_crop = int(
-        np.ceil(image.shape[0] / np.sqrt(2))
+        np.ceil(image.shape[0])
     )  # Is 200 for 282, which is what is wanted, and works for others
     seq = iaa.Sequential(
         [
@@ -264,10 +264,10 @@ def remove_unresolved_sources_from_view(
     gauss_cat = Table.read(gauss_catalog).to_pandas()
     component_catalog = component_catalog.to_pandas()
     # Turn Gauss cat into dict
-    gauss_dict = {str(s, 'utf-8'): [] for s in gauss_cat["Source_Name"].values}
+    gauss_dict = {str(s, "utf-8"): [] for s in gauss_cat["Source_Name"].values}
     for s, idx in zip(gauss_cat["Source_Name"].values, gauss_cat.index):
-        gauss_dict[str(s, 'utf-8')].append(idx)
-    #print(gauss_dict)
+        gauss_dict[str(s, "utf-8")].append(idx)
+    # print(gauss_dict)
     # For each unresolved source
     # UNnresolved source is from a special cutout lofarnn_things stuff, have to change for here
     # Mostly need to change input, take all those that have the same Source Name areas, and keep those, subtract out
@@ -291,7 +291,7 @@ def remove_unresolved_sources_from_view(
         for unresolved_source in non_sources["Source_Name"]:
             # Get relevant catalogue entries
             print(unresolved_source)
-            relevant_idxs.append(gauss_dict[str(unresolved_source, 'utf-8')])
+            relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
 
         # Create gaussians
         relevant_idxs = flatten(relevant_idxs)
@@ -316,3 +316,49 @@ def remove_unresolved_sources_from_view(
             plt.clf()
 
     return image
+
+
+def is_image_artifact(
+    image: np.ndarray, central_size: int = 10, threshold: Union[float, int] = 1.0
+) -> bool:
+    """Check if the center of the image is empty, suggesting that the Gaussian is an artifact, remove"""
+    img_center_h = image.shape[0] / 2
+    img_center_w = image.shape[1] / 2
+    center = image[
+        img_center_h - central_size : img_center_h + central_size,
+        img_center_w - central_size : img_center_w + central_size,
+    ]
+    if np.sum(center) <= threshold:
+        return True
+    else:
+        return False
+
+
+def get_zoomed_image(
+    image: np.ndarray, wcs: WCS, threshold: float = 0.9
+) -> [np.ndarray, WCS, int, Tuple[int, int]]:
+    """Gets the image where 90% of the flux is, returns the min bounding box around 90% of the flux"""
+
+    total_flux = np.sum(image)
+
+    img_center_h = image.shape[0] / 2
+    img_center_w = image.shape[1] / 2
+
+    current_flux = 0.0
+    central_size = 4
+    while current_flux < (total_flux * threshold):
+        central_size += 1
+        center = image[
+            img_center_h - central_size : img_center_h + central_size,
+            img_center_w - central_size : img_center_w + central_size,
+        ]
+        current_flux = np.sum(center)
+
+    cutout = Cutout2D(
+        image,
+        position=(img_center_h, img_center_w),
+        size=(central_size, central_size),
+        wcs=wcs,
+    )
+
+    return cutout.data, cutout.wcs, central_size, (img_center_h, img_center_w)
