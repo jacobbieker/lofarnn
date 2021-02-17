@@ -346,7 +346,7 @@ def get_zoomed_image(
 
     current_flux = 0.0
     central_size = 4
-    while current_flux < (total_flux * threshold):
+    while current_flux >= (total_flux * threshold):
         central_size += 1
         center = image[
             img_center_h - central_size : img_center_h + central_size,
@@ -357,7 +357,7 @@ def get_zoomed_image(
     cutout = Cutout2D(
         image,
         position=(img_center_h, img_center_w),
-        size=(central_size, central_size),
+        size=(2 * central_size, 2 * central_size),
         wcs=wcs,
     )
 
