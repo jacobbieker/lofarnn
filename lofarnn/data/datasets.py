@@ -273,7 +273,7 @@ def create_cutouts(
             # if wanted, set all those below certain value to 0, S/N, which is the above
             sigma_cutoff = kwargs.get("sigma_cutoff", -1)
             if sigma_cutoff >= 0:
-                img_array = np.where(img_array < sigma_cutoff, 0, img_array)
+                img_array[0] = np.where(img_array[0] < sigma_cutoff, 0, img_array[0])
 
             if kwargs.get("radio_only", False):
                 bounding_boxes = np.array([])

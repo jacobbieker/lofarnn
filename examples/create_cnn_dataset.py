@@ -27,7 +27,7 @@ else:
     vac = (
         "/data/Research/LOFAR/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2b_restframe.fits"
     )
-    cutout_directory = "/data/Research/LoTSS_DR1_Cleaned/"
+    cutout_directory = "/data/Research/LoTSS_DR1_Cleaned_Debug2/"
     multi_process = False
 
 
@@ -53,8 +53,10 @@ create_source_dataset(
     radio_only=True,
     # size_name="Predicted_Size",
     gauss_catalog=gauss_catalog,
+    remove_other_sources=True,
+    sigma_cutoff=1.5,
 )
-
+#exit()
 # exit()
 create_cnn_dataset(
     root_directory=cutout_directory,

@@ -261,49 +261,60 @@ def remove_unresolved_sources_from_view(
     relevant_idxs = []
 
     # Load gaussian component cat
-    gauss_cat = pd.read_hdf(gauss_catalog)
+    gauss_cat = Table.read(gauss_catalog)
+    gauss_cat = gauss_cat.to_pandas()
+    
+    component_catalog = component_catalog.to_pandas()
     # Turn Gauss cat into dict
-    gauss_dict = {s: [] for s in gauss_cat["Source_Name"].values}
+    gauss_dict = {str(s, 'utf-8'): [] for s in gauss_cat["Source_Name"].values}
     for s, idx in zip(gauss_cat["Source_Name"].values, gauss_cat.index):
-        gauss_dict[s].append(idx)
-
+        gauss_dict[str(s, 'utf-8')].append(idx)
+    #print(gauss_dict)
     # For each unresolved source
     # UNnresolved source is from a special cutout lofarnn_things stuff, have to change for here
     # Mostly need to change input, take all those that have the same Source Name areas, and keep those, subtract out
     # All others in cutout that don't have the same Source Name as the source
     box_dim = (
-        (component_catalog["RA"] >= min_ra)
-        & (component_catalog["RA"] <= max_ra)
-        & (component_catalog["DEC"] >= min_dec)
-        & (component_catalog["DEC"] <= max_dec)
+        (gauss_cat["RA"] >= min_ra)
+        & (gauss_cat["RA"] <= max_ra)
+        & (gauss_cat["DEC"] >= min_dec)
+        & (gauss_cat["DEC"] <= max_dec)
     )
     # Get accompanying value added catalogue datarow
-    compcat_subset = component_catalog[box_dim]
+    compcat_subset = gauss_cat[box_dim]
+    print(f"Source: {source_name} {str.encode(source_name)}")
+    print(f"Compcat: {compcat_subset.Source_Name}")
+    for _ in range(len(compcat_subset.Source_Name)):
+        print(f"Equal: {compcat_subset.Source_Name != str.encode(source_name)}")
     non_sources = compcat_subset[
-        compcat_subset.Source_Name != source_name
+        compcat_subset.Source_Name != str.encode(source_name)
     ]  # Select all those not part of source
-    for unresolved_source in non_sources:
-        # Get relevant catalogue entries
-        relevant_idxs.append(gauss_dict[unresolved_source.Source_Name])
+    if len(non_sources) >= 1:
+        for unresolved_source in non_sources["Source_Name"]:
+            # Get relevant catalogue entries
+            print(unresolved_source)
+            relevant_idxs.append(gauss_dict[str(unresolved_source, 'utf-8')])
 
-    # Create gaussians
-    relevant_idxs = flatten(relevant_idxs)
-    gaussians = extract_gaussian_parameters_from_component_catalogue(
-        gauss_cat.loc[relevant_idxs], wcs
-    )
-    # Subtract them from the data
-    model, residual = subtract_gaussians_from_data(gaussians, image)
-    image = residual
-
-    # Debug visualization
-    if debug:
-        norm = ImageNormalize(
-            image, interval=PercentileInterval(99.0), stretch=SqrtStretch()
+        # Create gaussians
+        relevant_idxs = flatten(relevant_idxs)
+        gaussians = extract_gaussian_parameters_from_component_catalogue(
+            gauss_cat.loc[relevant_idxs], wcs
         )
-        fig, ax = plt.subplots(1, 3)
-        ax[0].imshow(image, norm=norm)
-        ax[1].imshow(residual, norm=norm)
-        ax[2].imshow(model, norm=norm)
-        plt.show()
+        # Subtract them from the data
+        model, residual = subtract_gaussians_from_data(gaussians, image)
+        image = residual
+
+        # Debug visualization
+        if True:
+            norm = ImageNormalize(
+                image, interval=PercentileInterval(99.0), stretch=SqrtStretch()
+            )
+            fig, ax = plt.subplots(1, 3)
+            ax[0].imshow(image, norm=norm)
+            ax[1].imshow(residual, norm=norm)
+            ax[2].imshow(model, norm=norm)
+            plt.savefig(f"{source_name}.png", dpi=300)
+            plt.cla()
+            plt.clf()
 
     return image
