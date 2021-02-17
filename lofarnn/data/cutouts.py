@@ -322,8 +322,8 @@ def is_image_artifact(
     image: np.ndarray, central_size: int = 10, threshold: Union[float, int] = 1.0
 ) -> bool:
     """Check if the center of the image is empty, suggesting that the Gaussian is an artifact, remove"""
-    img_center_h = image.shape[0] / 2
-    img_center_w = image.shape[1] / 2
+    img_center_h = int(image.shape[0] / 2)
+    img_center_w = int(image.shape[1] / 2)
     center = image[
         img_center_h - central_size : img_center_h + central_size,
         img_center_w - central_size : img_center_w + central_size,
