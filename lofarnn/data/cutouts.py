@@ -261,9 +261,7 @@ def remove_unresolved_sources_from_view(
     relevant_idxs = []
 
     # Load gaussian component cat
-    gauss_cat = Table.read(gauss_catalog)
-    gauss_cat = gauss_cat.to_pandas()
-    
+    gauss_cat = Table.read(gauss_catalog).to_pandas()
     component_catalog = component_catalog.to_pandas()
     # Turn Gauss cat into dict
     gauss_dict = {str(s, 'utf-8'): [] for s in gauss_cat["Source_Name"].values}
