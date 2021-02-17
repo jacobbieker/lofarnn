@@ -278,8 +278,8 @@ def create_cutouts(
                         lhdu[0].data, wcs=wcs, threshold=0.9
                     )
                     lrms[0].data = lrms[0].data[
-                        center[0] - central_size : center[0] + central_size,
-                        center[1] - central_size : center[1] + central_size,
+                        int(center[0] - central_size) : int(center[0] + central_size),
+                        int(center[1] - central_size) : int(center[1] + central_size),
                     ]
 
             img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel

@@ -341,8 +341,8 @@ def get_zoomed_image(
 
     total_flux = np.sum(image)
 
-    img_center_h = image.shape[0] / 2
-    img_center_w = image.shape[1] / 2
+    img_center_h = int(image.shape[0] / 2)
+    img_center_w = int(image.shape[1] / 2)
 
     current_flux = 0.0
     central_size = 4
