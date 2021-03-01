@@ -281,17 +281,18 @@ def create_cutouts(
                     lhdu[0].data, wcs, central_size, center = get_zoomed_image(
                         lhdu[0].data, wcs=wcs, threshold=1.1*lhdu[0].data
                     )
-                    lrms[0].data = lrms[0].data[
-                        int(center[0] - central_size) : int(center[0] + central_size),
-                        int(center[1] - central_size) : int(center[1] + central_size),
-                    ]
-
+                    #lrms[0].data = lrms[0].data[
+                    #    int(center[0] - central_size) : int(center[0] + central_size),
+                    #    int(center[1] - central_size) : int(center[1] + central_size),
+                    #]
+            if lrms[0].data.shape != lhdu[0].data.shape:
+                continue
             img_array.append(lhdu[0].data / lrms[0].data)  # Makes the Radio/RMS channel
             # if wanted, set all those below certain value to 0, S/N, which is the above
             sigma_cutoff = kwargs.get("sigma_cutoff", -1)
             if sigma_cutoff >= 0:
                 img_array[0] = np.where(img_array[0] < sigma_cutoff, 0, img_array[0])
-            if is_image_artifact(image=img_array[0], central_size=5):
+            if is_image_artifact(image=img_array[0], central_size=2):
                 print(f"Skipping b/c Artifact: {source['Source_Name']}")
                 continue
             if kwargs.get("radio_only", False):

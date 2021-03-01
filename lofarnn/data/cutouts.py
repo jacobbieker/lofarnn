@@ -336,7 +336,7 @@ def is_image_artifact(
 
 
 def get_zoomed_image(
-    image: np.ndarray, wcs: WCS, threshold: float = 0.9
+    image: np.ndarray, rms_img: np.ndarray, wcs: WCS, threshold: float = 0.9
 ) -> [np.ndarray, WCS, int, Tuple[int, int]]:
     """Gets the image where 90% of the flux is, returns the min bounding box around 90% of the flux"""
 
@@ -364,5 +364,11 @@ def get_zoomed_image(
         size=(2 * central_size, 2 * central_size),
         wcs=wcs,
     )
+    rms_cutout = Cutout2D(
+        rms_img,
+        position=(img_center_h, img_center_w),
+        size=(2 * central_size, 2 * central_size),
+        wcs=wcs,
+    )
 
-    return cutout.data, cutout.wcs, central_size, (img_center_h, img_center_w)
+    return cutout.data, cutout.wcs, central_size, (img_center_h, img_center_w), rms_cutout.data

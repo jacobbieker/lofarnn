@@ -27,7 +27,7 @@ else:
     vac = (
         "/data/Research/LOFAR/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2b_restframe.fits"
     )
-    cutout_directory = "/data/Research/LoTSS_DR1_Cleaned/"
+    cutout_directory = "/data/Research/LoTSS_DR1_Cleaned_NoZoom/"
     multi_process = False
 
 
@@ -55,7 +55,7 @@ create_source_dataset(
     gauss_catalog=gauss_catalog,
     remove_other_sources=True,
     sigma_cutoff=1.5,
-    zoom_image=True,
+    zoom_image=False,
 )
 # exit()
 # exit()
