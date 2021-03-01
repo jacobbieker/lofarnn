@@ -268,7 +268,7 @@ def remove_unresolved_sources_from_view(
     for s, idx in zip(gauss_cat["Source_Name"].values, gauss_cat.index):
         gauss_dict[str(s, "utf-8")].append(idx)
     comp_dict = {s: [] for s in component_catalog["Source_Name"].values}
-    for s, idx in zip(comp_dict["Source_Name"].values, comp_dict.index):
+    for s, idx in zip(component_catalog["Source_Name"].values, component_catalog.index):
         comp_dict[s].append(idx)
     # print(gauss_dict)
     # For each unresolved source
