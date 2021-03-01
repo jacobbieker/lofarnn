@@ -272,14 +272,14 @@ def create_cutouts(
                     debug=verbose,
                 )
 
-                if np.sum(residual) >= source["Total_Flux"]:
+                if np.sum(residual) >= source["Total_flux"]:
                     # Source is most likely in view, so use it
                     lhdu[0].data = residual
 
                 # Get size of where there is 90% of the flux of the image
                 if kwargs.get("zoom_image", False):
                     lhdu[0].data, wcs, central_size, center, lrms[0].data = get_zoomed_image(
-                        lhdu[0].data, rms_img=lrms[0].data, wcs=wcs, threshold=1.1*lhdu[0].data
+                        lhdu[0].data, rms_img=lrms[0].data, wcs=wcs, threshold=0.999*lhdu[0].data
                     )
             if lrms[0].data.shape != lhdu[0].data.shape:
                 continue
