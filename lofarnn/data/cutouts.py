@@ -280,6 +280,13 @@ def remove_unresolved_sources_from_view(
     )
     # Get accompanying value added catalogue datarow
     compcat_subset = gauss_cat[box_dim]
+    box_dim = (
+            (component_catalog["RA"] >= min_ra)
+            & (component_catalog["RA"] <= max_ra)
+            & (component_catalog["DEC"] >= min_dec)
+            & (component_catalog["DEC"] <= max_dec)
+    )
+    component_cat = component_catalog[box_dim]
     print(f"Source: {source_name} {str.encode(source_name)}")
     print(f"Compcat: {compcat_subset.Source_Name}")
     for _ in range(len(compcat_subset.Source_Name)):
@@ -287,11 +294,16 @@ def remove_unresolved_sources_from_view(
     non_sources = compcat_subset[
         compcat_subset.Source_Name != str.encode(source_name)
     ]  # Select all those not part of source
+    comp_non_sources = component_cat[
+        component_cat.Source_Name != str.encode(source_name)
+        ]  # Select all those not part of source
     if len(non_sources) >= 1:
         for unresolved_source in non_sources["Source_Name"]:
             # Get relevant catalogue entries
             print(unresolved_source)
-            relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
+            print(comp_non_sources)
+            if str(unresolved_source, "utf-8") in comp_non_sources: # So Gauss either diff name, or in comp
+                relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
 
         # Create gaussians
         relevant_idxs = flatten(relevant_idxs)
@@ -351,7 +363,7 @@ def get_zoomed_image(
         central_size += 1
         if img_center_w - central_size < 0:
             # Too large, not have all the flux, so just return the original image, not the residual
-            return None, None, None, None, None
+            return image, wcs, None, None, rms_img
         center = image[
             img_center_h - central_size : img_center_h + central_size,
             img_center_w - central_size : img_center_w + central_size,
