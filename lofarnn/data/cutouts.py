@@ -300,7 +300,7 @@ def remove_unresolved_sources_from_view(
         )
         # Subtract them from the data
         model, residual = subtract_gaussians_from_data(gaussians, image)
-        image = residual
+        #image = residual
 
         # Debug visualization
         if True:
@@ -314,8 +314,9 @@ def remove_unresolved_sources_from_view(
             plt.savefig(f"{source_name}.png", dpi=300)
             plt.cla()
             plt.clf()
-
-    return image
+    else:
+        residual = image
+    return residual, image
 
 
 def is_image_artifact(
@@ -346,8 +347,11 @@ def get_zoomed_image(
 
     current_flux = 0.0
     central_size = 4
-    while current_flux >= (total_flux * threshold):
+    while current_flux >= threshold:
         central_size += 1
+        if img_center_w - central_size < 0:
+            # Too large, not have all the flux, so just return the original image, not the residual
+            return None, None, None, None, None
         center = image[
             img_center_h - central_size : img_center_h + central_size,
             img_center_w - central_size : img_center_w + central_size,

@@ -259,7 +259,7 @@ def create_cutouts(
                 gauss_catalog = kwargs.get("gauss_catalog", None)
                 if gauss_catalog is None:
                     return ValueError("Missing Gaussian Catalog for removing sources")
-                lhdu[0].data = remove_unresolved_sources_from_view(
+                residual, lhdu[0].data = remove_unresolved_sources_from_view(
                     source_name=source["Source_Name"],
                     min_ra=source_ra - (source_size / 2),
                     max_ra=source_ra + (source_size / 2),
@@ -272,10 +272,14 @@ def create_cutouts(
                     debug=verbose,
                 )
 
+                if np.sum(residual) >= source["Total_Flux"]:
+                    # Source is most likely in view, so use it
+                    lhdu[0].data = residual
+
                 # Get size of where there is 90% of the flux of the image
                 if kwargs.get("zoom_image", False):
                     lhdu[0].data, wcs, central_size, center = get_zoomed_image(
-                        lhdu[0].data, wcs=wcs, threshold=0.9
+                        lhdu[0].data, wcs=wcs, threshold=1.1*lhdu[0].data
                     )
                     lrms[0].data = lrms[0].data[
                         int(center[0] - central_size) : int(center[0] + central_size),
