@@ -267,6 +267,9 @@ def remove_unresolved_sources_from_view(
     gauss_dict = {str(s, "utf-8"): [] for s in gauss_cat["Source_Name"].values}
     for s, idx in zip(gauss_cat["Source_Name"].values, gauss_cat.index):
         gauss_dict[str(s, "utf-8")].append(idx)
+    comp_dict = {str(s, "utf-8"): [] for s in component_catalog["Source_Name"].values}
+    for s, idx in zip(comp_dict["Source_Name"].values, comp_dict.index):
+        comp_dict[str(s, "utf-8")].append(idx)
     # print(gauss_dict)
     # For each unresolved source
     # UNnresolved source is from a special cutout lofarnn_things stuff, have to change for here
@@ -302,8 +305,13 @@ def remove_unresolved_sources_from_view(
             # Get relevant catalogue entries
             print(unresolved_source)
             print(comp_non_sources)
-            if str(unresolved_source, "utf-8") in comp_non_sources: # So Gauss either diff name, or in comp
+            try:
+                same_one = comp_dict[str(unresolved_source, "utf-8")]
                 relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
+            except KeyError:
+                pass
+            #if str(unresolved_source, "utf-8") in comp_non_sources: # So Gauss either diff name, or in comp
+            #    relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
 
         # Create gaussians
         relevant_idxs = flatten(relevant_idxs)
