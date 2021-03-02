@@ -94,7 +94,7 @@ class RadioSourceDataset(Dataset):
         image = torch.from_numpy(image).float()
         source = anno["optical_sources"][self.mapping[idx][1]]
         source = source[3:]  # Remove the IDs, etc.
-        source[0] = source[0].value / (0.03)  # Distance (arcseconds)
+        source[0] = source[0] / (0.03)  # Distance (arcseconds)
         source[1] = source[1].value / (2 * np.pi)  # Convert to between 0 and 1
         source[2] = source[2] / 7.0  # Redshift
         source = np.asarray(source)
