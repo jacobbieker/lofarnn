@@ -10,13 +10,13 @@ from lofarnn.models.dataloaders.utils import get_lotss_objects
 
 lobjects = get_lotss_objects("/home/bieker/Downloads/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits")
 
-source = lobjects[lobjects["Source_Name"] == "ILTJ105737.86+561810.0"]
+source = lobjects[lobjects["Source_Name"] == "ILTJ110249.44+502810.4"]
 
-#print(source["RA"])
-#print(source["DEC"])
-#source_coord = SkyCoord(source["RA"], source["DEC"], unit="deg")
-#print(source_coord)
-#exit()
+print(source["RA"])
+print(source["DEC"])
+source_coord = SkyCoord(source["RA"], source["DEC"], unit="deg")
+print(source_coord)
+exit()
 
 onlyfiles = [
     f
