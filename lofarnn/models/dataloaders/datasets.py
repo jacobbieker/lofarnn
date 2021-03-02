@@ -50,6 +50,7 @@ class RadioSourceDataset(Dataset):
                 anno = anno.item()
             # print(np.count_nonzero(anno["optical_labels"][:num_sources]))
             #if anno["height"] == anno["width"] == 200:
+            new_anno.append(anno)
             if (
                 remove_no_source
                 and np.count_nonzero(anno["optical_labels"][:num_sources]) != 0
@@ -98,6 +99,8 @@ class RadioSourceDataset(Dataset):
         source[2] = source[2] / 7.0  # Redshift
         source = np.asarray(source)
         label = anno["optical_labels"][self.mapping[idx][1]]
+        if self.mapping[idx][1] == 0:
+            label = True
         # First one is Optical, second one is Not
         if label:
             label = np.array([1, 0])  # True
