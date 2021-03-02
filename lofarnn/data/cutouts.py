@@ -365,7 +365,7 @@ def get_zoomed_image(
     img_center_w = int(image.shape[1] / 2)
 
     current_flux = 0.0
-    central_size = 15
+    central_size = 2
     print(threshold)
     # Convert threshold from mJy to Jy, same as image
     threshold *= 0.001
