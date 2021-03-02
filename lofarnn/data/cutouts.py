@@ -301,7 +301,7 @@ def remove_unresolved_sources_from_view(
         component_cat.Source_Name == source_name
         ]
     print(f"Component Sources: {len(comp_sources)}")
-    comp_dict = {s: [] for s in comp_non_sources["Source_Name"].values}
+    comp_dict = {s: [] for s in comp_sources["Source_Name"].values}
     for s, idx in zip(comp_non_sources["Source_Name"].values, comp_non_sources.index):
         comp_dict[s].append(idx)
     if len(non_sources) >= 1:
@@ -310,8 +310,9 @@ def remove_unresolved_sources_from_view(
             print(unresolved_source)
             try:
                 same_one = comp_dict[str(unresolved_source, "utf-8")]
-                relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
             except KeyError:
+                # Only want ones that are not components
+                relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
                 pass
             #if str(unresolved_source, "utf-8") in comp_non_sources: # So Gauss either diff name, or in comp
             #    relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
