@@ -44,12 +44,7 @@ def main(args):
             pin_memory=True,
         )
         experiment_name = args.experiment + f"frac_{frac}"
-        if environment == "XPS":
-            output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
-        else:
-            output_dir = os.path.join(
-                "/home/s2153246/data/", "reports", experiment_name
-            )
+        output_dir = os.path.join("/home/jacob/", "reports", experiment_name)
         os.makedirs(output_dir, exist_ok=True)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         config = {
