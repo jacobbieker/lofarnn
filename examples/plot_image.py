@@ -20,13 +20,13 @@ source = lobjects[lobjects["Source_Name"] == "ILTJ105737.86+561810.0"]
 
 onlyfiles = [
     f
-    for f in listdir("/home/bieker/LoTSS_DR1_999_Check/LoTSS_DR1_Cleaned_999_DoubleCheck//COCO/all/")
-    if isfile(join("/home/bieker/LoTSS_DR1_999_Check/LoTSS_DR1_Cleaned_999_DoubleCheck//COCO/all/", f))
+    for f in listdir("/home/bieker/LoTSS_DR1_Cleaned_110_Check2/COCO/all/")
+    if isfile(join("/home/bieker/LoTSS_DR1_Cleaned_110_Check2/COCO/all/", f))
 ]
 
 for f in onlyfiles:
     data = np.load(
-        join("/home/bieker/LoTSS_DR1_999_Check/LoTSS_DR1_Cleaned_999_DoubleCheck/COCO/all/", f), allow_pickle=True, fix_imports=True
+        join("/home/bieker/LoTSS_DR1_Cleaned_110_Check2/COCO/all/", f), allow_pickle=True, fix_imports=True
     )
     #print(data)
     #exit()
