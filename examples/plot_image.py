@@ -6,6 +6,7 @@ import numpy as np
 from astropy.coordinates import SkyCoord
 from lofarnn.data.cutouts import convert_to_valid_color
 from astropy.io import fits
+from astropy.table import Table
 from lofarnn.models.dataloaders.utils import get_lotss_objects
 from astropy import units as u
 from radio_beam import Beam
@@ -14,8 +15,24 @@ from astropy.wcs.utils import skycoord_to_pixel, proj_plane_pixel_scales
 
 lobjects = get_lotss_objects("/home/bieker/Downloads/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits")
 
-source = lobjects[lobjects["Source_Name"] == "ILTJ110249.44+502810.4"]
+gauss_catalog = "/home/bieker/Downloads/LOFAR_HBA_T1_DR1_catalog_v0.99.gaus.fits"
+component_catalog = "/home/bieker/Downloads/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
+# Use component Name from comp catalog to select gaussian
+gauss_cat = Table.read(gauss_catalog).to_pandas()
+component_catalog = Table.read(component_catalog).to_pandas()
 
+source = lobjects[lobjects["Source_Name"] == "ILTJ110249.44+502810.4"]
+source_name = source["Source_Name"]
+print(component_catalog.columns)
+exit()
+comp_cat = component_catalog[
+    component_catalog.Source_Name == source_name
+    ]
+non_sources = gauss_cat[
+    gauss_cat.Source_Name != str.encode(source_name)
+    ]  # Select all those not part of source
+print(comp_cat)
+exit()
 data = fits.open("/home/bieker/Downloads/P10Hetdex-mosaic.fits")
 print(data[0].header)
 wcs = WCS(data[0].header)

@@ -265,21 +265,13 @@ def remove_unresolved_sources_from_view(
     component_catalog = component_catalog.to_pandas()
     # Turn Gauss cat into dict
     gauss_dict = {str(s, "utf-8"): [] for s in gauss_cat["Source_Name"].values}
-    for s, idx in zip(gauss_cat["Source_Name"].values, gauss_cat.index):
+    for s, idx in zip(gauss_cat["Component_Name"].values, gauss_cat.index):
         gauss_dict[str(s, "utf-8")].append(idx)
     # print(gauss_dict)
     # For each unresolved source
     # UNnresolved source is from a special cutout lofarnn_things stuff, have to change for here
     # Mostly need to change input, take all those that have the same Source Name areas, and keep those, subtract out
     # All others in cutout that don't have the same Source Name as the source
-    box_dim = (
-        (gauss_cat["RA"] >= min_ra)
-        & (gauss_cat["RA"] <= max_ra)
-        & (gauss_cat["DEC"] >= min_dec)
-        & (gauss_cat["DEC"] <= max_dec)
-    )
-    # Get accompanying value added catalogue datarow
-    compcat_subset = gauss_cat[box_dim]
     box_dim = (
             (component_catalog["RA"] >= min_ra)
             & (component_catalog["RA"] <= max_ra)
@@ -289,11 +281,6 @@ def remove_unresolved_sources_from_view(
     component_cat = component_catalog[box_dim]
     print(f"Source: {source_name} {str.encode(source_name)}")
     #print(f"Compcat: {compcat_subset.Source_Name}")
-    #for _ in range(len(compcat_subset.Source_Name)):
-        #print(f"Equal: {compcat_subset.Source_Name != str.encode(source_name)}")
-    non_sources = compcat_subset[
-        compcat_subset.Source_Name != str.encode(source_name)
-    ]  # Select all those not part of source
     comp_non_sources = component_cat[
         component_cat.Source_Name != source_name
         ]  # Select all those not part of source
@@ -302,20 +289,14 @@ def remove_unresolved_sources_from_view(
         ]
     print(f"Component Sources: {len(comp_sources)}")
     print(f"Component Non Sources: {len(comp_non_sources)}")
-    print(f"Gaussian Non Sources: {len(non_sources)}")
     comp_dict = {s: [] for s in comp_sources["Source_Name"].values}
     for s, idx in zip(comp_sources["Source_Name"].values, comp_sources.index):
         comp_dict[s].append(idx)
-    if len(non_sources) >= 1:
-        for unresolved_source in non_sources["Source_Name"]:
+    if len(comp_non_sources) >= 1:
+        for unresolved_source in comp_non_sources["Component_Name"]:
             # Get relevant catalogue entries
             print(unresolved_source)
-            try:
-                same_one = comp_dict[str(unresolved_source, "utf-8")]
-            except KeyError:
-                # Only want ones that are not components
-                relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
-                pass
+            relevant_idxs.append(gauss_dict[unresolved_source])
             #if str(unresolved_source, "utf-8") in comp_non_sources: # So Gauss either diff name, or in comp
             #    relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
 
@@ -371,7 +352,7 @@ def get_zoomed_image(
     img_center_h = int(image.shape[0] / 2)
     img_center_w = int(image.shape[1] / 2)
 
-    current_flux = 0.0
+    current_flux = -100
     central_size = 15
     print(threshold)
     # Convert threshold from mJy to Jy, same as image
