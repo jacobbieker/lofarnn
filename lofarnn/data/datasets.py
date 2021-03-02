@@ -272,7 +272,7 @@ def create_cutouts(
                     debug=verbose,
                 )
 
-                if np.sum(residual) >= source["Total_flux"]*0.001: # convert to Jy for flux
+                if np.sum(residual) >= source["Total_flux"][0]*0.001: # convert to Jy for flux
                     # Source is most likely in view, so use it
                     lhdu[0].data = residual
 

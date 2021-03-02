@@ -3,6 +3,7 @@ from typing import List, Union
 
 import numpy as np
 import torch
+import cv2
 from torch.utils.data import Dataset
 
 
@@ -48,15 +49,15 @@ class RadioSourceDataset(Dataset):
             if isinstance(anno, np.ndarray):
                 anno = anno.item()
             # print(np.count_nonzero(anno["optical_labels"][:num_sources]))
-            if anno["height"] == anno["width"] == 200:
-                if (
-                    remove_no_source
-                    and np.count_nonzero(anno["optical_labels"][:num_sources]) != 0
-                ):
-                    # Check if there is a source within the cutoff, if not, ignore it as well, unless we want non source ones
-                    new_anno.append(anno)
-                elif not remove_no_source:
-                    new_anno.append(anno)
+            #if anno["height"] == anno["width"] == 200:
+            if (
+                remove_no_source
+                and np.count_nonzero(anno["optical_labels"][:num_sources]) != 0
+            ):
+                # Check if there is a source within the cutoff, if not, ignore it as well, unless we want non source ones
+                new_anno.append(anno)
+            elif not remove_no_source:
+                new_anno.append(anno)
         self.annotations = new_anno
         print(f"Len Anno After Purge: {len(self.annotations)}")
 
@@ -87,6 +88,7 @@ class RadioSourceDataset(Dataset):
         """
         anno = self.annotations[self.mapping[idx][0]]
         image = np.load(anno["file_name"], fix_imports=True)
+        image = cv2.resize(image, dsize=(200, 200), interpolation=cv2.INTER_CUBIC)
         image = image.reshape((1, image.shape[0], image.shape[1]))
         image = torch.from_numpy(image).float()
         source = anno["optical_sources"][self.mapping[idx][1]]
@@ -163,6 +165,7 @@ class RadioSourceDataset(Dataset):
             anno["file_name"].replace("/run/media/jacob/T7", "/home/jacob"),
             fix_imports=True,
         )
+        image = cv2.resize(image, dsize=(200, 200), interpolation=cv2.INTER_CUBIC)
         image = image.reshape((1, anno["height"], anno["width"]))
         # print(image.shape)
         for i, item in enumerate(anno["optical_sources"]):

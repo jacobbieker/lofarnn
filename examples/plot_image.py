@@ -5,28 +5,60 @@ import matplotlib.pyplot as plt
 import numpy as np
 from astropy.coordinates import SkyCoord
 from lofarnn.data.cutouts import convert_to_valid_color
-
+from astropy.io import fits
 from lofarnn.models.dataloaders.utils import get_lotss_objects
+from astropy import units as u
+from radio_beam import Beam
+from astropy.wcs import WCS
+from astropy.wcs.utils import skycoord_to_pixel, proj_plane_pixel_scales
 
 lobjects = get_lotss_objects("/home/bieker/Downloads/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits")
 
 source = lobjects[lobjects["Source_Name"] == "ILTJ110249.44+502810.4"]
 
+data = fits.open("/home/bieker/Downloads/P10Hetdex-mosaic.fits")
+print(data[0].header)
+wcs = WCS(data[0].header)
+beam = Beam.from_fits_header(data[0].header)
+beams_per_pixel = proj_plane_pixel_scales(wcs)[0] ** 2 / (beam.minor * beam.major * 1.1331) * u.beam
+print(beams_per_pixel)
+print(beam)
+print(wcs)
+print(proj_plane_pixel_scales(wcs))
+#exit()
+
+# Need to convert to Jy from Jy/beam, so multiply by the beam
+#exit()
 print(source["RA"])
 print(source["DEC"])
-source_coord = SkyCoord(source["RA"], source["DEC"], unit="deg")
-print(source_coord)
+image = np.nan_to_num(data[0].data)
+print(np.min(image))
+print(np.max(image))
+image *= u.Jy/u.beam #((proj_plane_pixel_scales(wcs)[0]*u.arcsec)**2)
+image = image.to(u.Jy/u.beam)
+print(np.sum(image))
+image = image*beams_per_pixel
+print(np.sum(image))
 exit()
+#print(np.sum(image.to(u.mJy/((proj_plane_pixel_scales(wcs)[0]*u.arcsec)**2), equivalencies=u.beam_angular_area(beam))))
+#exit()
+#value = source["Total_flux"][0] * u.mJy/((proj_plane_pixel_scales(wcs)[0]*u.arcsec)**2)
+#value2 = value.to(u.mJy/u.beam, equivalencies=u.beam_angular_area(beam))
+#print(value2)
+#print(value.to(u.Jy))
+#source_coord = SkyCoord(source["RA"], source["DEC"], unit="deg")
+#print(source_coord)
+#exit()
 
 onlyfiles = [
     f
-    for f in listdir("/home/bieker/LoTSS_DR1_Cleaned_110_Check2/COCO/all/")
-    if isfile(join("/home/bieker/LoTSS_DR1_Cleaned_110_Check2/COCO/all/", f))
+    for f in listdir("/home/bieker/LoTSS_DR1_Cleaned_110_Check2_NoCompCheck/COCO/all/")
+    if isfile(join("/home/bieker/LoTSS_DR1_Cleaned_110_Check2_NoCompCheck/COCO/all/", f))
 ]
 
 for f in onlyfiles:
     data = np.load(
-        join("/home/bieker/LoTSS_DR1_Cleaned_110_Check2/COCO/all/", f), allow_pickle=True, fix_imports=True
+        join("/home/bieker/LoTSS_DR1_Cleaned_110_Check2_NoCompCheck/COCO/all/", f), allow_pickle=True, fix_imports=True
     )
     #print(data)
     #exit()
