@@ -365,7 +365,7 @@ def get_zoomed_image(
     img_center_w = int(image.shape[1] / 2)
 
     current_flux = 0.0
-    central_size = 4
+    central_size = 10
     while current_flux >= threshold:
         central_size += 1
         if img_center_w - central_size < 0:

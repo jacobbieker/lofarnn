@@ -12,21 +12,21 @@ lobjects = get_lotss_objects("/home/bieker/Downloads/LOFAR_HBA_T1_DR1_merge_ID_o
 
 source = lobjects[lobjects["Source_Name"] == "ILTJ105737.86+561810.0"]
 
-print(source["RA"])
-print(source["DEC"])
-source_coord = SkyCoord(source["RA"], source["DEC"], unit="deg")
-print(source_coord)
-exit()
+#print(source["RA"])
+#print(source["DEC"])
+#source_coord = SkyCoord(source["RA"], source["DEC"], unit="deg")
+#print(source_coord)
+#exit()
 
 onlyfiles = [
     f
-    for f in listdir("/home/bieker/LoTSS_DR1_Cleaned_999_fixed/COCO/all/")
-    if isfile(join("/home/bieker/LoTSS_DR1_Cleaned_999_fixed/COCO/all/", f))
+    for f in listdir("/home/bieker/LoTSS_DR1_110/COCO/all/")
+    if isfile(join("/home/bieker/LoTSS_DR1_110/COCO/all/", f))
 ]
 
 for f in onlyfiles:
     data = np.load(
-        join("/home/bieker/LoTSS_DR1_Cleaned_999_fixed/COCO/all/", f), allow_pickle=True, fix_imports=True
+        join("/home/bieker/LoTSS_DR1_110/COCO/all/", f), allow_pickle=True, fix_imports=True
     )
     #print(data)
     #exit()
@@ -66,5 +66,6 @@ for f in onlyfiles:
         plt.ylabel("DEC")
         plt.imshow(img[:, :, :3])
         plt.savefig(f"{f.split('.npy')[0]}_999.png", dpi=300)
+        plt.show()
         plt.cla()
         plt.clf()
