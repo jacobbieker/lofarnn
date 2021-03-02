@@ -279,7 +279,7 @@ def create_cutouts(
                 # Get size of where there is 90% of the flux of the image
                 if kwargs.get("zoom_image", False):
                     lhdu[0].data, wcs, central_size, center, lrms[0].data = get_zoomed_image(
-                        lhdu[0].data, rms_img=lrms[0].data, wcs=wcs, threshold=1.1*source['Total_flux']
+                        lhdu[0].data, rms_img=lrms[0].data, wcs=wcs, threshold=0.999*np.sum(lhdu[0].data)
                     )
             if lrms[0].data.shape != lhdu[0].data.shape:
                 continue
