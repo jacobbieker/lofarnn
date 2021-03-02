@@ -365,7 +365,7 @@ def get_zoomed_image(
     img_center_w = int(image.shape[1] / 2)
 
     current_flux = 0.0
-    central_size = 15
+    central_size = 5
     print(threshold)
     while current_flux <= threshold:
         print(f"Current Flux: {current_flux} <= {threshold}")
