@@ -88,7 +88,7 @@ class RadioSourceDataset(Dataset):
         Given a single index, get the single source, image, and label for it
         """
         anno = self.annotations[self.mapping[idx][0]]
-        image = np.load(anno["file_name"], fix_imports=True)
+        image = np.load(anno["file_name"], fix_imports=True)[:,:,0]
         image = cv2.resize(image, dsize=(200, 200), interpolation=cv2.INTER_CUBIC)
         image = image.reshape((1, image.shape[0], image.shape[1]))
         image = torch.from_numpy(image).float()
