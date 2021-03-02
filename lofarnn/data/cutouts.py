@@ -301,8 +301,10 @@ def remove_unresolved_sources_from_view(
         component_cat.Source_Name == source_name
         ]
     print(f"Component Sources: {len(comp_sources)}")
+    print(f"Component Non Sources: {len(comp_non_sources)}")
+    print(f"Gaussian Non Sources: {len(non_sources)}")
     comp_dict = {s: [] for s in comp_sources["Source_Name"].values}
-    for s, idx in zip(comp_non_sources["Source_Name"].values, comp_non_sources.index):
+    for s, idx in zip(comp_sources["Source_Name"].values, comp_sources.index):
         comp_dict[s].append(idx)
     if len(non_sources) >= 1:
         for unresolved_source in non_sources["Source_Name"]:
