@@ -206,7 +206,7 @@ def test(
                 data["labels"].to(device),
                 data["names"],
             )
-            output = model(image)
+            output = model(image, source)
             # sum up batch loss
             if config["loss"] == "cross-entropy":
                 try:
@@ -294,13 +294,14 @@ def train(
         reduction="mean",
     )
     for batch_idx, data in enumerate(train_loader):
-        image, labels, names = (
+        image, source, labels, names = (
             data["images"].to(device),
+            data["sources"].to(device),
             data["labels"].to(device),
             data["names"],
         )
         optimizer.zero_grad()
-        output = model(image)
+        output = model(image, source)
         if config["loss"] == "cross-entropy":
             loss = F.binary_cross_entropy(F.softmax(output, dim=-1), labels)
         elif config["loss"] == "f1":
