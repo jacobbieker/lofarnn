@@ -24,6 +24,7 @@ component_catalog = Table.read(component_catalog).to_pandas()
 source = lobjects[lobjects["Source_Name"] == "ILTJ110249.44+502810.4"]
 source_name = source["Source_Name"]
 print(component_catalog.columns)
+print(gauss_cat.columns)
 exit()
 comp_cat = component_catalog[
     component_catalog.Source_Name == source_name

@@ -265,7 +265,7 @@ def remove_unresolved_sources_from_view(
     component_catalog = component_catalog.to_pandas()
     # Turn Gauss cat into dict
     gauss_dict = {str(s, "utf-8"): [] for s in gauss_cat["Source_Name"].values}
-    for s, idx in zip(gauss_cat["Component_Name"].values, gauss_cat.index):
+    for s, idx in zip(gauss_cat["Source_Name"].values, gauss_cat.index):
         gauss_dict[str(s, "utf-8")].append(idx)
     # print(gauss_dict)
     # For each unresolved source
@@ -289,9 +289,6 @@ def remove_unresolved_sources_from_view(
         ]
     print(f"Component Sources: {len(comp_sources)}")
     print(f"Component Non Sources: {len(comp_non_sources)}")
-    comp_dict = {s: [] for s in comp_sources["Source_Name"].values}
-    for s, idx in zip(comp_sources["Source_Name"].values, comp_sources.index):
-        comp_dict[s].append(idx)
     if len(comp_non_sources) >= 1:
         for unresolved_source in comp_non_sources["Component_Name"]:
             # Get relevant catalogue entries
