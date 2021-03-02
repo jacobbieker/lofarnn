@@ -288,15 +288,19 @@ def remove_unresolved_sources_from_view(
     )
     component_cat = component_catalog[box_dim]
     print(f"Source: {source_name} {str.encode(source_name)}")
-    print(f"Compcat: {compcat_subset.Source_Name}")
-    for _ in range(len(compcat_subset.Source_Name)):
-        print(f"Equal: {compcat_subset.Source_Name != str.encode(source_name)}")
+    #print(f"Compcat: {compcat_subset.Source_Name}")
+    #for _ in range(len(compcat_subset.Source_Name)):
+        #print(f"Equal: {compcat_subset.Source_Name != str.encode(source_name)}")
     non_sources = compcat_subset[
         compcat_subset.Source_Name != str.encode(source_name)
     ]  # Select all those not part of source
     comp_non_sources = component_cat[
-        component_cat.Source_Name != str.encode(source_name)
+        component_cat.Source_Name != source_name
         ]  # Select all those not part of source
+    comp_sources = component_cat[
+        component_cat.Source_Name == source_name
+        ]
+    print(f"Component Sources: {len(comp_sources)}")
     comp_dict = {s: [] for s in comp_non_sources["Source_Name"].values}
     for s, idx in zip(comp_non_sources["Source_Name"].values, comp_non_sources.index):
         comp_dict[s].append(idx)
@@ -304,9 +308,9 @@ def remove_unresolved_sources_from_view(
         for unresolved_source in non_sources["Source_Name"]:
             # Get relevant catalogue entries
             print(unresolved_source)
-            relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
             try:
                 same_one = comp_dict[str(unresolved_source, "utf-8")]
+                relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
             except KeyError:
                 pass
             #if str(unresolved_source, "utf-8") in comp_non_sources: # So Gauss either diff name, or in comp
