@@ -368,7 +368,7 @@ def get_zoomed_image(
     central_size = 15
     print(threshold)
     while current_flux <= threshold:
-        print(f"Current Flux: {current_flux} <= threshold")
+        print(f"Current Flux: {current_flux} <= {threshold}")
         central_size += 1
         if img_center_w - central_size < 0:
             # Too large, not have all the flux, so just return the original image, not the residual
