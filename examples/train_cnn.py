@@ -58,11 +58,11 @@ def main(args):
         }
         config["alpha_2"] = 1.0 - config["alpha_1"]
         if args.single and not args.embed_source:
-            model = RadioSingleSourceModel(3, 12, config=config).to(device)
+            model = RadioSingleSourceModel(1, 12, config=config).to(device)
         elif args.embed_source:
-            model = RadioEmbeddedSourceModel(3 + 10, config=config).to(device)
+            model = RadioEmbeddedSourceModel(1 + 10, config=config).to(device)
         else:
-            model = RadioMultiSourceModel(3, args.classes, config=config).to(device)
+            model = RadioMultiSourceModel(1, args.classes, config=config).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
         if args.lr_type == "plateau":
             scheduler = ReduceLROnPlateau(optimizer, "min", patience=3)
