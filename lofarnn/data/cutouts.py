@@ -293,7 +293,11 @@ def remove_unresolved_sources_from_view(
         for unresolved_source in comp_non_sources["Component_Name"]:
             # Get relevant catalogue entries
             print(unresolved_source)
-            relevant_idxs.append(gauss_dict[unresolved_source])
+            try:
+                relevant_idxs.append(gauss_dict[unresolved_source])
+            except KeyError:
+                print(f"Could not find {unresolved_source}")
+                print(gauss_cat[gauss_cat.Source_Name == str.encode(unresolved_source)])
             #if str(unresolved_source, "utf-8") in comp_non_sources: # So Gauss either diff name, or in comp
             #    relevant_idxs.append(gauss_dict[str(unresolved_source, "utf-8")])
 
