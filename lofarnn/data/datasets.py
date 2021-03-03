@@ -288,9 +288,9 @@ def create_cutouts(
             sigma_cutoff = kwargs.get("sigma_cutoff", -1)
             if sigma_cutoff >= 0:
                 img_array[0] = np.where(img_array[0] < sigma_cutoff, 0, img_array[0])
-            if is_image_artifact(image=img_array[0], central_size=4):
-                print(f"Skipping b/c Artifact: {source['Source_Name']}")
-                continue
+            #if is_image_artifact(image=img_array[0], central_size=10):
+            #    print(f"Skipping b/c Artifact: {source['Source_Name']}")
+            #    continue
             if kwargs.get("radio_only", False):
                 bounding_boxes = np.array([])
                 proposal_boxes = np.array([])

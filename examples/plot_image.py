@@ -20,7 +20,7 @@ component_catalog = "/home/bieker/Downloads/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.
 # Use component Name from comp catalog to select gaussian
 gauss_cat = Table.read(gauss_catalog).to_pandas()
 component_catalog = Table.read(component_catalog).to_pandas()
-
+"""
 source = lobjects[lobjects["Source_Name"] == "ILTJ110249.44+502810.4"]
 source_name = source["Source_Name"]
 print(component_catalog.columns)
@@ -67,16 +67,16 @@ exit()
 #source_coord = SkyCoord(source["RA"], source["DEC"], unit="deg")
 #print(source_coord)
 #exit()
-
+"""
 onlyfiles = [
     f
-    for f in listdir("/home/bieker/LoTSS_DR1_Cleaned_110_Check2_NoCompCheck/COCO/all/")
-    if isfile(join("/home/bieker/LoTSS_DR1_Cleaned_110_Check2_NoCompCheck/COCO/all/", f))
+    for f in listdir("/home/bieker/LoTSS_DR1_Cleaned_ComponentName/COCO/all/")
+    if isfile(join("/home/bieker/LoTSS_DR1_Cleaned_ComponentName/COCO/all/", f))
 ]
 
 for f in onlyfiles:
     data = np.load(
-        join("/home/bieker/LoTSS_DR1_Cleaned_110_Check2_NoCompCheck/COCO/all/", f), allow_pickle=True, fix_imports=True
+        join("/home/bieker/LoTSS_DR1_Cleaned_ComponentName/COCO/all/", f), allow_pickle=True, fix_imports=True
     )
     #print(data)
     #exit()
