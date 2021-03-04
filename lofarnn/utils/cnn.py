@@ -173,10 +173,10 @@ def make_single_cnn_set(
             optical_labels = []
             for j, obj in enumerate(objects):
                 optical_sources.append([])
-                print(f"Object: {obj['objID']} Source: {source['objID'].data} \n {obj['AllWISE']} {source['AllWISE'].data}")
+                print(f"Object: {obj['objID']} Source: {source['objID'].data[0]} \n {obj['AllWISE']} {source['AllWISE'].data[0]}")
                 if (
-                    obj["objID"] == source["objID"].data
-                    and obj["AllWISE"] == source["AllWISE"].data
+                    obj["objID"] == source["objID"].data[0]
+                    and obj["AllWISE"] == source["AllWISE"].data[0]
                 ):
                     optical_labels.append(1)  # Optical Source
                 else:
