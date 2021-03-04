@@ -40,7 +40,7 @@ def make_single_cnn_set(
 ):
     pan_wise_catalog = fits.open(pan_wise_location, memmap=True)
     pan_wise_catalog = pan_wise_catalog[1].data
-    vac_catalog = get_lotss_objects(vac_catalog_location)
+    vac_catalog = get_lotss_objects(vac_catalog_location, verbose=False)
     for i, image_name in enumerate(image_names):
         # Get image dimensions and insert them in a python dict
         record_dest_filename = os.path.join(
@@ -173,6 +173,7 @@ def make_single_cnn_set(
             optical_labels = []
             for j, obj in enumerate(objects):
                 optical_sources.append([])
+                print(f"Object: {obj['objID']} Source: {source['objID'].data} \n {obj['AllWISE']} {source['AllWISE'].data}")
                 if (
                     obj["objID"] == source["objID"].data
                     and obj["AllWISE"] == source["AllWISE"].data

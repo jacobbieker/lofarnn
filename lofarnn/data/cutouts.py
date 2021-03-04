@@ -109,6 +109,7 @@ def augment_image_and_bboxes(
     bounding_boxes = []
     prop_boxes = []
     seg_boxes = []
+    new_size = image.shape[0]
     new_crop = int(
         np.ceil(image.shape[0])
     )  # Is 200 for 282, which is what is wanted, and works for others
