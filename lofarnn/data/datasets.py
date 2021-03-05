@@ -219,7 +219,7 @@ def create_cutouts(
             if source_size is None or source_size is False:
                 source_size = np.max([(
                     source[kwargs.get("size_name", "LGZ_Size")] * 1.5
-                ) / 3600.0, 30.0])  # in arcseconds converted to archours
+                ) / 3600.0, 30.0/3600.])  # in arcseconds converted to archours
             try:
                 lhdu = extract_subimage(
                     lofar_data_location,
@@ -233,6 +233,7 @@ def create_cutouts(
                     print(
                         f"Failed to make data cutout for source: {source['Source_Name']}"
                     )
+                exit()
                 continue
             try:
                 lrms = extract_subimage(
@@ -247,6 +248,7 @@ def create_cutouts(
                     print(
                         f"Failed to make rms cutout for source: {source['Source_Name']}"
                     )
+                exit()
                 continue
             header = lhdu[0].header
             wcs = WCS(header)

@@ -160,7 +160,7 @@ def make_single_cnn_set(
             ) = determine_visible_catalogue_source_and_separation(
                 source["RA"],
                 source["DEC"],
-                np.max([source[kwargs.get("size_name", "LGZ_Size")] * 1.5 / 3600.0, 30.]), # 20. is min cutout size
+                np.max([source[kwargs.get("size_name", "LGZ_Size")] * 1.5 / 3600.0, 30./3600.]), # 20. is min cutout size
                 pan_wise_catalog,
             )
             # Sort from closest to farthest distance
