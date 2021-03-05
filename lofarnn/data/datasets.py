@@ -217,9 +217,9 @@ def create_cutouts(
             source_dec = source["DEC"]
             # Get the size of the cutout needed
             if source_size is None or source_size is False:
-                source_size = (
+                source_size = np.max([(
                     source[kwargs.get("size_name", "LGZ_Size")] * 1.5
-                ) / 3600.0  # in arcseconds converted to archours
+                ) / 3600.0, 30.0])  # in arcseconds converted to archours
             try:
                 lhdu = extract_subimage(
                     lofar_data_location,

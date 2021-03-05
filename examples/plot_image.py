@@ -12,8 +12,12 @@ from astropy import units as u
 from radio_beam import Beam
 from astropy.wcs import WCS
 from astropy.wcs.utils import skycoord_to_pixel, proj_plane_pixel_scales
-
 lobjects = get_lotss_objects("/home/bieker/Downloads/LOFAR_HBA_T1_DR1_merge_ID_optical_f_v1.2_restframe.fits")
+
+lobjects.info()
+print(f"Min/Max: ObjID: {np.min(lobjects['objID'].data)}/{np.max(lobjects['objID'].data)}")
+print(f"Min/Max: PS: {lobjects['AllWISE'].data}")
+#exit()
 
 gauss_catalog = "/home/bieker/Downloads/LOFAR_HBA_T1_DR1_catalog_v0.99.gaus.fits"
 component_catalog = "/home/bieker/Downloads/LOFAR_HBA_T1_DR1_merge_ID_v1.2.comp.fits"
