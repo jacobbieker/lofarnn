@@ -349,8 +349,6 @@ def get_zoomed_image(
 ) -> [np.ndarray, WCS, int, Tuple[int, int]]:
     """Gets the image where 90% of the flux is, returns the min bounding box around 90% of the flux"""
 
-    total_flux = np.sum(image)
-
     img_center_h = int(image.shape[0] / 2)
     img_center_w = int(image.shape[1] / 2)
 
@@ -368,7 +366,7 @@ def get_zoomed_image(
             img_center_h - central_size : img_center_h + central_size,
             img_center_w - central_size : img_center_w + central_size,
         ]
-        current_flux = np.sum(center)
+        current_flux = np.nansum(center)
 
     cutout = Cutout2D(
         image,
