@@ -233,7 +233,7 @@ def create_cutouts(
                     print(
                         f"Failed to make data cutout for source: {source['Source_Name']}"
                     )
-                exit()
+                #exit()
                 continue
             try:
                 lrms = extract_subimage(
@@ -248,7 +248,7 @@ def create_cutouts(
                     print(
                         f"Failed to make rms cutout for source: {source['Source_Name']}"
                     )
-                exit()
+                #exit()
                 continue
             header = lhdu[0].header
             wcs = WCS(header)
