@@ -232,7 +232,7 @@ def test(
             correct += pred.eq(label.view_as(pred)).sum().item()
 
             # Now get named recall ones
-            if not args.single:
+            if not args.single and not args.embed_source:
                 for i in range(len(names)):
                     # Assumes testing is with batch size of 1
                     named_recalls[names[i]] = pred.eq(label.view_as(pred)).sum().item()

@@ -76,6 +76,16 @@ def main(args):
         else:
             scheduler = None
         print("Model created")
+        test(
+            args,
+            model,
+            device,
+            val_loader,
+            0,
+            "Val",
+            output_dir,
+            config,
+        )
         for epoch in range(args.epochs):
             train(
                 args,

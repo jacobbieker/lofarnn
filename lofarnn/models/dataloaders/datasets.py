@@ -137,16 +137,19 @@ class RadioSourceDataset(Dataset):
             if source[1] == radio_source["AllWISE"].data[0] or (str(source[1]) == 'N/A' and str(radio_source["AllWISE"].data[0]) == 'N/A'):
                 new_label = True
 
-        source = source[3:]  # Remove the IDs, etc.
-        # Encode into the image one-hot encoding, appending n channels
-        source_pix_loc = anno["optical_skycoords"][self.mapping[idx][1]].to_pixel(
-            wcs=anno["wcs"]
-        )
+        source = source[6:]  # Remove the IDs, Angles, etc. etc.
+        #print(source)
+        if source[0] < 0:
+            source[0] = 0.0
         optical_channels = np.zeros(
-            (image.shape[0], image.shape[1], len(source[3:])), dtype=np.float
+            (image.shape[0], image.shape[1], len(source)), dtype=np.float
         )
         try:
-            for i, band in enumerate(source[3:]):
+            # Encode into the image one-hot encoding, appending n channels
+            source_pix_loc = anno["optical_skycoords"][self.mapping[idx][1]].to_pixel(
+                wcs=anno["wcs"]
+            )
+            for i, band in enumerate(source):
                 optical_channels[int(source_pix_loc[0]), int(source_pix_loc[1]), i] = band
         except:
             new_label = False
