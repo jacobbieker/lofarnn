@@ -17,6 +17,7 @@ import torch
 
 
 def main(args):
+    scaler = torch.cuda.amp.GradScaler()
     for frac in [1.0]:
         args.fraction = frac
         train_dataset, train_test_dataset, val_dataset, test_dataset = setup(args)
@@ -44,7 +45,7 @@ def main(args):
             pin_memory=True,
         )
         experiment_name = args.experiment + f"frac_{frac}"
-        output_dir = os.path.join("/data/", "reports", experiment_name)
+        output_dir = os.path.join("/home/bieker/", "reports", experiment_name)
         os.makedirs(output_dir, exist_ok=True)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         config = {

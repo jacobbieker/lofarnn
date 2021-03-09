@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import cv2
 from torch.utils.data import Dataset
+from lofarnn.data.datasets import get_lotss_objects
 
 
 class RadioSourceDataset(Dataset):
@@ -13,6 +14,7 @@ class RadioSourceDataset(Dataset):
     def __init__(
         self,
         json_file: Union[str, List[str]],
+        vac_source: str,
         single_source_per_img: bool = True,
         num_sources: int = 40,
         shuffle: bool = False,
@@ -28,6 +30,7 @@ class RadioSourceDataset(Dataset):
             embed_source (bool, optional): Whether to embed single sources in the images or not, instead of returning the
             radio image + source list, it then returns a single radio image with n channels, one for each available band
         """
+        self.vac = get_lotss_objects(vac_source, verbose=False)
         if isinstance(json_file, str):
             self.annotations = pickle.load(open(json_file, "rb"), fix_imports=True)
         else:
@@ -92,17 +95,24 @@ class RadioSourceDataset(Dataset):
         image = cv2.resize(image, dsize=(200, 200), interpolation=cv2.INTER_CUBIC)
         image = image.reshape((1, image.shape[0], image.shape[1]))
         image = torch.from_numpy(image).float()
+        radio_name = self._get_source_name(anno["file_name"])
+        radio_source = self.vac[self.vac["Source_Name"] == radio_name]
         source = anno["optical_sources"][self.mapping[idx][1]]
+        # New labels
+        new_label = False
+        if source[0] == radio_source["objID"].data[0]:
+            if source[1] == radio_source["AllWISE"].data[0] or (str(source[1]) == '999999' and radio_source["AllWISE"].data[0] == ''):
+                new_label = True
         source = source[4:]  # Remove the IDs, etc.
         source[0] = source[0].value / (0.03)  # Distance (arcseconds)
         source[1] = source[1].value / (2 * np.pi)  # Convert to between 0 and 1
         source[2] = source[2] / 7.0  # Redshift
         source = np.asarray(source)
-        label = anno["optical_labels"][self.mapping[idx][1]]
-        if self.mapping[idx][1] == 0:
-            label = True
+        #label = anno["optical_labels"][self.mapping[idx][1]]
+        #if self.mapping[idx][1] == 0:
+        #    label = True
         # First one is Optical, second one is Not
-        if label:
+        if new_label:
             label = np.array([1, 0])  # True
         else:
             label = np.array([0, 1])  # False
@@ -117,11 +127,16 @@ class RadioSourceDataset(Dataset):
 
     def load_embedded_source(self, idx):
         anno = self.annotations[self.mapping[idx][0]]
-        image = np.load(
-            anno["file_name"].replace("/mnt/LargeSSD/", "/home/jacob/Development/"),
-            fix_imports=True,
-        )
+        image = np.load(anno["file_name"].replace("/data/Research/", "/home/bieker/"), fix_imports=True)[:,:,0]
+        radio_name = self._get_source_name(anno["file_name"])
+        radio_source = self.vac[self.vac["Source_Name"] == radio_name]
         source = anno["optical_sources"][self.mapping[idx][1]]
+        # New labels
+        new_label = False
+        if str(source[0]) == str(radio_source["objID"].data[0]) or (str(source[0]) == '999999' and str(radio_source["objID"].data[0]) == ''):
+            if source[1] == radio_source["AllWISE"].data[0] or (str(source[1]) == 'N/A' and str(radio_source["AllWISE"].data[0]) == 'N/A'):
+                new_label = True
+
         source = source[3:]  # Remove the IDs, etc.
         # Encode into the image one-hot encoding, appending n channels
         source_pix_loc = anno["optical_skycoords"][self.mapping[idx][1]].to_pixel(
@@ -130,14 +145,19 @@ class RadioSourceDataset(Dataset):
         optical_channels = np.zeros(
             (image.shape[0], image.shape[1], len(source[3:])), dtype=np.float
         )
-        for i, band in enumerate(source[3:]):
-            optical_channels[int(source_pix_loc[0]), int(source_pix_loc[1]), i] = band
+        try:
+            for i, band in enumerate(source[3:]):
+                optical_channels[int(source_pix_loc[0]), int(source_pix_loc[1]), i] = band
+        except:
+            new_label = False
+        image = image.reshape((image.shape[0], image.shape[1], 1))
         image = np.concatenate((image, optical_channels), axis=2)
+        image = cv2.resize(image, dsize=(200, 200), interpolation=cv2.INTER_CUBIC)
         image = np.moveaxis(image, 2, 0)
         image = torch.from_numpy(image).float()
-        label = anno["optical_labels"][self.mapping[idx][1]]
+        #label = anno["optical_labels"][self.mapping[idx][1]]
         # First one is Optical, second one is Not
-        if label:
+        if new_label:
             label = np.array([1, 0])  # True
         else:
             label = np.array([0, 1])  # False
@@ -165,7 +185,7 @@ class RadioSourceDataset(Dataset):
         """
         anno = self.annotations[idx]
         image = np.load(
-            anno["file_name"].replace("/run/media/jacob/T7", "/home/jacob"),
+            anno["file_name"],
             fix_imports=True,
         )
         image = cv2.resize(image, dsize=(200, 200), interpolation=cv2.INTER_CUBIC)

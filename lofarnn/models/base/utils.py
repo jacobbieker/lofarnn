@@ -92,6 +92,7 @@ def default_argument_parser():
         help="loss to use, from 'cross-entropy' (default), 'focal', 'f1' ",
     )
     parser.add_argument("--experiment", type=str, default="", help="experiment name")
+    parser.add_argument("--vac", type=str, default="", help="Value Added-Catalog location")
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
     parser.add_argument(
         "--lr-type",
@@ -140,7 +141,8 @@ def setup(
     Setup dataset and dataloaders for these new datasets
     """
     train_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}.pkl"),
+        os.path.join(args.dataset, f"cnn_train_test_norm{args.norm}_extra.pkl"),
+        args.vac,
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         num_sources=args.num_sources,
@@ -149,21 +151,24 @@ def setup(
         embed_source=args.embed_source,
     )
     train_test_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_test_norm{args.norm}.pkl"),
+        os.path.join(args.dataset, f"cnn_test_norm{args.norm}_extra.pkl"),
+        args.vac,
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         num_sources=args.num_sources,
         embed_source=args.embed_source,
     )
     val_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_test_norm{args.norm}.pkl"),
+        os.path.join(args.dataset, f"cnn_val_norm{args.norm}_extra.pkl"),
+        args.vac,
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         num_sources=args.num_sources,
         embed_source=args.embed_source,
     )
     test_dataset = RadioSourceDataset(
-        os.path.join(args.dataset, f"cnn_test_norm{args.norm}.pkl"),
+        os.path.join(args.dataset, f"cnn_test_norm{args.norm}_extra.pkl"),
+        args.vac,
         single_source_per_img=args.single,
         shuffle=args.shuffle,
         num_sources=args.num_sources,
@@ -206,7 +211,7 @@ def test(
                 data["labels"].to(device),
                 data["names"],
             )
-            output = model(image, source)
+            output = model(image)
             # sum up batch loss
             if config["loss"] == "cross-entropy":
                 try:
@@ -301,7 +306,7 @@ def train(
             data["names"],
         )
         optimizer.zero_grad()
-        output = model(image, source)
+        output = model(image)
         if config["loss"] == "cross-entropy":
             loss = F.binary_cross_entropy(F.softmax(output, dim=-1), labels)
         elif config["loss"] == "f1":
@@ -325,6 +330,6 @@ def train(
             )
     if args.lr_type == "plateau":
         scheduler.step(total_loss)  # LROnPlateau step is after each epoch
-    # a = np.asarray(save_loss)
-    # with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
-    #    np.savetxt(f, a, delimiter=",")
+    #a = np.asarray(save_loss)
+    #with open(os.path.join(output_dir, "train_loss.csv"), "ab") as f:
+    #   np.savetxt(f, a, delimiter=",")

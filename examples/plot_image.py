@@ -74,19 +74,25 @@ exit()
 """
 onlyfiles = [
     f
-    for f in listdir("/home/bieker/LoTSS_DR1_Cleaned_ComponentName/COCO/all/")
-    if isfile(join("/home/bieker/LoTSS_DR1_Cleaned_ComponentName/COCO/all/", f))
+    for f in listdir("/home/bieker/LoTSS_DR1_Cleaned/COCO/all/")
+    if isfile(join("/home/bieker/LoTSS_DR1_Cleaned/COCO/all/", f))
 ]
 
+i = 0
+d = 0
 for f in onlyfiles:
     data = np.load(
-        join("/home/bieker/LoTSS_DR1_Cleaned_ComponentName/COCO/all/", f), allow_pickle=True, fix_imports=True
+        join("/home/bieker/LoTSS_DR1_Cleaned/COCO/all/", f), allow_pickle=True, fix_imports=True
     )
     #print(data)
     #exit()
     wcs = data[3]
     img = np.moveaxis(data[0], 0, -1)
     print(img.shape)
+    i += 1
+    if img.shape[0] != img.shape[1]:
+        d += 1
+        continue
     if img.shape[0] >= 8:
         img[0] = convert_to_valid_color(img[0])
         #img[:, :, 0] = convert_to_valid_color(
@@ -120,6 +126,7 @@ for f in onlyfiles:
         plt.ylabel("DEC")
         plt.imshow(img[:, :, :3])
         plt.savefig(f"{f.split('.npy')[0]}_999.png", dpi=300)
-        plt.show()
+        #plt.show()
         plt.cla()
         plt.clf()
+print(f"{d}/{i}: {d/i}")

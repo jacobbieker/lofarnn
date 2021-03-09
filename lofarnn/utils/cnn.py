@@ -173,6 +173,7 @@ def make_single_cnn_set(
             optical_labels = []
             for j, obj in enumerate(objects):
                 optical_sources.append([])
+                # 999999 == '' in source for AllWISE
                 print(f"Object: {obj['objID']} Source: {source['objID'].data[0]} \n {obj['AllWISE']} {source['AllWISE'].data[0]}")
                 if (
                     obj["objID"] == source["objID"].data[0]
