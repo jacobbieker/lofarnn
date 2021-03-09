@@ -100,8 +100,8 @@ class RadioSourceDataset(Dataset):
         source = anno["optical_sources"][self.mapping[idx][1]]
         # New labels
         new_label = False
-        if source[0] == radio_source["objID"].data[0]:
-            if source[1] == radio_source["AllWISE"].data[0] or (str(source[1]) == '999999' and radio_source["AllWISE"].data[0] == ''):
+        if str(source[0]) == str(radio_source["objID"].data[0]) or (str(source[0]) == '999999' and str(radio_source["objID"].data[0]) == ''):
+            if source[1] == radio_source["AllWISE"].data[0] or (str(source[1]) == 'N/A' and str(radio_source["AllWISE"].data[0]) == 'N/A'):
                 new_label = True
         source = source[4:]  # Remove the IDs, etc.
         source[0] = source[0].value / (0.03)  # Distance (arcseconds)
@@ -139,6 +139,7 @@ class RadioSourceDataset(Dataset):
 
         source = source[6:]  # Remove the IDs, Angles, etc. etc.
         #print(source)
+        source[0] /= 7.0 # Redshift
         if source[0] < 0:
             source[0] = 0.0
         optical_channels = np.zeros(
