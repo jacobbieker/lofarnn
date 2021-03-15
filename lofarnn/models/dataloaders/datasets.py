@@ -188,16 +188,23 @@ class RadioSourceDataset(Dataset):
         Given single index, get all the sources and labels, shuffling the order
         """
         anno = self.annotations[idx]
-        image = np.load(
-            anno["file_name"],
-            fix_imports=True,
-        )
+        image = np.load(anno["file_name"], fix_imports=True)[:,:,0]
         image = cv2.resize(image, dsize=(200, 200), interpolation=cv2.INTER_CUBIC)
-        image = image.reshape((1, anno["height"], anno["width"]))
+        image = image.reshape((1, image.shape[0], image.shape[1]))
+        radio_name = self._get_source_name(anno["file_name"])
+        radio_source = self.vac[self.vac["Source_Name"] == radio_name]
         # print(image.shape)
+        new_labels = []
         for i, item in enumerate(anno["optical_sources"]):
+            if str(anno["optical_sources"][i][0]) == str(radio_source["objID"].data[0]) or (str(anno["optical_sources"][i][0]) == '999999' and str(radio_source["objID"].data[0]) == ''):
+                if anno["optical_sources"][i][1] == radio_source["AllWISE"].data[0] or (str(anno["optical_sources"][i][1]) == 'N/A' and str(radio_source["AllWISE"].data[0]) == 'N/A'):
+                    new_labels.append(1)
+                else:
+                    new_labels.append(0)
+            else:
+                new_labels.append(0)
             anno["optical_sources"][i] = anno["optical_sources"][i][
-                3:
+                4:
             ]  # Remove the IDs, etc.
             anno["optical_sources"][i][0] = (
                 anno["optical_sources"][i][0].value - 0.0
@@ -215,6 +222,7 @@ class RadioSourceDataset(Dataset):
         anno["optical_sources"].insert(
             0, [0 for _ in range(len(anno["optical_sources"][0]))]
         )
+        anno["optical_labels"] = new_labels
         if np.max(anno["optical_sources"][: (self.num_sources - 1)]) == 0:
             anno["optical_labels"].insert(
                 0, 1

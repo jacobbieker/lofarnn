@@ -19,6 +19,7 @@ from skimage.transform import rotate
 from astropy.nddata import Cutout2D
 from astropy.wcs import WCS
 from astropy.table import Table
+import astropy.units as u
 
 flatten = lambda t: [item for sublist in t for item in sublist]
 
@@ -382,3 +383,28 @@ def get_zoomed_image(
     )
 
     return cutout.data, cutout.wcs, central_size, (img_center_h, img_center_w), rms_cutout.data
+
+
+def get_central_image(
+        image: np.ndarray, rms_img: np.ndarray, wcs: WCS, new_size: u.Quantity
+) -> [np.ndarray, np.ndarray, WCS]:
+    """Gets central new_size area of images, new_size should be in arcseconds"""
+
+    img_center_h = int(image.shape[0] / 2)
+    img_center_w = int(image.shape[1] / 2)
+
+    cutout = Cutout2D(
+        image,
+        position=(img_center_h, img_center_w),
+        size=new_size,
+        wcs=wcs,
+    )
+    rms_cutout = Cutout2D(
+        rms_img,
+        position=(img_center_h, img_center_w),
+        size=new_size,
+        wcs=wcs,
+    )
+
+    return cutout.data, rms_cutout.data, cutout.wcs
+

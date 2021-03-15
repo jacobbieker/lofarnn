@@ -9,6 +9,7 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
 from astropy.wcs.utils import skycoord_to_pixel
+import astropy.units as u
 
 from lofarnn.models.dataloaders.utils import get_lotss_objects
 from lofarnn.utils.common import create_coco_style_directory_structure
@@ -17,6 +18,7 @@ from lofarnn.visualization.cutouts import plot_three_channel_debug
 from lofarnn.data.cutouts import (
     remove_unresolved_sources_from_view,
     is_image_artifact,
+    get_central_image,
     get_zoomed_image,
 )
 
@@ -217,7 +219,7 @@ def create_cutouts(
             source_dec = source["DEC"]
             # Get the size of the cutout needed
             if source_size is None or source_size is False:
-                source_size = np.max([(
+                source_size = 4*np.max([(
                     source[kwargs.get("size_name", "LGZ_Size")] * 1.5
                 ) / 3600.0, 30.0/3600.])  # in arcseconds converted to archours
             try:
@@ -277,7 +279,11 @@ def create_cutouts(
                 #if np.sum(residual) >= np.sum(lhdu[0]): # convert to Jy for flux
                 # Source is most likely in view, so use it
                 lhdu[0].data = residual
-
+                # Need 1/4th of it now,
+                new_source_size = (source_size/4)
+                new_source_size_arc = new_source_size*u.arcsecond
+                lhdu[0].data, lrms[0].data, wcs = get_central_image(lhdu[0].data, lrms[0].data, wcs, new_size=new_source_size_arc)
+                source_size = new_source_size
                 # Get size of where there is 90% of the flux of the image
                 if kwargs.get("zoom_image", False):
                     lhdu[0].data, wcs, central_size, center, lrms[0].data = get_zoomed_image(
