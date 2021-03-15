@@ -280,10 +280,10 @@ def create_cutouts(
                 # Source is most likely in view, so use it
                 lhdu[0].data = residual
                 # Need 1/4th of it now,
-                new_source_size = (source_size/4)
-                new_source_size_arc = new_source_size*u.arcsecond
-                lhdu[0].data, lrms[0].data, wcs = get_central_image(lhdu[0].data, lrms[0].data, wcs, new_size=new_source_size_arc)
-                source_size = new_source_size
+                #new_source_size = (source_size/4)
+                #new_source_size_arc = new_source_size*u.arcsecond
+                #lhdu[0].data, lrms[0].data, wcs = get_central_image(lhdu[0].data, lrms[0].data, wcs, new_size=new_source_size_arc)
+                #source_size = new_source_size
                 # Get size of where there is 90% of the flux of the image
                 if kwargs.get("zoom_image", False):
                     lhdu[0].data, wcs, central_size, center, lrms[0].data = get_zoomed_image(
