@@ -74,15 +74,15 @@ exit()
 """
 onlyfiles = [
     f
-    for f in listdir("/home/bieker/LoTSS_DR1_Cleaned/COCO/all/")
-    if isfile(join("/home/bieker/LoTSS_DR1_Cleaned/COCO/all/", f))
+    for f in listdir("/home/bieker/LoTSS_DR1_Cleaned_Wider/COCO/all/")
+    if isfile(join("/home/bieker/LoTSS_DR1_Cleaned_Wider/COCO/all/", f))
 ]
 
 i = 0
 d = 0
 for f in onlyfiles:
     data = np.load(
-        join("/home/bieker/LoTSS_DR1_Cleaned/COCO/all/", f), allow_pickle=True, fix_imports=True
+        join("/home/bieker/LoTSS_DR1_Cleaned_Wider/COCO/all/", f), allow_pickle=True, fix_imports=True
     )
     #print(data)
     #exit()
