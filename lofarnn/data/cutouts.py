@@ -386,7 +386,7 @@ def get_zoomed_image(
 
 
 def get_central_image(
-        image: np.ndarray, rms_img: np.ndarray, wcs: WCS, new_size: u.Quantity
+        image: np.ndarray, rms_img: np.ndarray, wcs: WCS, new_size: float
 ) -> [np.ndarray, np.ndarray, WCS]:
     """Gets central new_size area of images, new_size should be in arcseconds"""
 
