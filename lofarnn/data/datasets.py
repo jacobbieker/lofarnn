@@ -219,6 +219,7 @@ def create_cutouts(
             source_ra = source["RA"]
             source_dec = source["DEC"]
             # Get the size of the cutout needed
+            source_size = None
             if source_size is None or source_size is False:
                 source_size = 4*np.max([(
                     source[kwargs.get("size_name", "LGZ_Size")] * 1.5
