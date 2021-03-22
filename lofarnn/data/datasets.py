@@ -223,6 +223,7 @@ def create_cutouts(
                 source_size = 4*np.max([(
                     source[kwargs.get("size_name", "LGZ_Size")] * 1.5
                 ) / 3600.0, 30.0/3600.])  # in arcseconds converted to archours
+                print(f"Source Size Original: Arc: {source_size}")
             try:
                 lhdu = extract_subimage(
                     lofar_data_location,
