@@ -283,7 +283,8 @@ def create_cutouts(
                 # Need 1/4th of it now,
                 new_source_size = (source_size/4)
                 psize = int((new_source_size / lhdu[0].header["CDELT2"]))
-                print(psize)
+                orig = int((source_size / lhdu[0].header["CDELT2"]))
+                print(f"Original Size: Pixels: {source_size} Arc: {orig} \n New Size: Pixels: {new_source_size} Arc: {psize}")
                 new_source_size_arc = psize
                 lhdu[0].data, lrms[0].data, wcs = get_central_image(lhdu[0].data, lrms[0].data, wcs, new_size=new_source_size_arc)
                 print(lhdu[0].data.shape)
