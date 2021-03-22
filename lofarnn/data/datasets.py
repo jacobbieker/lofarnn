@@ -8,6 +8,7 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
+from astropy.wcs.utils import proj_plane_pixel_scales
 from astropy.wcs.utils import skycoord_to_pixel
 import astropy.units as u
 
@@ -281,8 +282,13 @@ def create_cutouts(
                 lhdu[0].data = residual
                 # Need 1/4th of it now,
                 new_source_size = (source_size/4)
-                new_source_size_arc = new_source_size*u.arcsecond
+                new_source_size_arc = new_source_size
+                pixel_scales = proj_plane_pixel_scales(wcs)
+                print(pixel_scales)
+                new_source_size_arc = new_source_size_arc*pixel_scales[0]
+                print(new_source_size_arc)
                 lhdu[0].data, lrms[0].data, wcs = get_central_image(lhdu[0].data, lrms[0].data, wcs, new_size=new_source_size_arc)
+                print(lhdu[0].data.shape)
                 source_size = new_source_size
                 # Get size of where there is 90% of the flux of the image
                 if kwargs.get("zoom_image", False):
